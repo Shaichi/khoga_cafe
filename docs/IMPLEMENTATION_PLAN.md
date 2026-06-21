@@ -1,0 +1,318 @@
+# Kế hoạch hoàn thiện Backend Khoga Coffee Shop
+
+## Bối cảnh (Context)
+
+Repo hiện chỉ có **base framework** (`com.khoga.common` = 22 entity + 22 repository + `ApiResponse` + exception/`GlobalExceptionHandler`; `com.khoga.config` = JPA/CORS/OpenAPI). **Toàn bộ 12 subsystem nghiệp vụ + 6 khối hạ tầng đều chưa code** — không có controller/service/component nào, chưa có Spring Security.
+
+Tài liệu thiết kế (`docs/sections/` = URD, `docs/rds_sections/` = RDS) đặc tả **83 use case (UC-01→83)**, **~95 business rule (BR)**, 22 bảng và các thuật toán phức tạp (pipeline checkout BR-70, trừ kho theo recipe UC-62/BR-89, đối soát ca, COGS/shrinkage, loyalty, anomaly...).
+
+Mục tiêu của plan này: lộ trình **chia nhỏ tới từng UC** để team build backend tới khi hoàn chỉnh, theo **thứ tự phụ thuộc** (hạ tầng → master data → vận hành → báo cáo), không bị rework.
+
+**Quyết định đã chốt với người dùng:**
+- Trình tự: **theo dependency** (P0→P3, + P1B, P4 cứng hóa).
+- Phạm vi: **Backend REST API + Test**, **adapter tích hợp ngoài dạng interface + stub** (VietQR/SMTP/Printer), **seed + bootstrap + CI**. *Không* làm Thymeleaf/Flutter trong plan này (Flutter là project riêng `khoga_pos_app/`).
+- Auth làm **MVP trước** (login + JWT + RBAC + khóa tài khoản + đổi mật khẩu lần đầu); **MFA/OTP/quên mật khẩu để Phase 1B** (sau khi có SMTP stub).
+- Độ chi tiết: mỗi UC = 1 nhiệm vụ + checklist bước con; có tham chiếu UC/BR + tiêu chí hoàn thành.
+
+## Cách dùng plan & quy ước (Legend)
+
+Mỗi UC là 1 nhiệm vụ với checklist 6 bước (theo lát cắt dọc của module):
+`DTO → Repository (query bổ sung) → Service/Logic (enforce BR) → Controller → Validation → Test`, kết bằng **✅ Done** (tiêu chí acceptance).
+
+Quy ước bắt buộc (xem [CLAUDE.md](CLAUDE.md)) áp dụng cho MỌI task, không lặp lại trong từng UC:
+- **Entity & repository đã có sẵn** trong `common` — KHÔNG tạo entity mới trong package feature; chỉ thêm query method vào repository `common`, và đặt controller/service/component trong package feature `com.khoga.<tên>`.
+- Controller luôn trả `ApiResponse<T>`; lỗi nghiệp vụ `throw AppException` (→400) / `ResourceNotFoundException` (→404), KHÔNG try-catch thủ công.
+- PK = UUID; enum lưu `EnumType.STRING`; endpoint prefix `/api/v1/`; mọi entity đã `extends BaseEntity`.
+- Mỗi UC có thiết kế chi tiết trong `docs/rds_sections/`, yêu cầu trong `docs/sections/` — đọc đúng file của subsystem trước khi code.
+
+## Tổng quan các Phase (thứ tự phụ thuộc)
+
+| Phase | Tên | Nội dung | Phụ thuộc |
+|---|---|---|---|
+| **P0** | Hạ tầng & nền tảng | Security/JWT, conventions, Audit, Integration stub, Scheduler skeleton, Seed/Bootstrap, CI, **Auth MVP** | (gốc) |
+| **P1** | Master data | Branch, User mgmt, Catalog, Voucher, Customer | P0 |
+| **P1B** | Hoàn thiện Auth | Quên mật khẩu (UC-03/04/05), MFA OTP (BR-83) | P0 + SMTP stub |
+| **P2** | Vận hành | Inventory, POS, Order, Staff | P1 |
+| **P3** | Báo cáo & BI | Report (HQ/store/COGS/anomaly/loyalty/Z-report/audit) | P1 + P2 |
+| **P4** | Cứng hóa | Integration thật, PDPA jobs, session invalidation, i18n, performance, E2E | P1–P3 |
+
+---
+
+## PHASE 0 — Hạ tầng & nền tảng
+
+> Mục tiêu: dựng đủ "khung xương" để mọi feature phía sau chỉ việc cắm vào. Kết thúc P0 phải đăng nhập được, bảo vệ endpoint theo role, và có dữ liệu seed.
+
+### 0.1 Cấu hình build & bảo mật nền
+- [ ] Thêm dependency: `spring-boot-starter-security`, thư viện JWT (`io.jsonwebtoken:jjwt` hoặc dùng `spring-boot-starter-oauth2-resource-server`), `spring-boot-starter-mail`, test deps (đã có `*-test`). *Lưu ý Boot 4.x tên starter tách (`-webmvc`).*
+  - ✅ Done: `./mvnw clean package` xanh với deps mới.
+- [ ] `SecurityConfig` (`com.khoga.config`): `SecurityFilterChain` stateless, `BCryptPasswordEncoder` bean, bật `@EnableMethodSecurity`, mở `/api/v1/auth/**` + `/swagger-ui/**` + `/v3/api-docs/**`, còn lại `authenticated()`.
+- [ ] `JwtTokenProvider` (`com.khoga.auth`): tạo/parse JWT mang `userId`, `role`, `storeId`; TTL theo NFR (HQ 2h, branch 8h).
+- [ ] `JwtAuthenticationFilter`: đọc header `Authorization: Bearer`, set `SecurityContext`.
+  - ✅ Done: gọi endpoint bảo vệ không token → 401; có token hợp lệ → qua; sai role → 403.
+
+### 0.2 Chuẩn hóa shared (bổ sung `common`)
+- [ ] Bổ sung `GlobalExceptionHandler`: handler cho `MethodArgumentNotValidException` (gom lỗi field) + `AccessDeniedException` (403) + `AuthenticationException` (401), tất cả trả `ApiResponse.error`.
+- [ ] DTO phân trang dùng chung `PageResponse<T>` (BR-20 mặc định 20 bản ghi/trang).
+- [ ] Chuẩn mapper entity↔DTO (MapStruct hoặc mapper thủ công — chọn 1, ghi vào CLAUDE.md).
+  - ✅ Done: lỗi validation trả JSON đúng chuẩn `ApiResponse` kèm danh sách field.
+
+### 0.3 Audit subsystem (`com.khoga.audit`)
+- [ ] `AuditLogService.record(actionType, entity, oldJson, newJson, userId)` ghi `AuditLog` (append-only).
+- [ ] Cơ chế kích hoạt: AOP `@Around`/`@EntityListener` cho thay đổi giá menu (BR-68), voucher (BR-68), tài khoản (BR-81), áp voucher/điểm khi checkout (BR-80).
+- [ ] Đảm bảo bất biến: không expose update/delete `AuditLog`.
+  - ✅ Done: thay đổi giá 1 menu item ghi đúng 1 dòng audit với old/new JSON.
+
+### 0.4 Integration adapters (`com.khoga.integration`) — interface + stub
+- [ ] `EmailService` (interface) + `EmailServiceStub` (log ra console, dùng cho dev/test) + chỗ cho `SmtpEmailService` (P4). Toggle qua property/profile.
+- [ ] `VietQrClient` (interface) + `VietQrClientStub` (sinh QR giả, callback giả lập). Idempotency key = orderId (BR-84).
+- [ ] `PrinterService` (interface) + `PrinterServiceStub` (log receipt/label).
+  - ✅ Done: service tầng trên gọi qua interface; bật stub mặc định ở profile `dev`/`test`.
+
+### 0.5 Scheduler skeleton (`com.khoga.scheduler`)
+- [ ] `@EnableScheduling` + khai báo rỗng (no-op + log) cho 5 timer: `OrderTimeoutScheduler` (1 phút), `ShiftAutoCloseScheduler` (23:59), `LowStockAlertScheduler` (22:00), `PhotoAutoDeleteScheduler` (02:00), `OtpExpiryScheduler`. Logic thật điền ở phase tương ứng.
+  - ✅ Done: app log đúng các nhịp timer; chưa cần logic.
+
+### 0.6 Seed & Bootstrap
+- [ ] Seeder (`CommandLineRunner` hoặc `data.sql`): tạo `ssadmin` đầu tiên (BR-82, `mustChangePassword=true`), 1 `Store` mẫu.
+- [ ] Seed `SystemConfig` mặc định: `VAT_RATE`, `LOYALTY_ACCRUAL_PERCENTAGE`, `LOYALTY_REDEMPTION_VALUE_PER_POINT=100`, `LOYALTY_MAX_REDEMPTION_PERCENT/LIMIT`, `MAX_ACTIVE_BRANCHES`, `HQ_MFA_REQUIRED=true`, `CANCEL_REFUND_ALERT_THRESHOLD` (BR-45/54/94).
+- [ ] Dữ liệu mẫu dev (category/menu/raw material) để test nhanh — chỉ chạy ở profile `dev`.
+  - ✅ Done: chạy lần đầu DB rỗng → đăng nhập được bằng ssadmin seed.
+
+### 0.7 CI
+- [ ] GitHub Actions: `mvn -B verify` trên push/PR (JDK 21).
+  - ✅ Done: pipeline xanh.
+
+### 0.8 Auth MVP (`com.khoga.auth`) — *defer MFA/quên mật khẩu sang P1B*
+- [ ] **UC-01 Login** — BR-10, BR-11, BR-14
+  - DTO `LoginRequest{username,password}`, `LoginResponse{token,role,mustChangePassword}`
+  - Repo: `UserRepository.findByUsername`
+  - Service: verify BCrypt; chặn `isActive=false` (BR-10); đếm `failedAttempts`, khóa 15' sau 5 lần sai (BR-11) qua `lockExpiryAt`; reset khi đúng; cập nhật `lastLoginAt`; phát JWT
+  - Controller: `POST /api/v1/auth/login`
+  - Validation: @NotBlank
+  - Test: đúng → token; sai 5 lần → khóa; account inactive → 400
+  - ✅ Done: đăng nhập trả JWT; lockout hoạt động đúng BR-11.
+- [ ] **UC-06 Buộc đổi mật khẩu lần đầu** — BR-12, BR-22, BR-14, BR-15
+  - DTO `ForcePasswordChangeRequest`
+  - Service: nếu `mustChangePassword=true` chỉ cho phép endpoint này; đặt mật khẩu mới (policy BR-14, khác mật khẩu cũ BR-15), set `mustChangePassword=false`, phát JWT
+  - Controller: `POST /api/v1/auth/force-password-change`
+  - Validation: `PasswordPolicyValidator` (≥8, hoa/thường/số/ký tự đặc biệt)
+  - Test: mật khẩu yếu 400; trùng cũ 400; OK → đăng nhập bình thường
+  - ✅ Done: user mới buộc đổi mật khẩu trước khi vào hệ thống.
+- [ ] **UC-02 Logout** — BR-13, BR-60
+  - Service: ghi thời điểm logout; KHÔNG đóng shift session (BR-60). (Token stateless: blacklist nhẹ hoặc client xóa token — ghi rõ lựa chọn.)
+  - Controller: `POST /api/v1/auth/logout`
+  - ✅ Done: logout không ảnh hưởng ca POS đang mở.
+- [ ] **UC-07 Xem profile / UC-08 Cập nhật profile** — BR-19
+  - DTO `ProfileResponse`, `ProfileUpdateRequest{email,phone}`
+  - Service: lấy user từ token; cập nhật chỉ email/phone
+  - Controller: `GET /api/v1/profile`, `PUT /api/v1/profile`
+  - Test: cập nhật email/phone OK; không cho đổi role/username
+  - ✅ Done: user tự xem/sửa liên hệ của mình.
+- [ ] **UC-09 Đổi mật khẩu (đang đăng nhập)** — BR-14, BR-15
+  - DTO `ChangePasswordRequest{current,new}`
+  - Service: verify mật khẩu hiện tại; áp policy; cập nhật hash + `passwordLastChangedAt`; audit
+  - Controller: `POST /api/v1/auth/change-password`
+  - Test: sai current 400; mật khẩu mới yếu 400; OK
+  - ✅ Done: đổi mật khẩu an toàn, ghi audit.
+
+---
+
+## PHASE 1 — Master data
+
+> Mục tiêu: tạo đủ dữ liệu gốc (chi nhánh, người dùng, menu/recipe, voucher, khách hàng) để Phase 2 vận hành có cái mà dùng.
+
+### 1.1 Branch (`com.khoga.branch`) — phụ thuộc: Store, SystemConfig, User
+- [ ] **UC-63 Xem danh sách chi nhánh** — BR-44
+  - DTO `BranchResponse`; Repo: `findAll` + filter `isActive`; Controller `GET /api/v1/branches`; phân trang; Test danh sách + lọc trạng thái. ✅ Done: liệt kê + lọc Active/Inactive.
+- [ ] **UC-64 Thêm chi nhánh** — BR-54
+  - Service: đếm chi nhánh active < `MAX_ACTIVE_BRANCHES` (BR-54) else AppException; tạo Store; audit
+  - Controller `POST /api/v1/branches`; Validation tên duy nhất, phone 10–12 số; Test vượt cap → 400. ✅ Done: chặn vượt cap.
+- [ ] **UC-65 Sửa/Vô hiệu hóa chi nhánh** — BR-55, BR-56
+  - Service: chặn deactivate nếu còn ca OPEN hoặc order chưa terminal (BR-55); cascade: vô hiệu user của store + xóa lịch tương lai + giữ lịch sử read-only (BR-56)
+  - Controller `PUT /api/v1/branches/{id}`, `POST /api/v1/branches/{id}/deactivate`; Test có ca mở → chặn. ✅ Done: cascade đúng BR-56.
+- [ ] **UC-42 Cấu hình chi nhánh (storemanager)** — BR-47, BR-48
+  - Service: lưu override branch-scope vào `SystemConfig` (timezone, máy in IP/COM); chỉ SM của chính branch
+  - Controller `PUT /api/v1/branches/{id}/settings`; Test SM branch khác → 403. ✅ Done: SM sửa được cấu hình branch mình.
+
+### 1.2 User management (`com.khoga.user`) — phụ thuộc: User, Store, Audit, EmailService stub
+- [ ] **UC-10 Danh sách user** — BR-20 — `GET /api/v1/users` lọc role/search, phân trang 20. ✅ Done: phân trang + lọc.
+- [ ] **UC-11 Thêm user** — BR-22, BR-57, BR-58, BR-81
+  - Service: kiểm tra username duy nhất; `UsernameGenerator` (BR-58), EMP id (BR-57); sinh mật khẩu tạm + BCrypt; `mustChangePassword=true`; gửi welcome email (stub); audit CREATE (BR-81)
+  - Controller `POST /api/v1/users`; Test trùng username 400. ✅ Done: tạo user + email tạm + audit.
+- [ ] **UC-12 Sửa user** — BR-19, BR-82, BR-81
+  - Service: chặn tự nâng quyền/đổi trạng thái chính mình (BR-82); cập nhật role/branch/status; audit UPDATE. Controller `PUT /api/v1/users/{id}`; Test self-escalation → 400. ✅ Done: không tự nâng quyền.
+- [ ] **UC-13 Chi tiết user + lịch sử** — BR-21 — `GET /api/v1/users/{id}` kèm 50 login gần nhất + audit của user. ✅ Done: hiện chi tiết + audit.
+- [ ] **UC-14 Vô hiệu/Kích hoạt user** — BR-23, BR-81, BR-18
+  - Service: chặn vô hiệu ssadmin active cuối cùng (BR-23); set isActive; (P4: hủy token BR-18); audit. Controller `POST /api/v1/users/{id}/deactivate`; Test last-admin → 400. ✅ Done: bảo vệ admin cuối.
+
+### 1.3 Catalog (`com.khoga.catalog`) — phụ thuộc: Category, MenuItem, OptionTopping, RawMaterial, RecipeItem, BranchMenuStatus, Audit
+- [ ] **UC-16/17/69/70 Category CRUD** — BR-30, BR-31, BR-62
+  - Service: tạo/sửa; xóa mềm chỉ khi rỗng/đã soft-delete hết item (BR-31); khi archive thì gỡ liên kết item→uncategorized (BR-62)
+  - Controller `POST/PUT/GET/DELETE /api/v1/categories`; Test xóa category còn item active → 400. ✅ Done: ràng buộc xóa đúng BR-31/62.
+- [ ] **UC-18 Thêm Menu item + Recipe** — BR-26, BR-29, BR-73
+  - DTO gồm danh sách recipe line; Service: sinh `abbreviation` từ tên bỏ dấu + chống trùng (BR-26); validate đơn vị recipe khớp đúng `RawMaterial.unit`, không quy đổi (BR-73); barcode duy nhất
+  - Controller `POST /api/v1/menu-items`; Test sai đơn vị recipe → 400. ✅ Done: tạo món + công thức hợp lệ.
+- [ ] **UC-19 Sửa Menu item + Recipe / toggle availability** — BR-68, BR-25, BR-30
+  - Service: đổi giá → audit (BR-68); SM toggle `BranchMenuStatus.isAvailable` (mô hình 2 mức: active toàn chuỗi AND available tại branch — BR-25)
+  - Controller `PUT /api/v1/menu-items/{id}`, `PUT /api/v1/menu-items/{id}/availability`; Test đổi giá ghi audit. ✅ Done: đổi giá có audit; toggle branch hoạt động.
+- [ ] **UC-68 Chi tiết menu / UC-15,69 List** — BR-24 — `GET` list (search autocomplete, lọc category, trạng thái) + detail (kèm recipe + topping). ✅ Done: list + detail đầy đủ.
+- [ ] **UC-72 Xóa Menu item** — BR-28 — xóa mềm (`isDeleted=true`) để giữ lịch sử bán. ✅ Done: không hard-delete.
+- [ ] **UC-71 Quản lý Topping & Option** — BR-29, BR-65 — CRUD `OptionTopping` (giá có thể = 0); topping có recipe riêng (BR-65). `POST/PUT/DELETE /api/v1/menu-items/{id}/toppings`. ✅ Done: topping + recipe riêng.
+- [ ] **UC-74 Quản lý Raw Material Master** — BR-63, BR-64, BR-73 — chỉ businessadmin; `code` bất biến (BR-63); đơn vị khóa khi đã có giao dịch (BR-64); xóa mềm. `POST/PUT/GET /api/v1/raw-materials`. ✅ Done: master nguyên liệu + ràng buộc bất biến.
+
+### 1.4 Voucher (`com.khoga.voucher`) — phụ thuộc: Voucher, Audit
+- [ ] **UC-20 List voucher** — BR-52 — `GET /api/v1/vouchers` kèm trạng thái tính động SCHEDULED/ACTIVE/EXPIRED (`VoucherStatusEngine`). ✅ Done: hiện đúng trạng thái.
+- [ ] **UC-21 Thêm voucher** — BR-40, BR-42 — tạo; nếu PERCENTAGE bắt buộc `maxDiscountAmount` (cap BR-42); code duy nhất; audit (BR-68). `POST /api/v1/vouchers`. ✅ Done: tạo voucher hợp lệ + audit.
+- [ ] **UC-22 Sửa voucher** — BR-40 — sửa mọi field trừ `code` (bất biến); audit. `PUT /api/v1/vouchers/{id}`; Test sửa code → 400. ✅ Done: code bất biến.
+- [ ] **UC-23 Vô hiệu/Xóa voucher** — BR-41 — deactivate dừng mọi redemption ngay (BR-41); audit. `POST /api/v1/vouchers/{id}/deactivate`. ✅ Done: vô hiệu chặn dùng ngay.
+- [ ] **Service dùng lại: `VoucherValidationService.validate(code, order)`** — kiểm tra status ACTIVE, min order, usage limit/khách; trả discount (cap BR-42). *Dùng bởi POS UC-48.* ✅ Done: hàm validate tái sử dụng ở checkout.
+
+### 1.5 Customer (`com.khoga.customer`) — phụ thuộc: Customer, Audit
+- [ ] **UC-24 List khách / UC-27 Lịch sử** — `GET /api/v1/customers` (search phone/tên), `GET /api/v1/customers/{id}/history`. ✅ Done: tra cứu + lịch sử.
+- [ ] **UC-25 Thêm khách** — BR-71 — bắt buộc consent PDPA (`consentAt`,`consentVersion`) trước khi lưu phone/email; phone duy nhất. `POST /api/v1/customers`; Test thiếu consent → 400. ✅ Done: enrol có consent.
+- [ ] **UC-26 Cập nhật khách / điều chỉnh điểm** — BR-49 — sửa tên/email; điều chỉnh điểm thủ công chỉ businessadmin + bắt buộc lý do; audit. `PUT /api/v1/customers/{id}`. ✅ Done: chỉnh điểm có lý do + log.
+- [ ] **Component dùng lại: `LoyaltyPointCalculator`** — BR-01, BR-02, BR-74, BR-69
+  - `calcEarned(netTotal, accrual%)` = floor (BR-01, base = Net Total Payable BR-69); `calcRedeemValue(points)` = points×`VALUE_PER_POINT` (bội số 100, BR-74); enforce cap %/tuyệt đối (BR-02)
+  - Test: tính điểm + cap chính xác. *Dùng bởi POS UC-49 và Order rollback.* ✅ Done: engine điểm chuẩn, có test số học.
+
+---
+
+## PHASE 1B — Hoàn thiện Auth (MFA + Quên mật khẩu)
+
+> Không chặn P1/P2 (đã có login MVP). Chỉ cần SMTP stub (P0.4) + nơi lưu OTP. Quyết định lưu OTP: in-memory cache (`ConcurrentHashMap`/Caffeine) cho bản đầu — ghi rõ hạn chế (không sống sót restart/đa node), nâng cấp ở P4.
+
+- [ ] **UC-03 Quên mật khẩu** — BR-16
+  - Service: `findByEmail`; sinh OTP 6 số; lưu OTP + hạn 10' (BR-16); gửi email (stub). Controller `POST /api/v1/auth/forgot-password`. ✅ Done: gửi OTP qua email stub.
+- [ ] **UC-04 Xác thực OTP** — BR-16, BR-17
+  - Service: verify OTP + còn hạn; tối đa 3 lần sai → khóa (BR-17). Controller `POST /api/v1/auth/verify-otp`. ✅ Done: chặn quá 3 lần OTP.
+- [ ] **UC-05 Đặt lại mật khẩu** — BR-14, BR-15
+  - Service: sau OTP hợp lệ, đặt mật khẩu mới (policy); xóa OTP. Controller `POST /api/v1/auth/reset-password`. ✅ Done: reset xong đăng nhập được.
+- [ ] **MFA cho HQ khi login** — BR-83, BR-16, BR-17
+  - Service: nếu `HQ_MFA_REQUIRED=true` và role ∈ {ceoviewer,businessadmin,ssadmin}: sau verify mật khẩu, phát "MFA challenge" (chưa phát JWT thật), gửi OTP email; chỉ phát JWT khi `submitOtp` đúng. Branch role bỏ qua.
+  - Controller: mở rộng `POST /api/v1/auth/login` (trả trạng thái `MFA_REQUIRED`) + `POST /api/v1/auth/login/mfa`.
+  - Test: HQ phải nhập OTP; branch role không cần. ✅ Done: HQ bắt buộc 2 lớp theo BR-83.
+- [ ] **`OtpExpiryScheduler`**: dọn OTP quá hạn (điền logic vào skeleton P0.5). ✅ Done: OTP hết hạn bị dọn.
+
+---
+
+## PHASE 2 — Vận hành (Operations)
+
+> Phần lõi nghiệp vụ & thuật toán phức tạp nhất. Thứ tự nội bộ: Inventory → POS → Order → Staff (POS tạo order, Order chuyển PREPARING kích hoạt trừ kho của Inventory).
+
+### 2.1 Inventory (`com.khoga.inventory`) — phụ thuộc: RawMaterial, StockItem, StockTransaction, RecipeItem; Email stub
+- [ ] **UC-31 Xem tồn kho** — `GET /api/v1/stock` (lọc dưới ngưỡng); phân trang. ✅ Done: list + lọc low-stock.
+- [ ] **UC-32 Nhập kho** — Service: tăng `currentQuantity`, ghi `StockTransaction(IMPORT)` kèm before/after; qty>0. `POST /api/v1/stock/import`. ✅ Done: nhập + ledger.
+- [ ] **UC-33 Xuất kho** — Service: giảm tồn, ghi `EXPORT` + lý do. `POST /api/v1/stock/export`. ✅ Done: xuất + lý do.
+- [ ] **UC-34 Kiểm kê** — BR-32 — Service: đặt tồn = thực đếm, ghi `AUDIT_ADJUSTMENT` + delta; bắt buộc note nếu lệch (BR-32). `POST /api/v1/stock/audit`. ✅ Done: kiểm kê bắt buộc note khi lệch.
+- [ ] **UC-61 Lịch sử nhập/xuất** — `GET /api/v1/stock/transactions` lọc loại/khoảng ngày. ✅ Done: tra ledger.
+- [ ] **UC-62 Tự trừ kho theo recipe (component `RecipeDeductionEngine`)** — BR-07, BR-65, BR-89
+  - Logic: khi order PENDING→PREPARING, lấy `RecipeItem` của từng `OrderItem` + topping (BR-65); trừ tồn (cho phép âm — BR-89); ghi `RECIPE_DEDUCTION` (managerId=null); nếu âm → ghi `PHANTOM_USAGE` + bắn cảnh báo low-stock; KHÔNG hoàn kho khi hủy (BR-07)
+  - Test: trừ đủ nguyên liệu; tồn âm tạo phantom usage. *Gọi bởi Order 2.3.* ✅ Done: trừ kho chuẩn BR-07/89.
+- [ ] **`LowStockAlertScheduler` (22:00)** — BR-04/MSG07: quét mọi branch, gửi email SM khi `currentQuantity ≤ minAlertThreshold`. ✅ Done: cảnh báo tồn thấp hằng đêm.
+- [ ] **Cơ sở COGS** — BR-66: hàm `unitCost(menuItem/topping)=Σ(recipeQty×standardCost)`. *Dùng bởi Report 3.x.* ✅ Done: hàm COGS chuẩn standard-cost.
+
+### 2.2 POS (`com.khoga.pos`) — phụ thuộc: Catalog, Voucher, Customer, ShiftSession, Order; VietQR/Printer stub
+- [ ] **UC-44 Mở ca** — BR-33 — tạo `ShiftSession(OPEN)`, `startingCash≥0`; 1 ca OPEN/register. `POST /api/v1/shifts/open`. ✅ Done: mở ca, chặn cash âm.
+- [ ] **UC-45/46/47 Giỏ hàng** — thêm/sửa item + topping, tìm món (SKU/tên). Có thể giữ cart server-side hoặc client gửi nguyên khi submit (ghi rõ lựa chọn). ✅ Done: dựng giỏ + tìm món <100ms (NFR).
+- [ ] **UC-50 Tra cứu thành viên** — `GET /api/v1/customers?phone=` gắn vào giỏ. ✅ Done: gắn khách vào đơn.
+- [ ] **UC-48 Áp voucher** — BR-80 — gọi `VoucherValidationService` (1.4); ghi audit áp voucher (BR-80). `POST /api/v1/cart/apply-voucher`. ✅ Done: áp voucher + audit.
+- [ ] **UC-49 Đổi điểm loyalty** — BR-02, BR-74, BR-80 — gọi `LoyaltyPointCalculator` (1.5); ghi audit (BR-80). `POST /api/v1/cart/apply-loyalty`. ✅ Done: đổi điểm + cap + audit.
+- [ ] **Component `DiscountStackingEngine`** — BR-70, BR-42, BR-50, BR-69 (TRỌNG TÂM)
+  - Trình tự cứng BR-70: (1) Gross subtotal → (2) trừ voucher (cap BR-42) → (3) trừ điểm (cap %/tuyệt đối) → (4) tách VAT inclusive `tax=final×rate/(100+rate)` → (5) Net Total Payable; cap Net≥0 (BR-50); accrual tính trên Net (BR-69)
+  - Test số học từng bước + cap; snapshot tham số config tại thời điểm tạo đơn (BR-46). ✅ Done: pipeline khớp BR-70 có test bao phủ.
+- [ ] **UC-51 Thanh toán** — BR-84, BR-85
+  - CASH: nhập tiền nhận → `paymentStatus=PAID`, cộng điểm (LoyaltyCalculator), in receipt/label (stub), trả tiền thừa
+  - VIETQR: `VietQrClient.generateQr(orderId,...)` idempotency=orderId (BR-84); webhook `POST /api/v1/payments/vietqr/callback` verify chữ ký → PAID; callback cho đơn đã hủy → KHÔNG hồi sinh, đẩy hàng đợi refund (BR-85)
+  - Tạo `Order(PENDING)` + `OrderItem`/`OrderItemTopping`; Test idempotency + late callback. ✅ Done: thanh toán 3 phương thức; VietQR idempotent.
+- [ ] **UC-52 Xuất hóa đơn** — in receipt + cup label qua `PrinterService` stub. ✅ Done: phát sinh receipt/label.
+- [ ] **UC-53 Đóng ca + đối soát (component `ShiftReconciliation`)** — BR-03, BR-04
+  - Chặn đóng nếu còn order chưa terminal (BR-03); `expected=opening+ΣcashPaid−refunds`; `discrepancy=closing−expected`; lệch >100k → email SM (BR-04); sinh Z-report. `POST /api/v1/shifts/close`. ✅ Done: đối soát + cảnh báo lệch quỹ.
+- [ ] **`ShiftAutoCloseScheduler` (23:59)** — BR-88: tự đóng ca OPEN quá ngày. ✅ Done: auto-close ca quên đóng.
+
+### 2.3 Order (`com.khoga.order`) — phụ thuộc: Order, OrderItem, OrderCancellation, OrderRefund; Inventory (2.1), Customer, Voucher, Printer
+- [ ] **UC-57 Hàng đợi barista / UC-58 Cập nhật trạng thái** — state machine PENDING→PREPARING→(HOLD)→READY→COMPLETED/ABANDONED
+  - PENDING→PREPARING gọi `RecipeDeductionEngine` (2.1) ngay; `GET /api/v1/queue`, `POST /api/v1/orders/{id}/status`. ✅ Done: chuyển trạng thái hợp lệ + trừ kho khi PREPARING.
+- [ ] **UC-59 In tem / UC-60 Báo sự cố** — in cup label khi READY; HOLD khi báo sự cố. ✅ Done: in tem + HOLD.
+- [ ] **UC-54 Lịch sử đơn / UC-73 Chi tiết đơn** — `GET /api/v1/orders`, `GET /api/v1/orders/{id}` (scope theo branch). ✅ Done: tra cứu đơn theo branch.
+- [ ] **UC-55 Hủy đơn (PENDING)** — BR-05, BR-08, BR-51
+  - Guard chỉ PENDING (BR-05); ghi `OrderCancellation` bất biến (BR-51); rollback voucher (khôi phục limit) + loyalty (trừ điểm đã cộng, hoàn điểm đã dùng) (BR-08). `POST /api/v1/orders/{id}/cancel`. ✅ Done: hủy đúng trạng thái + rollback BR-08.
+- [ ] **UC-75 Refund/Comp (sau PENDING, SM duyệt)** — BR-67, BR-09
+  - Yêu cầu PIN/login SM; ghi `OrderRefund`; REFUND tiền mặt trừ quỹ ca đang mở (BR-09), card/VietQR qua gateway; đảo điểm tích/hoàn điểm đã dùng theo tỉ lệ; COMP_REMAKE tạo đơn 0đ vào lại queue (trừ kho lại). `POST /api/v1/orders/{id}/refund`. ✅ Done: refund/comp có duyệt SM + tác động quỹ/điểm.
+- [ ] **`OrderTimeoutScheduler` (1 phút)** — BR-88: READY quá 15' → ABANDONED (không hoàn kho). ✅ Done: tự bỏ đơn quá hạn.
+
+### 2.4 Staff (`com.khoga.staff`) — phụ thuộc: User, StaffSchedule, AttendanceLog; Email/Photo storage
+- [ ] **UC-35 Xem lịch / UC-66 Danh sách NV** — BR-59 — SM chỉ xem branch mình; `GET /api/v1/schedules`, `GET /api/v1/staff`. ✅ Done: scope branch (BR-59).
+- [ ] **UC-36 Tạo lịch** — BR-90, BR-92
+  - Cross-branch không cần duyệt + audit (BR-90); ràng buộc cứng `MAX_DAILY/WEEKLY_HOURS`, `MIN_REST_HOURS` (BR-92); ngân sách lao động mềm (override có lý do); chống trùng ca. `POST /api/v1/schedules`. ✅ Done: chặn vượt giờ, cảnh báo ngân sách.
+- [ ] **UC-37 Sửa lịch / UC-38 Xóa lịch** — BR-36, BR-37 — không sửa lịch quá khứ (BR-36); xóa gửi thông báo NV (BR-37). ✅ Done: bảo vệ quá khứ + thông báo.
+- [ ] **Chấm công Check-in/out** — BR-38, BR-39, BR-53, BR-93
+  - PIN 4 số (duy nhất/branch, khóa khi sai nhiều — BR-93) + ảnh bắt buộc; nếu thiếu camera → xếp hàng chờ SM xác nhận (BR-93); snapshot `scheduledStart` lúc check-in (BR-38). `POST /api/v1/attendance/check-in|check-out`. ✅ Done: chấm công có ảnh + PIN chống gian lận.
+- [ ] **UC-39 Báo cáo chấm công** — BR-39, BR-91 — tính trễ/absence/OT/early-leave động ở tầng report (timezone branch — BR-39). `GET /api/v1/attendance`. ✅ Done: chỉ số phái sinh đúng.
+- [ ] **UC-80 Xuất giờ công** — BR-77 — ghép cặp check-in/out theo NV/ngày; thiếu checkout → flag & loại; xuất CSV/PDF. `GET /api/v1/attendance/export`. ✅ Done: xuất giờ công cho payroll.
+- [ ] **`PhotoAutoDeleteScheduler` (02:00)** — BR-72 — xóa ảnh >90 ngày, null `photoUrl`, giữ log. ✅ Done: tuân thủ PDPA ảnh.
+
+---
+
+## PHASE 3 — Báo cáo & BI (`com.khoga.report`)
+
+> Chỉ đọc (read-only query) trên dữ liệu các phase trước. Phụ thuộc: Order/OrderItem, StockTransaction, ShiftSession, AuditLog, Customer, AttendanceLog, RecipeItem/RawMaterial. Áp BR-44 scope: storemanager chỉ branch mình, ceoviewer toàn chuỗi.
+
+- [ ] **UC-28 Dashboard HQ hợp nhất / UC-29 Xuất** — BR-44 — doanh thu theo branch, top bán chạy, tỉ lệ hủy, avg transaction. `GET /api/v1/reports/hq-consolidated`, export Excel/PDF/CSV. ✅ Done: dashboard chuỗi + export.
+- [ ] **UC-40 Doanh thu cửa hàng / UC-41 Xuất** — BR-44 — sales theo phương thức cho branch của SM. `GET /api/v1/reports/store-revenue`. ✅ Done: báo cáo branch.
+- [ ] **UC-76 COGS/Margin & Shrinkage (`COGSCalculator`)** — BR-66 — margin=(price−Σ(recipeQty×standardCost))/price; shrinkage = (RECIPE_DEDUCTION+PHANTOM_USAGE) vs AUDIT_ADJUSTMENT × standardCost. `GET /api/v1/reports/cogs`. ✅ Done: margin + biến động hao hụt.
+- [ ] **UC-77 Lịch sử đổi giá/voucher** — BR-68 — đọc `AuditLog` (PRICE_UPDATE/VOUCHER_*) bất biến. `GET /api/v1/reports/price-history`. ✅ Done: trail bất biến read-only.
+- [ ] **UC-78 Loyalty Liability (`LoyaltyLiabilityService`)** — BR-75 — tổng điểm tồn (đơn vị điểm) + movement issued/redeemed/expired, đối soát Opening+Issued−Redeemed−Expired=Closing. `GET /api/v1/reports/loyalty-liability`. ✅ Done: đối soát điểm khớp.
+- [ ] **UC-79 Labour vs Revenue (`LabourEfficiencyService`)** — BR-76, BR-77 — giờ/1tr VND, VND/giờ (không quy lương). `GET /api/v1/reports/labour`. ✅ Done: KPI năng suất.
+- [ ] **UC-81 Z-Report ngày** — BR-78 — gộp mọi ca 1 branch 1 ngày: gross/net, voucher/point discount, VAT, refunds, tender (cash/card/VietQR), counters. `GET /api/v1/reports/z-report/{date}`. ✅ Done: Z-report đầy đủ khối.
+- [ ] **UC-82 Anomaly hủy/refund (`AnomalyDetector`)** — BR-79 — tỉ lệ hủy/refund theo cashier; flag vượt `CANCEL_REFUND_ALERT_THRESHOLD` (detective). `GET /api/v1/reports/anomaly`. ✅ Done: gắn cờ outlier.
+- [ ] **UC-83 Access Review** — BR-81 — đọc audit thay đổi tài khoản. `GET /api/v1/reports/access-review`. ✅ Done: review truy cập.
+
+---
+
+## PHASE 4 — Cứng hóa & hoàn thiện (Hardening)
+
+> Sau khi 18 subsystem chạy thông với stub/giả lập. Nâng cấp lên mức production theo NFR.
+
+- [ ] **Integration thật**: `SmtpEmailService` (cấu hình SMTP), VietQR thật + verify HMAC webhook, `PrinterService` ESC/POS (USB/network). Toggle qua profile. ✅ Done: bật real qua config, stub vẫn dùng cho test.
+- [ ] **Session invalidation BR-18** + token refresh im lặng (auto-logout idle ≥30'): khi đổi mật khẩu/deactivate hủy token mọi thiết bị (cần token store/blacklist). ✅ Done: đổi mật khẩu đá phiên khác.
+- [ ] **OTP store bền** (thay in-memory bằng DB/Redis) cho đa node. ✅ Done: OTP sống sót restart.
+- [ ] **PDPA jobs**: ẩn danh PII khách >24 tháng không giao dịch (BR-72); hết hạn điểm loyalty 12 tháng (BR-35). ✅ Done: job retention chạy đúng hạn.
+- [ ] **i18n MSG01–MSG17**: message theo mã, không hardcode; trả về theo ngôn ngữ. ✅ Done: message tập trung.
+- [ ] **Hiệu năng & toàn vẹn**: index cho query report/lookup; rà `@Transactional` cho checkout/refund/trừ kho (atomic); làm tròn tiền VND; timezone UTC lưu/branch-local hiển thị. ✅ Done: đạt ngưỡng NFR (login<1s, add item<100ms, payment<1.5s).
+- [ ] **Test E2E + tải**: luồng login→checkout→prepare→complete; kịch bản refund/cancel; load theo NFR (100 TPS, 2000 đơn/ngày/branch). ✅ Done: bộ E2E xanh.
+
+---
+
+## Kiểm thử & nghiệm thu (Verification)
+
+**Chạy app:** tạo DB `khoga_coffee_shop` (SQL Server), `./mvnw spring-boot:run` (Windows: `mvnw.cmd`). Hibernate `ddl-auto=update` tự sinh 22 bảng. Xác minh: console hiện `Started CoffeeshopApplication`; Swagger UI `http://localhost:8080/swagger-ui.html` liệt kê endpoint mới.
+
+**Theo từng phase (smoke test qua Swagger/cURL):**
+- P0: login bằng ssadmin seed → nhận JWT; gọi endpoint bảo vệ thiếu token → 401; sai role → 403; sai mật khẩu 5 lần → khóa.
+- P1: tạo branch (vượt cap → 400), tạo user (email tạm + buộc đổi mật khẩu), tạo category/menu+recipe (sai đơn vị → 400), voucher (sửa code → 400), customer (thiếu consent → 400).
+- P1B: forgot-password (OTP log ở stub) → reset; login HQ yêu cầu OTP, branch role không.
+- P2: mở ca → thêm món → áp voucher + điểm → thanh toán (kiểm tra số tiền theo BR-70) → PREPARING (tồn kho giảm, kiểm `stock_transactions`) → READY → COMPLETED; hủy PENDING (kiểm rollback điểm/voucher); refund SM (kiểm quỹ ca); đóng ca (Z-report + cảnh báo lệch).
+- P3: đối chiếu Z-report với đơn đã tạo; COGS/margin khớp recipe×standard_cost; anomaly gắn cờ khi vượt ngưỡng.
+
+**Test tự động:** mỗi UC có test ở bước "Test"; ưu tiên test số học cho `DiscountStackingEngine`, `LoyaltyPointCalculator`, `RecipeDeductionEngine`, `ShiftReconciliation` và các guard trạng thái (hủy chỉ PENDING, đóng ca chặn order chưa terminal). Chạy 1 lớp: `./mvnw test -Dtest=<ClassName>`.
+
+## Ghi chú quyết định & rủi ro
+
+- **Auth MVP trước**: P0 chưa có MFA/quên-mật-khẩu → tạm thời HQ login 1 lớp cho tới P1B; chấp nhận trong môi trường dev.
+- **Tích hợp ngoài là stub**: VietQR/SMTP/Printer giả lập tới P4 → test được toàn luồng mà không cần hạ tầng ngoài.
+- **`ddl-auto=update`**: schema sinh từ entity, không có migration script — đổi entity là đổi bảng; cân nhắc Flyway ở P4 nếu cần kiểm soát schema.
+- **OTP in-memory** ở P1B: không sống sót restart/đa node — nâng cấp P4.
+- **Tồn kho cho phép âm** (BR-89) là CHỦ Ý (đo hao hụt), không phải bug — không "sửa" thành chặn về 0.
+- **Khác biệt tài liệu vs code**: package gốc là `com.khoga` (RDS ghi nhầm `com.khoga.coffeeshop`); stack thực là Spring Boot 4.1.0/Java 21 (doc ghi 3.x/17). Theo code.
+
+## Phụ thuộc tổng (rút gọn)
+
+```
+P0 (Security, Config, Audit, Integration-stub, Scheduler, Seed, Auth-MVP)
+ └─ P1  Branch → User; Catalog; Voucher; Customer   (độc lập nhau, đều cần P0)
+     ├─ P1B Auth nâng cao (cần SMTP stub)
+     └─ P2  Inventory → POS → Order ; Staff
+         └─ P3  Report (đọc tất cả)
+             └─ P4  Hardening
+```
+
