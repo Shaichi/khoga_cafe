@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Custom JDK ###
+.jdk-21/
+jdk-21.zip
