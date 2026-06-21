@@ -17,6 +17,10 @@ Backend API for **Khoga Coffee Shop** — a multi-branch coffee-chain management
 
 Spring Boot 4.x uses **split starter names** — `spring-boot-starter-webmvc` (not `-web`) and per-starter `*-test` artifacts (`spring-boot-starter-webmvc-test`, etc.). Match this convention when adding dependencies.
 
+**Jackson gotcha:** Spring Boot 4.x ships **Jackson 3** (`tools.jackson…`); the autoconfigured mapper bean is the Jackson 3 type. The classic `com.fasterxml.jackson…ObjectMapper` (Jackson 2) is on the classpath only transitively via `jjwt-jackson`, so **there is no autowirable bean of that old type** — injecting `com.fasterxml...ObjectMapper` fails context startup. Rely on the MVC message converters, or serialize tiny payloads by hand (see `SecurityConfig.writeError`).
+
+**Web-layer test infra reorganized:** in Boot 4.x the classic `org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc` and `TestRestTemplate` are not on the modular test starters' classpath. Prefer pure unit tests; sort out the Boot 4 MockMvc API when real endpoints need HTTP-level tests.
+
 ## Environment setup (required — from README §1–§2)
 
 These are hard prerequisites; the project will not build or run if they are unmet.
