@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+
+jobs:
+  build:
+    name: Build & unit tests (JDK 21)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      # The runner has no SQL Server, so the @Tag("integration") full-context test
+      # (CoffeeshopApplicationTests) is excluded. Pure unit tests still run.
+      # Provisioning a DB service for the integration test is a P4 hardening item.
+      - name: Build & unit tests
+        run: ./mvnw -B verify -DexcludedGroups=integration

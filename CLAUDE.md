@@ -108,6 +108,14 @@ These are enforced team rules; follow them in every feature:
 
 3. **Every entity `extends BaseEntity`.** Never declare `createdAt` / `updatedAt` yourself — `BaseEntity` populates them via JPA auditing. Follow the existing entity pattern: UUID primary key (`@GeneratedValue(strategy = GenerationType.UUID)`) and enums mapped with `@Enumerated(EnumType.STRING)`.
 
+## Phase 0 — what's built & how to run it
+
+P0 (infra + Auth MVP) is implemented. New packages: `com.khoga.audit` (append-only `AuditLogService`), `com.khoga.integration` (Email/VietQR/Printer **ports + stubs**, stubs are `@Profile("!prod")`), `com.khoga.scheduler` (5 no-op `@Scheduled` skeletons; `@EnableScheduling` lives in `config.SchedulingConfig`), and the Auth MVP in `com.khoga.auth` (login/logout/force-&-change-password + `/api/v1/profile`, `StrongPassword` validator, DTO **records** in `auth/dto`).
+
+- **Bootstrap (`config.DataSeeder`, `@Profile("!prod")`):** first run seeds 7 global `SystemConfig` rows, a sample `Store`, and the super-admin **`ssadmin` / `Admin@123`** with `mustChangePassword=true` (BR-82). Idempotent. It runs on app start **and** during `@SpringBootTest`.
+- **Tests:** unit tests are pure (Mockito — declared explicitly as `mockito-junit-jupiter`, test scope). The full-context `CoffeeshopApplicationTests` is `@Tag("integration")` because it needs SQL Server + runs the seeder. **CI excludes it:** `./mvnw -B verify -DexcludedGroups=integration` (see `.github/workflows/ci.yml`); run the full suite locally with `./mvnw verify`.
+- **Auth deferral:** a `mustChangePassword=true` user still gets a working token (the client is expected to honor the flag); server-side gating of other endpoints, MFA, and forgot-password are **P1B**, not P0.
+
 ## Design documentation
 
 The `docs/` tree is the source of truth for *what* to build (entirely in Vietnamese):

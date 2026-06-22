@@ -5,6 +5,7 @@ import com.khoga.common.dto.ApiResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -19,8 +20,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import java.io.IOException;
 
 /**
- * Stateless, JWT-based security. Auth endpoints + API docs + welcome page are public; everything else
- * requires a valid token. Authentication (401) and authorization (403) failures are rendered as an
+ * Stateless, JWT-based security. The anonymous auth flows (login/forgot/verify/reset) + API docs +
+ * welcome page are public; everything else (including logout, change-password, force-password-change
+ * and the profile endpoints) requires a valid token. Authentication (401) and authorization (403)
+ * failures are rendered as an
  * {@link ApiResponse}-shaped JSON envelope so clients get a consistent error format. Role-based
  * authorization is enforced per-endpoint via {@code @PreAuthorize} ({@link EnableMethodSecurity}).
  */
@@ -43,10 +46,18 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/",
-                                "/api/v1/auth/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
+                        ).permitAll()
+                        // Only the truly anonymous auth flows are public. Authenticated auth
+                        // operations (logout, change-password, force-password-change) and the
+                        // profile endpoints fall through to authenticated() below.
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/forgot-password",
+                                "/api/v1/auth/verify-otp",
+                                "/api/v1/auth/reset-password"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
