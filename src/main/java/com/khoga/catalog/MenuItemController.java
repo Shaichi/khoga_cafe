@@ -1,0 +1,122 @@
+package com.khoga.catalog;
+
+import com.khoga.auth.SecurityUtil;
+import com.khoga.catalog.dto.AvailabilityRequest;
+import com.khoga.catalog.dto.CreateMenuItemRequest;
+import com.khoga.catalog.dto.MenuItemDetailResponse;
+import com.khoga.catalog.dto.MenuItemResponse;
+import com.khoga.catalog.dto.ToppingRequest;
+import com.khoga.catalog.dto.ToppingResponse;
+import com.khoga.catalog.dto.UpdateMenuItemRequest;
+import com.khoga.common.dto.ApiResponse;
+import com.khoga.common.dto.PageResponse;
+import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Menu, recipe, topping and availability endpoints (UC-15/18/19/68/71/72). Reads are open to any
+ * authenticated staff; HQ (SSADMIN) manages the catalog; availability also allows a store manager.
+ */
+@RestController
+@RequestMapping("/api/v1/menu-items")
+public class MenuItemController {
+
+    private final MenuItemService menuItemService;
+
+    public MenuItemController(MenuItemService menuItemService) {
+        this.menuItemService = menuItemService;
+    }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<PageResponse<MenuItemResponse>>> list(
+            @RequestParam(required = false) UUID categoryId,
+            @RequestParam(required = false) String search,
+            @PageableDefault(size = 20) Pageable pageable) {
+        Page<MenuItemResponse> page = menuItemService.list(categoryId, search, pageable);
+        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(page)));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<MenuItemDetailResponse>> get(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success(menuItemService.get(id)));
+    }
+
+    @PostMapping
+    @PreAuthorize("hasRole('SSADMIN')")
+    public ResponseEntity<ApiResponse<MenuItemDetailResponse>> create(
+            @Valid @RequestBody CreateMenuItemRequest request) {
+        MenuItemDetailResponse created = menuItemService.create(request, SecurityUtil.currentUserId());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(created, "Tạo món thành công"));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('SSADMIN')")
+    public ResponseEntity<ApiResponse<MenuItemDetailResponse>> update(
+            @PathVariable UUID id, @Valid @RequestBody UpdateMenuItemRequest request) {
+        MenuItemDetailResponse updated = menuItemService.update(id, request, SecurityUtil.currentUserId());
+        return ResponseEntity.ok(ApiResponse.success(updated, "Cập nhật món thành công"));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('SSADMIN')")
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
+        menuItemService.softDelete(id, SecurityUtil.currentUserId());
+        return ResponseEntity.ok(ApiResponse.success(null, "Đã xóa món (ẩn khỏi danh mục)"));
+    }
+
+    @PutMapping("/{id}/availability")
+    @PreAuthorize("hasAnyRole('SSADMIN','STORE_MANAGER')")
+    public ResponseEntity<ApiResponse<Void>> setAvailability(
+            @PathVariable UUID id, @Valid @RequestBody AvailabilityRequest request) {
+        menuItemService.toggleAvailability(id, request, SecurityUtil.currentUserId());
+        return ResponseEntity.ok(ApiResponse.success(null, "Cập nhật tình trạng món tại chi nhánh"));
+    }
+
+    @GetMapping("/{id}/toppings")
+    public ResponseEntity<ApiResponse<List<ToppingResponse>>> listToppings(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success(menuItemService.listToppings(id)));
+    }
+
+    @PostMapping("/{id}/toppings")
+    @PreAuthorize("hasRole('SSADMIN')")
+    public ResponseEntity<ApiResponse<ToppingResponse>> addTopping(
+            @PathVariable UUID id, @Valid @RequestBody ToppingRequest request) {
+        ToppingResponse created = menuItemService.addTopping(id, request, SecurityUtil.currentUserId());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(created, "Thêm topping thành công"));
+    }
+
+    @PutMapping("/{id}/toppings/{toppingId}")
+    @PreAuthorize("hasRole('SSADMIN')")
+    public ResponseEntity<ApiResponse<ToppingResponse>> updateTopping(
+            @PathVariable UUID id, @PathVariable UUID toppingId, @Valid @RequestBody ToppingRequest request) {
+        ToppingResponse updated = menuItemService.updateTopping(toppingId, request, SecurityUtil.currentUserId());
+        return ResponseEntity.ok(ApiResponse.success(updated, "Cập nhật topping thành công"));
+    }
+
+    @DeleteMapping("/{id}/toppings/{toppingId}")
+    @PreAuthorize("hasRole('SSADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteTopping(
+            @PathVariable UUID id, @PathVariable UUID toppingId) {
+        menuItemService.deactivateTopping(toppingId, SecurityUtil.currentUserId());
+        return ResponseEntity.ok(ApiResponse.success(null, "Đã ngừng sử dụng topping"));
+    }
+}
