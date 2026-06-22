@@ -23,6 +23,8 @@ public class Customer extends BaseEntity {
     private String fullName;
     private Integer points;
     private String email;
+    private java.time.LocalDate birthDate;
+    private Boolean isActive;
     private LocalDateTime consentAt;
     private String consentVersion;
 }

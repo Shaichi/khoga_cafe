@@ -5,5 +5,6 @@ import java.util.UUID;
 
 public record CustomerResponse(
         UUID id, String phone, String fullName, String email, Integer points,
+        java.time.LocalDate birthDate, Boolean isActive,
         LocalDateTime consentAt, String consentVersion) {
 }

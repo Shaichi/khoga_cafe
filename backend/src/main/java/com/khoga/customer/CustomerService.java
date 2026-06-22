@@ -69,6 +69,8 @@ public class CustomerService {
         customer.setPhone(request.phone());
         customer.setFullName(request.fullName());
         customer.setEmail(request.email());
+        customer.setBirthDate(request.birthDate());
+        customer.setIsActive(true);
         customer.setPoints(0);
         customer.setConsentVersion(request.consentVersion());     // BR-71
         customer.setConsentAt(LocalDateTime.now());
@@ -86,6 +88,9 @@ public class CustomerService {
         }
         if (StringUtils.hasText(request.email())) {
             customer.setEmail(request.email());
+        }
+        if (request.birthDate() != null) {
+            customer.setBirthDate(request.birthDate());
         }
         customerRepository.save(customer);
         auditLogService.record(ActionType.UPDATE, "Customer", null, "{\"id\":\"" + id + "\"}", actorId);

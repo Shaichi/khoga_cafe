@@ -39,18 +39,19 @@ class CustomerServiceTest {
     @Test
     void create_duplicatePhone_throws() {
         when(customerRepository.existsByPhone("0900000001")).thenReturn(true);
-        CreateCustomerRequest request = new CreateCustomerRequest("0900000001", "An", "an@x.com", "v1");
+        CreateCustomerRequest request = new CreateCustomerRequest("0900000001", "An", "an@x.com", null, "v1");
 
         assertThrows(AppException.class, () -> service.create(request, UUID.randomUUID()));
         verify(customerRepository, never()).save(any());
     }
 
     @Test
-    void create_stampsConsentAndZeroPoints() {
+    void create_stampsConsentAndZeroPoints_withBirthDateAndIsActive() {
         when(customerRepository.existsByPhone("0900000001")).thenReturn(false);
         when(customerRepository.save(any(Customer.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        service.create(new CreateCustomerRequest("0900000001", "An", "an@x.com", "v1"), UUID.randomUUID());
+        java.time.LocalDate birthDate = java.time.LocalDate.of(1995, 5, 15);
+        service.create(new CreateCustomerRequest("0900000001", "An", "an@x.com", birthDate, "v1"), UUID.randomUUID());
 
         ArgumentCaptor<Customer> captor = ArgumentCaptor.forClass(Customer.class);
         verify(customerRepository).save(captor.capture());
@@ -58,6 +59,8 @@ class CustomerServiceTest {
         assertEquals(0, saved.getPoints());
         assertEquals("v1", saved.getConsentVersion());
         assertNotNull(saved.getConsentAt());                 // BR-71
+        assertEquals(birthDate, saved.getBirthDate());       // Spec gap: birthDate
+        assertEquals(true, saved.getIsActive());             // Spec gap: isActive
     }
 
     @Test

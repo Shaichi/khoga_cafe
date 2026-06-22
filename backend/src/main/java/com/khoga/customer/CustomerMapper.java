@@ -13,7 +13,7 @@ final class CustomerMapper {
 
     static CustomerResponse toResponse(Customer c) {
         return new CustomerResponse(c.getId(), c.getPhone(), c.getFullName(), c.getEmail(),
-                c.getPoints(), c.getConsentAt(), c.getConsentVersion());
+                c.getPoints(), c.getBirthDate(), c.getIsActive(), c.getConsentAt(), c.getConsentVersion());
     }
 
     static CustomerOrderEntry toOrderEntry(Order o) {
