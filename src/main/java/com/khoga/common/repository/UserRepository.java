@@ -2,6 +2,8 @@ package com.khoga.common.repository;
 
 import com.khoga.common.model.User;
 import com.khoga.common.model.enums.Role;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -21,4 +23,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     List<User> findByStoreId(UUID storeId);
 
     long countByRoleAndIsActiveTrue(Role role);
+
+    Page<User> findByRole(Role role, Pageable pageable);
+
+    Page<User> findByUsernameContainingIgnoreCaseOrFullNameContainingIgnoreCase(
+            String username, String fullName, Pageable pageable);
 }

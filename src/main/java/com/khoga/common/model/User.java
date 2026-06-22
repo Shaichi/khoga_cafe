@@ -19,6 +19,8 @@ public class User extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    /** Sequential employee identifier, format {@code EMP-043} (BR-57). */
+    private String employeeId;
     private String username;
     private String passwordHash;
     @Enumerated(EnumType.STRING)
