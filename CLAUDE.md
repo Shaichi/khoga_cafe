@@ -25,17 +25,18 @@ Spring Boot 4.x uses **split starter names** — `spring-boot-starter-webmvc` (n
 
 These are hard prerequisites; the project will not build or run if they are unmet.
 
-- **JDK 21 is mandatory.** `pom.xml` pins `<java.version>21</java.version>` and Spring Boot 4.1.0 requires Java 17+ — building on an older JDK fails. Before any Maven command, verify `./mvnw -version` reports `Java version: 21.x`; if not, install JDK 21 (`winget install Microsoft.OpenJDK.21`) and point `JAVA_HOME` at it.
-  - ⚠️ **Verified on this machine (2026-06-21): only JDK/JRE 1.8.0_202 is installed and the Maven wrapper runs on Java 8** — `./mvnw clean package` will fail until JDK 21 is installed and active (`JAVA_HOME`/PATH). This is the current top blocker.
-- **SQL Server must be running** with database `khoga_coffee_shop`, login `sa`, password `123`, reachable at `localhost:1433` — must match [application.properties](src/main/resources/application.properties).
+- **JDK 21 is mandatory.** `backend/pom.xml` pins `<java.version>21</java.version>` and Spring Boot 4.1.0 requires Java 17+ — building on an older JDK fails. Before any Maven command, verify `./mvnw -version` inside the `backend` folder reports `Java version: 21.x`; if not, install JDK 21 (`winget install Microsoft.OpenJDK.21`) and point `JAVA_HOME` at it.
+  - ⚠️ **Verified on this machine (2026-06-21): only JDK/JRE 1.8.0_202 is installed and the Maven wrapper runs on Java 8** — `backend/mvnw clean package` will fail until JDK 21 is installed and active (`JAVA_HOME`/PATH). This is the current top blocker.
+- **SQL Server must be running** with database `khoga_coffee_shop`, login `sa`, password `123`, reachable at `localhost:1433` — must match [application.properties](backend/src/main/resources/application.properties).
   - ✅ Verified reachable: a SQL Server Express instance is up on `1433`, `sa`/`123` connects, and database `khoga_coffee_shop` already exists. (README suggests Developer Edition; Express works identically here.)
-- **Always use the Maven wrapper** (`./mvnw` / `mvnw.cmd`) — it pins Maven 3.9.x; do not rely on a globally-installed `mvn`.
+- **Always use the Maven wrapper** inside `backend/` (`./mvnw` / `mvnw.cmd`) — it pins Maven 3.9.x; do not rely on a globally-installed `mvn`.
 
 ## Commands
 
-Use the Maven wrapper. On Windows use `mvnw.cmd`; the examples below use the POSIX `./mvnw`.
+Use the Maven wrapper inside the `backend` folder. On Windows use `mvnw.cmd`; the examples below use the POSIX `./mvnw`.
 
 ```bash
+cd backend
 ./mvnw spring-boot:run            # run the app (http://localhost:8080)
 ./mvnw clean package              # build the jar
 ./mvnw test                       # run all tests
@@ -53,7 +54,7 @@ The app connects to a SQL Server database that must exist **before** first run (
 CREATE DATABASE khoga_coffee_shop;
 ```
 
-Connection + credentials live in [src/main/resources/application.properties](src/main/resources/application.properties). `spring.jpa.hibernate.ddl-auto=update` means **the schema is entity-driven** — Hibernate auto-generates/alters the 22 tables from the `@Entity` classes on startup. Changing an entity changes its table automatically; there are no migration scripts.
+Connection + credentials live in [backend/src/main/resources/application.properties](backend/src/main/resources/application.properties). `spring.jpa.hibernate.ddl-auto=update` means **the schema is entity-driven** — Hibernate auto-generates/alters the 22 tables from the `@Entity` classes on startup. Changing an entity changes its table automatically; there are no migration scripts.
 
 ## Implementation decisions (locked)
 
