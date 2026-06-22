@@ -3,6 +3,7 @@ package com.khoga.common.exception;
 import com.khoga.common.dto.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -40,6 +41,16 @@ public class GlobalExceptionHandler {
                 .data(fieldErrors)
                 .build();
         return ResponseEntity.badRequest().body(body);
+    }
+
+    /**
+     * Authorization failures raised after authentication — both {@code @PreAuthorize} denials and
+     * explicit data-scope checks (e.g. a store manager touching another branch) — map to HTTP 403.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error("Không đủ quyền truy cập"));
     }
 
     @ExceptionHandler(Exception.class)
