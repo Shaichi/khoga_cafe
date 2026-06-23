@@ -22,8 +22,8 @@ import java.util.UUID;
 @Component
 public class JwtTokenProvider {
 
-    /** HQ roles get the shorter TTL (BR-83 / NFR §4.2). Only SSADMIN exists in the Role enum today. */
-    private static final Set<Role> HQ_ROLES = Set.of(Role.SSADMIN);
+    /** HQ roles get the shorter TTL (BR-83 / NFR §4.2). */
+    private static final Set<Role> HQ_ROLES = Set.of(Role.SSADMIN, Role.BUSINESSADMIN);
 
     private final SecretKey key;
     private final long hqExpirationMillis;

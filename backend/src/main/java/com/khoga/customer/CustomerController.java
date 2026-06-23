@@ -29,7 +29,8 @@ import java.util.UUID;
 
 /**
  * Customer/loyalty endpoints (UC-24/25/26/27). Lookup/enrol/update are open to authenticated staff
- * (cashiers enrol at the POS); manual point adjustment is HQ-only (BR-49).
+ * (cashiers enrol at the POS); manual point adjustment is businessadmin-only (BR-49), with SSADMIN
+ * (super-admin) also permitted.
  */
 @RestController
 @RequestMapping("/api/v1/customers")
@@ -74,7 +75,7 @@ public class CustomerController {
     }
 
     @PostMapping("/{id}/points")
-    @PreAuthorize("hasRole('SSADMIN')")
+    @PreAuthorize("hasAnyRole('SSADMIN','BUSINESSADMIN')")
     public ResponseEntity<ApiResponse<CustomerResponse>> adjustPoints(
             @PathVariable UUID id, @Valid @RequestBody PointAdjustmentRequest request) {
         CustomerResponse updated = customerService.adjustPoints(id, request, SecurityUtil.currentUserId());

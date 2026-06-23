@@ -35,6 +35,9 @@ public class DataSeeder implements CommandLineRunner {
     static final String SEED_ADMIN_USERNAME = "ssadmin";
     /** Dev bootstrap password — meets BR-14 and must be changed on first login. */
     static final String SEED_ADMIN_PASSWORD = "Admin@123";
+    static final String SEED_BIZADMIN_USERNAME = "bizadmin";
+    /** Same dev bootstrap password (BR-14 compliant); must be changed on first login. */
+    static final String SEED_BIZADMIN_PASSWORD = "Admin@123";
     private static final String GLOBAL_SCOPE = "GLOBAL";
 
     private final UserRepository userRepository;
@@ -56,24 +59,35 @@ public class DataSeeder implements CommandLineRunner {
         seedSystemConfig();
         seedDefaultStore();
         seedSuperAdmin();
+        seedBusinessAdmin();
     }
 
     private void seedSuperAdmin() {
-        if (userRepository.findByUsername(SEED_ADMIN_USERNAME).isPresent()) {
-            log.info("[seed] ssadmin already present — skipping");
+        seedAdminUser(SEED_ADMIN_USERNAME, SEED_ADMIN_PASSWORD, Role.SSADMIN, "System Super Admin");
+    }
+
+    /** HQ businessadmin bootstrap (owns master data / promotions / loyalty adjustments — BR-49, UC-74). */
+    private void seedBusinessAdmin() {
+        seedAdminUser(SEED_BIZADMIN_USERNAME, SEED_BIZADMIN_PASSWORD, Role.BUSINESSADMIN, "Business Admin");
+    }
+
+    /** Creates an HQ bootstrap account if absent (idempotent); {@code mustChangePassword=true} per BR-82. */
+    private void seedAdminUser(String username, String rawPassword, Role role, String fullName) {
+        if (userRepository.findByUsername(username).isPresent()) {
+            log.info("[seed] {} already present — skipping", username);
             return;
         }
-        User admin = new User();
-        admin.setUsername(SEED_ADMIN_USERNAME);
-        admin.setPasswordHash(passwordEncoder.encode(SEED_ADMIN_PASSWORD));
-        admin.setRole(Role.SSADMIN);
-        admin.setFullName("System Super Admin");
-        admin.setIsActive(true);
-        admin.setMustChangePassword(true);   // BR-82
-        admin.setFailedAttempts(0);
-        userRepository.save(admin);
-        log.warn("[seed] Created bootstrap ssadmin (username='{}', password='{}') — CHANGE ON FIRST LOGIN",
-                SEED_ADMIN_USERNAME, SEED_ADMIN_PASSWORD);
+        User user = new User();
+        user.setUsername(username);
+        user.setPasswordHash(passwordEncoder.encode(rawPassword));
+        user.setRole(role);
+        user.setFullName(fullName);
+        user.setIsActive(true);
+        user.setMustChangePassword(true);   // BR-82
+        user.setFailedAttempts(0);
+        userRepository.save(user);
+        log.warn("[seed] Created bootstrap {} (username='{}', password='{}') — CHANGE ON FIRST LOGIN",
+                role, username, rawPassword);
     }
 
     private void seedDefaultStore() {

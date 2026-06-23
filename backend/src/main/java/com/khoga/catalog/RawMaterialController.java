@@ -25,10 +25,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
-/** Raw-material master administration (UC-74). HQ-only (businessadmin ≡ SSADMIN here). */
+/** Raw-material master administration (UC-74, BR-63). HQ-only: businessadmin owns it; SSADMIN (super-admin) also allowed. */
 @RestController
 @RequestMapping("/api/v1/raw-materials")
-@PreAuthorize("hasRole('SSADMIN')")
+@PreAuthorize("hasAnyRole('SSADMIN','BUSINESSADMIN')")
 public class RawMaterialController {
 
     private final RawMaterialService rawMaterialService;
