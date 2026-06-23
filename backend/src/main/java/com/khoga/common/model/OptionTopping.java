@@ -19,9 +19,7 @@ public class OptionTopping extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne
-    @JoinColumn(name = "menu_item_id")
-    private MenuItem menuItem;
+    // Global Topping doesn't have menuItem link anymore
     private String name;
     private BigDecimal price;
     private Boolean isActive;

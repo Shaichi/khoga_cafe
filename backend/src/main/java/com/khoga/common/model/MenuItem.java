@@ -30,4 +30,13 @@ public class MenuItem extends BaseEntity {
     private String barcode;
     private String abbreviation;
     private Boolean isDeleted;
+    
+    // For variants
+    @Column(name = "parent_item_id")
+    private UUID parentItemId;
+    
+    private String sku;
+    
+    @Column(name = "size_name")
+    private String sizeName; // S, M, L
 }

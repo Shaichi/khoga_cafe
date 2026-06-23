@@ -14,6 +14,7 @@ import com.khoga.common.exception.ResourceNotFoundException;
 import com.khoga.common.model.BranchMenuStatus;
 import com.khoga.common.model.Category;
 import com.khoga.common.model.MenuItem;
+import com.khoga.common.model.MenuItemToppingMapping;
 import com.khoga.common.model.OptionTopping;
 import com.khoga.common.model.Store;
 import com.khoga.common.model.User;
@@ -22,6 +23,7 @@ import com.khoga.common.model.enums.Role;
 import com.khoga.common.repository.BranchMenuStatusRepository;
 import com.khoga.common.repository.CategoryRepository;
 import com.khoga.common.repository.MenuItemRepository;
+import com.khoga.common.repository.MenuItemToppingMappingRepository;
 import com.khoga.common.repository.OptionToppingRepository;
 import com.khoga.common.repository.StoreRepository;
 import com.khoga.common.repository.UserRepository;
@@ -47,6 +49,7 @@ public class MenuItemService {
     private final MenuItemRepository menuItemRepository;
     private final CategoryRepository categoryRepository;
     private final OptionToppingRepository optionToppingRepository;
+    private final MenuItemToppingMappingRepository menuItemToppingMappingRepository;
     private final BranchMenuStatusRepository branchMenuStatusRepository;
     private final StoreRepository storeRepository;
     private final UserRepository userRepository;
@@ -56,12 +59,14 @@ public class MenuItemService {
 
     public MenuItemService(MenuItemRepository menuItemRepository, CategoryRepository categoryRepository,
                            OptionToppingRepository optionToppingRepository,
+                           MenuItemToppingMappingRepository menuItemToppingMappingRepository,
                            BranchMenuStatusRepository branchMenuStatusRepository, StoreRepository storeRepository,
                            UserRepository userRepository, RecipeService recipeService,
                            AbbreviationGenerator abbreviationGenerator, AuditLogService auditLogService) {
         this.menuItemRepository = menuItemRepository;
         this.categoryRepository = categoryRepository;
         this.optionToppingRepository = optionToppingRepository;
+        this.menuItemToppingMappingRepository = menuItemToppingMappingRepository;
         this.branchMenuStatusRepository = branchMenuStatusRepository;
         this.storeRepository = storeRepository;
         this.userRepository = userRepository;
@@ -180,12 +185,16 @@ public class MenuItemService {
     @Transactional
     public ToppingResponse addTopping(UUID menuItemId, ToppingRequest request, UUID actorId) {
         MenuItem item = load(menuItemId);
+        // Toppings are global; the link to a menu item is a row in menu_item_topping_mappings.
         OptionTopping topping = new OptionTopping();
-        topping.setMenuItem(item);
         topping.setName(request.name());
         topping.setPrice(request.price());
         topping.setIsActive(true);
         OptionTopping saved = optionToppingRepository.save(topping);
+        MenuItemToppingMapping mapping = new MenuItemToppingMapping();
+        mapping.setMenuItem(item);
+        mapping.setOptionTopping(saved);
+        menuItemToppingMappingRepository.save(mapping);
         recipeService.replaceForTopping(saved, request.recipe());               // BR-65
         auditLogService.record(ActionType.CREATE, "OptionTopping", null,
                 "{\"name\":\"" + request.name() + "\"}", actorId);

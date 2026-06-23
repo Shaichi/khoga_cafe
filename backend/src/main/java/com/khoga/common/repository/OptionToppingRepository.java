@@ -10,5 +10,6 @@ import java.util.UUID;
 @Repository
 public interface OptionToppingRepository extends JpaRepository<OptionTopping, UUID> {
 
-    List<OptionTopping> findByMenuItemId(UUID menuItemId);
+    @org.springframework.data.jpa.repository.Query("SELECT m.optionTopping FROM MenuItemToppingMapping m WHERE m.menuItem.id = :menuItemId")
+    List<OptionTopping> findByMenuItemId(@org.springframework.data.repository.query.Param("menuItemId") UUID menuItemId);
 }
