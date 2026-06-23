@@ -2,7 +2,9 @@
 
 ## Bối cảnh (Context)
 
-Repo hiện chỉ có **base framework** (`com.khoga.common` = 22 entity + 22 repository + `ApiResponse` + exception/`GlobalExceptionHandler`; `com.khoga.config` = JPA/CORS/OpenAPI). **Toàn bộ 12 subsystem nghiệp vụ + 6 khối hạ tầng đều chưa code** — không có controller/service/component nào, chưa có Spring Security.
+Nền tảng (`com.khoga.common` = 22 entity + repository + `ApiResponse` + exception/`GlobalExceptionHandler`; `com.khoga.config` = JPA/CORS/OpenAPI/Security) đã có sẵn. Plan này ban đầu được viết khi repo *chỉ* có base framework; xem **Trạng thái hiện tại** bên dưới để biết phần đã build.
+
+> **Trạng thái hiện tại (cập nhật 2026-06-23):** **P0** (hạ tầng + Auth MVP) và **P1** (master data: Branch, User, Catalog, Voucher, Customer) **đã hoàn thành + có test** — toàn bộ checkbox P0/P1 dưới đây đã `[x]`. Bộ test: **89 test xanh** (88 unit + 1 integration full-context trên SQL Server). Còn lại: **P1B** (Auth nâng cao), **P2** (vận hành), **P3** (báo cáo), **P4** (cứng hóa) — vẫn `[ ]`.
 
 Tài liệu thiết kế (`docs/sections/` = URD, `docs/rds_sections/` = RDS) đặc tả **83 use case (UC-01→83)**, **~95 business rule (BR)**, 22 bảng và các thuật toán phức tạp (pipeline checkout BR-70, trừ kho theo recipe UC-62/BR-89, đối soát ca, COGS/shrinkage, loyalty, anomaly...).
 
@@ -43,47 +45,47 @@ Quy ước bắt buộc (xem [CLAUDE.md](CLAUDE.md)) áp dụng cho MỌI task, 
 > Mục tiêu: dựng đủ "khung xương" để mọi feature phía sau chỉ việc cắm vào. Kết thúc P0 phải đăng nhập được, bảo vệ endpoint theo role, và có dữ liệu seed.
 
 ### 0.1 Cấu hình build & bảo mật nền
-- [ ] Thêm dependency: `spring-boot-starter-security`, thư viện JWT (`io.jsonwebtoken:jjwt` hoặc dùng `spring-boot-starter-oauth2-resource-server`), `spring-boot-starter-mail`, test deps (đã có `*-test`). *Lưu ý Boot 4.x tên starter tách (`-webmvc`).*
+- [x] Thêm dependency: `spring-boot-starter-security`, thư viện JWT (`io.jsonwebtoken:jjwt` hoặc dùng `spring-boot-starter-oauth2-resource-server`), `spring-boot-starter-mail`, test deps (đã có `*-test`). *Lưu ý Boot 4.x tên starter tách (`-webmvc`).*
   - ✅ Done: `./mvnw clean package` xanh với deps mới.
-- [ ] `SecurityConfig` (`com.khoga.config`): `SecurityFilterChain` stateless, `BCryptPasswordEncoder` bean, bật `@EnableMethodSecurity`, mở `/api/v1/auth/**` + `/swagger-ui/**` + `/v3/api-docs/**`, còn lại `authenticated()`.
-- [ ] `JwtTokenProvider` (`com.khoga.auth`): tạo/parse JWT mang `userId`, `role`, `storeId`; TTL theo NFR (HQ 2h, branch 8h).
-- [ ] `JwtAuthenticationFilter`: đọc header `Authorization: Bearer`, set `SecurityContext`.
+- [x] `SecurityConfig` (`com.khoga.config`): `SecurityFilterChain` stateless, `BCryptPasswordEncoder` bean, bật `@EnableMethodSecurity`, mở `/api/v1/auth/**` + `/swagger-ui/**` + `/v3/api-docs/**`, còn lại `authenticated()`.
+- [x] `JwtTokenProvider` (`com.khoga.auth`): tạo/parse JWT mang `userId`, `role`, `storeId`; TTL theo NFR (HQ 2h, branch 8h).
+- [x] `JwtAuthenticationFilter`: đọc header `Authorization: Bearer`, set `SecurityContext`.
   - ✅ Done: gọi endpoint bảo vệ không token → 401; có token hợp lệ → qua; sai role → 403.
 
 ### 0.2 Chuẩn hóa shared (bổ sung `common`)
-- [ ] Bổ sung `GlobalExceptionHandler`: handler cho `MethodArgumentNotValidException` (gom lỗi field) + `AccessDeniedException` (403) + `AuthenticationException` (401), tất cả trả `ApiResponse.error`.
-- [ ] DTO phân trang dùng chung `PageResponse<T>` (BR-20 mặc định 20 bản ghi/trang).
-- [ ] Chuẩn mapper entity↔DTO (MapStruct hoặc mapper thủ công — chọn 1, ghi vào CLAUDE.md).
+- [x] Bổ sung `GlobalExceptionHandler`: handler cho `MethodArgumentNotValidException` (gom lỗi field) + `AccessDeniedException` (403) + `AuthenticationException` (401), tất cả trả `ApiResponse.error`.
+- [x] DTO phân trang dùng chung `PageResponse<T>` (BR-20 mặc định 20 bản ghi/trang).
+- [x] Chuẩn mapper entity↔DTO (MapStruct hoặc mapper thủ công — chọn 1, ghi vào CLAUDE.md).
   - ✅ Done: lỗi validation trả JSON đúng chuẩn `ApiResponse` kèm danh sách field.
 
 ### 0.3 Audit subsystem (`com.khoga.audit`)
-- [ ] `AuditLogService.record(actionType, entity, oldJson, newJson, userId)` ghi `AuditLog` (append-only).
-- [ ] Cơ chế kích hoạt: AOP `@Around`/`@EntityListener` cho thay đổi giá menu (BR-68), voucher (BR-68), tài khoản (BR-81), áp voucher/điểm khi checkout (BR-80).
-- [ ] Đảm bảo bất biến: không expose update/delete `AuditLog`.
+- [x] `AuditLogService.record(actionType, entity, oldJson, newJson, userId)` ghi `AuditLog` (append-only).
+- [x] Cơ chế kích hoạt: AOP `@Around`/`@EntityListener` cho thay đổi giá menu (BR-68), voucher (BR-68), tài khoản (BR-81), áp voucher/điểm khi checkout (BR-80).
+- [x] Đảm bảo bất biến: không expose update/delete `AuditLog`.
   - ✅ Done: thay đổi giá 1 menu item ghi đúng 1 dòng audit với old/new JSON.
 
 ### 0.4 Integration adapters (`com.khoga.integration`) — interface + stub
-- [ ] `EmailService` (interface) + `EmailServiceStub` (log ra console, dùng cho dev/test) + chỗ cho `SmtpEmailService` (P4). Toggle qua property/profile.
-- [ ] `VietQrClient` (interface) + `VietQrClientStub` (sinh QR giả, callback giả lập). Idempotency key = orderId (BR-84).
-- [ ] `PrinterService` (interface) + `PrinterServiceStub` (log receipt/label).
+- [x] `EmailService` (interface) + `EmailServiceStub` (log ra console, dùng cho dev/test) + chỗ cho `SmtpEmailService` (P4). Toggle qua property/profile.
+- [x] `VietQrClient` (interface) + `VietQrClientStub` (sinh QR giả, callback giả lập). Idempotency key = orderId (BR-84).
+- [x] `PrinterService` (interface) + `PrinterServiceStub` (log receipt/label).
   - ✅ Done: service tầng trên gọi qua interface; bật stub mặc định ở profile `dev`/`test`.
 
 ### 0.5 Scheduler skeleton (`com.khoga.scheduler`)
-- [ ] `@EnableScheduling` + khai báo rỗng (no-op + log) cho 5 timer: `OrderTimeoutScheduler` (1 phút), `ShiftAutoCloseScheduler` (23:59), `LowStockAlertScheduler` (22:00), `PhotoAutoDeleteScheduler` (02:00), `OtpExpiryScheduler`. Logic thật điền ở phase tương ứng.
+- [x] `@EnableScheduling` + khai báo rỗng (no-op + log) cho 5 timer: `OrderTimeoutScheduler` (1 phút), `ShiftAutoCloseScheduler` (23:59), `LowStockAlertScheduler` (22:00), `PhotoAutoDeleteScheduler` (02:00), `OtpExpiryScheduler`. Logic thật điền ở phase tương ứng.
   - ✅ Done: app log đúng các nhịp timer; chưa cần logic.
 
 ### 0.6 Seed & Bootstrap
-- [ ] Seeder (`CommandLineRunner` hoặc `data.sql`): tạo `ssadmin` đầu tiên (BR-82, `mustChangePassword=true`), 1 `Store` mẫu.
-- [ ] Seed `SystemConfig` mặc định: `VAT_RATE`, `LOYALTY_ACCRUAL_PERCENTAGE`, `LOYALTY_REDEMPTION_VALUE_PER_POINT=100`, `LOYALTY_MAX_REDEMPTION_PERCENT/LIMIT`, `MAX_ACTIVE_BRANCHES`, `HQ_MFA_REQUIRED=true`, `CANCEL_REFUND_ALERT_THRESHOLD` (BR-45/54/94).
-- [ ] Dữ liệu mẫu dev (category/menu/raw material) để test nhanh — chỉ chạy ở profile `dev`.
+- [x] Seeder (`CommandLineRunner` hoặc `data.sql`): tạo `ssadmin` đầu tiên (BR-82, `mustChangePassword=true`), 1 `Store` mẫu.
+- [x] Seed `SystemConfig` mặc định: `VAT_RATE`, `LOYALTY_ACCRUAL_PERCENTAGE`, `LOYALTY_REDEMPTION_VALUE_PER_POINT=100`, `LOYALTY_MAX_REDEMPTION_PERCENT/LIMIT`, `MAX_ACTIVE_BRANCHES`, `HQ_MFA_REQUIRED=true`, `CANCEL_REFUND_ALERT_THRESHOLD` (BR-45/54/94).
+- [x] Dữ liệu mẫu dev (category/menu/raw material) để test nhanh — chỉ chạy ở profile `dev`.
   - ✅ Done: chạy lần đầu DB rỗng → đăng nhập được bằng ssadmin seed.
 
 ### 0.7 CI
-- [ ] GitHub Actions: `mvn -B verify` trên push/PR (JDK 21).
+- [x] GitHub Actions: `mvn -B verify` trên push/PR (JDK 21).
   - ✅ Done: pipeline xanh.
 
 ### 0.8 Auth MVP (`com.khoga.auth`) — *defer MFA/quên mật khẩu sang P1B*
-- [ ] **UC-01 Login** — BR-10, BR-11, BR-14
+- [x] **UC-01 Login** — BR-10, BR-11, BR-14
   - DTO `LoginRequest{username,password}`, `LoginResponse{token,role,mustChangePassword}`
   - Repo: `UserRepository.findByUsername`
   - Service: verify BCrypt; chặn `isActive=false` (BR-10); đếm `failedAttempts`, khóa 15' sau 5 lần sai (BR-11) qua `lockExpiryAt`; reset khi đúng; cập nhật `lastLoginAt`; phát JWT
@@ -91,24 +93,24 @@ Quy ước bắt buộc (xem [CLAUDE.md](CLAUDE.md)) áp dụng cho MỌI task, 
   - Validation: @NotBlank
   - Test: đúng → token; sai 5 lần → khóa; account inactive → 400
   - ✅ Done: đăng nhập trả JWT; lockout hoạt động đúng BR-11.
-- [ ] **UC-06 Buộc đổi mật khẩu lần đầu** — BR-12, BR-22, BR-14, BR-15
+- [x] **UC-06 Buộc đổi mật khẩu lần đầu** — BR-12, BR-22, BR-14, BR-15
   - DTO `ForcePasswordChangeRequest`
   - Service: nếu `mustChangePassword=true` chỉ cho phép endpoint này; đặt mật khẩu mới (policy BR-14, khác mật khẩu cũ BR-15), set `mustChangePassword=false`, phát JWT
   - Controller: `POST /api/v1/auth/force-password-change`
   - Validation: `PasswordPolicyValidator` (≥8, hoa/thường/số/ký tự đặc biệt)
   - Test: mật khẩu yếu 400; trùng cũ 400; OK → đăng nhập bình thường
   - ✅ Done: user mới buộc đổi mật khẩu trước khi vào hệ thống.
-- [ ] **UC-02 Logout** — BR-13, BR-60
+- [x] **UC-02 Logout** — BR-13, BR-60
   - Service: ghi thời điểm logout; KHÔNG đóng shift session (BR-60). (Token stateless: blacklist nhẹ hoặc client xóa token — ghi rõ lựa chọn.)
   - Controller: `POST /api/v1/auth/logout`
   - ✅ Done: logout không ảnh hưởng ca POS đang mở.
-- [ ] **UC-07 Xem profile / UC-08 Cập nhật profile** — BR-19
+- [x] **UC-07 Xem profile / UC-08 Cập nhật profile** — BR-19
   - DTO `ProfileResponse`, `ProfileUpdateRequest{email,phone}`
   - Service: lấy user từ token; cập nhật chỉ email/phone
   - Controller: `GET /api/v1/profile`, `PUT /api/v1/profile`
   - Test: cập nhật email/phone OK; không cho đổi role/username
   - ✅ Done: user tự xem/sửa liên hệ của mình.
-- [ ] **UC-09 Đổi mật khẩu (đang đăng nhập)** — BR-14, BR-15
+- [x] **UC-09 Đổi mật khẩu (đang đăng nhập)** — BR-14, BR-15
   - DTO `ChangePasswordRequest{current,new}`
   - Service: verify mật khẩu hiện tại; áp policy; cập nhật hash + `passwordLastChangedAt`; audit
   - Controller: `POST /api/v1/auth/change-password`
@@ -122,56 +124,56 @@ Quy ước bắt buộc (xem [CLAUDE.md](CLAUDE.md)) áp dụng cho MỌI task, 
 > Mục tiêu: tạo đủ dữ liệu gốc (chi nhánh, người dùng, menu/recipe, voucher, khách hàng) để Phase 2 vận hành có cái mà dùng.
 
 ### 1.1 Branch (`com.khoga.branch`) — phụ thuộc: Store, SystemConfig, User
-- [ ] **UC-63 Xem danh sách chi nhánh** — BR-44
+- [x] **UC-63 Xem danh sách chi nhánh** — BR-44
   - DTO `BranchResponse`; Repo: `findAll` + filter `isActive`; Controller `GET /api/v1/branches`; phân trang; Test danh sách + lọc trạng thái. ✅ Done: liệt kê + lọc Active/Inactive.
-- [ ] **UC-64 Thêm chi nhánh** — BR-54
+- [x] **UC-64 Thêm chi nhánh** — BR-54
   - Service: đếm chi nhánh active < `MAX_ACTIVE_BRANCHES` (BR-54) else AppException; tạo Store; audit
   - Controller `POST /api/v1/branches`; Validation tên duy nhất, phone 10–12 số; Test vượt cap → 400. ✅ Done: chặn vượt cap.
-- [ ] **UC-65 Sửa/Vô hiệu hóa chi nhánh** — BR-55, BR-56
+- [x] **UC-65 Sửa/Vô hiệu hóa chi nhánh** — BR-55, BR-56
   - Service: chặn deactivate nếu còn ca OPEN hoặc order chưa terminal (BR-55); cascade: vô hiệu user của store + xóa lịch tương lai + giữ lịch sử read-only (BR-56)
   - Controller `PUT /api/v1/branches/{id}`, `POST /api/v1/branches/{id}/deactivate`; Test có ca mở → chặn. ✅ Done: cascade đúng BR-56.
-- [ ] **UC-42 Cấu hình chi nhánh (storemanager)** — BR-47, BR-48
+- [x] **UC-42 Cấu hình chi nhánh (storemanager)** — BR-47, BR-48
   - Service: lưu override branch-scope vào `SystemConfig` (timezone, máy in IP/COM); chỉ SM của chính branch
   - Controller `PUT /api/v1/branches/{id}/settings`; Test SM branch khác → 403. ✅ Done: SM sửa được cấu hình branch mình.
 
 ### 1.2 User management (`com.khoga.user`) — phụ thuộc: User, Store, Audit, EmailService stub
-- [ ] **UC-10 Danh sách user** — BR-20 — `GET /api/v1/users` lọc role/search, phân trang 20. ✅ Done: phân trang + lọc.
-- [ ] **UC-11 Thêm user** — BR-22, BR-57, BR-58, BR-81
+- [x] **UC-10 Danh sách user** — BR-20 — `GET /api/v1/users` lọc role/search, phân trang 20. ✅ Done: phân trang + lọc.
+- [x] **UC-11 Thêm user** — BR-22, BR-57, BR-58, BR-81
   - Service: kiểm tra username duy nhất; `UsernameGenerator` (BR-58), EMP id (BR-57); sinh mật khẩu tạm + BCrypt; `mustChangePassword=true`; gửi welcome email (stub); audit CREATE (BR-81)
   - Controller `POST /api/v1/users`; Test trùng username 400. ✅ Done: tạo user + email tạm + audit.
-- [ ] **UC-12 Sửa user** — BR-19, BR-82, BR-81
+- [x] **UC-12 Sửa user** — BR-19, BR-82, BR-81
   - Service: chặn tự nâng quyền/đổi trạng thái chính mình (BR-82); cập nhật role/branch/status; audit UPDATE. Controller `PUT /api/v1/users/{id}`; Test self-escalation → 400. ✅ Done: không tự nâng quyền.
-- [ ] **UC-13 Chi tiết user + lịch sử** — BR-21 — `GET /api/v1/users/{id}` kèm 50 login gần nhất + audit của user. ✅ Done: hiện chi tiết + audit.
-- [ ] **UC-14 Vô hiệu/Kích hoạt user** — BR-23, BR-81, BR-18
+- [x] **UC-13 Chi tiết user + lịch sử** — BR-21 — `GET /api/v1/users/{id}` kèm 50 login gần nhất + audit của user. ✅ Done: hiện chi tiết + audit.
+- [x] **UC-14 Vô hiệu/Kích hoạt user** — BR-23, BR-81, BR-18
   - Service: chặn vô hiệu ssadmin active cuối cùng (BR-23); set isActive; (P4: hủy token BR-18); audit. Controller `POST /api/v1/users/{id}/deactivate`; Test last-admin → 400. ✅ Done: bảo vệ admin cuối.
 
 ### 1.3 Catalog (`com.khoga.catalog`) — phụ thuộc: Category, MenuItem, OptionTopping, RawMaterial, RecipeItem, BranchMenuStatus, Audit
-- [ ] **UC-16/17/69/70 Category CRUD** — BR-30, BR-31, BR-62
+- [x] **UC-16/17/69/70 Category CRUD** — BR-30, BR-31, BR-62
   - Service: tạo/sửa; xóa mềm chỉ khi rỗng/đã soft-delete hết item (BR-31); khi archive thì gỡ liên kết item→uncategorized (BR-62)
   - Controller `POST/PUT/GET/DELETE /api/v1/categories`; Test xóa category còn item active → 400. ✅ Done: ràng buộc xóa đúng BR-31/62.
-- [ ] **UC-18 Thêm Menu item + Recipe** — BR-26, BR-29, BR-73
+- [x] **UC-18 Thêm Menu item + Recipe** — BR-26, BR-29, BR-73
   - DTO gồm danh sách recipe line; Service: sinh `abbreviation` từ tên bỏ dấu + chống trùng (BR-26); validate đơn vị recipe khớp đúng `RawMaterial.unit`, không quy đổi (BR-73); barcode duy nhất
   - Controller `POST /api/v1/menu-items`; Test sai đơn vị recipe → 400. ✅ Done: tạo món + công thức hợp lệ.
-- [ ] **UC-19 Sửa Menu item + Recipe / toggle availability** — BR-68, BR-25, BR-30
+- [x] **UC-19 Sửa Menu item + Recipe / toggle availability** — BR-68, BR-25, BR-30
   - Service: đổi giá → audit (BR-68); SM toggle `BranchMenuStatus.isAvailable` (mô hình 2 mức: active toàn chuỗi AND available tại branch — BR-25)
   - Controller `PUT /api/v1/menu-items/{id}`, `PUT /api/v1/menu-items/{id}/availability`; Test đổi giá ghi audit. ✅ Done: đổi giá có audit; toggle branch hoạt động.
-- [ ] **UC-68 Chi tiết menu / UC-15,69 List** — BR-24 — `GET` list (search autocomplete, lọc category, trạng thái) + detail (kèm recipe + topping). ✅ Done: list + detail đầy đủ.
-- [ ] **UC-72 Xóa Menu item** — BR-28 — xóa mềm (`isDeleted=true`) để giữ lịch sử bán. ✅ Done: không hard-delete.
-- [ ] **UC-71 Quản lý Topping & Option** — BR-29, BR-65 — CRUD `OptionTopping` (giá có thể = 0); topping có recipe riêng (BR-65). `POST/PUT/DELETE /api/v1/menu-items/{id}/toppings`. ✅ Done: topping + recipe riêng.
-- [ ] **UC-74 Quản lý Raw Material Master** — BR-63, BR-64, BR-73 — chỉ businessadmin; `code` bất biến (BR-63); đơn vị khóa khi đã có giao dịch (BR-64); xóa mềm. `POST/PUT/GET /api/v1/raw-materials`. ✅ Done: master nguyên liệu + ràng buộc bất biến.
+- [x] **UC-68 Chi tiết menu / UC-15,69 List** — BR-24 — `GET` list (search autocomplete, lọc category, trạng thái) + detail (kèm recipe + topping). ✅ Done: list + detail đầy đủ.
+- [x] **UC-72 Xóa Menu item** — BR-28 — xóa mềm (`isDeleted=true`) để giữ lịch sử bán. ✅ Done: không hard-delete.
+- [x] **UC-71 Quản lý Topping & Option** — BR-29, BR-65 — CRUD `OptionTopping` (giá có thể = 0); topping có recipe riêng (BR-65). `POST/PUT/DELETE /api/v1/menu-items/{id}/toppings`. ✅ Done: topping + recipe riêng.
+- [x] **UC-74 Quản lý Raw Material Master** — BR-63, BR-64, BR-73 — chỉ businessadmin; `code` bất biến (BR-63); đơn vị khóa khi đã có giao dịch (BR-64); xóa mềm. `POST/PUT/GET /api/v1/raw-materials`. ✅ Done: master nguyên liệu + ràng buộc bất biến.
 
 ### 1.4 Voucher (`com.khoga.voucher`) — phụ thuộc: Voucher, Audit
-- [ ] **UC-20 List voucher** — BR-52 — `GET /api/v1/vouchers` kèm trạng thái tính động SCHEDULED/ACTIVE/EXPIRED (`VoucherStatusEngine`). ✅ Done: hiện đúng trạng thái.
-- [ ] **UC-21 Thêm voucher** — BR-40, BR-42 — tạo; nếu PERCENTAGE bắt buộc `maxDiscountAmount` (cap BR-42); code duy nhất; audit (BR-68). `POST /api/v1/vouchers`. ✅ Done: tạo voucher hợp lệ + audit.
-- [ ] **UC-22 Sửa voucher** — BR-40 — sửa mọi field trừ `code` (bất biến); audit. `PUT /api/v1/vouchers/{id}`; Test sửa code → 400. ✅ Done: code bất biến.
-- [ ] **UC-23 Vô hiệu/Xóa voucher** — BR-41 — deactivate dừng mọi redemption ngay (BR-41); audit. `POST /api/v1/vouchers/{id}/deactivate`. ✅ Done: vô hiệu chặn dùng ngay.
-- [ ] **Service dùng lại: `VoucherValidationService.validate(code, order)`** — kiểm tra status ACTIVE, min order, usage limit/khách; trả discount (cap BR-42). *Dùng bởi POS UC-48.* ✅ Done: hàm validate tái sử dụng ở checkout.
+- [x] **UC-20 List voucher** — BR-52 — `GET /api/v1/vouchers` kèm trạng thái tính động SCHEDULED/ACTIVE/EXPIRED (`VoucherStatusEngine`). ✅ Done: hiện đúng trạng thái.
+- [x] **UC-21 Thêm voucher** — BR-40, BR-42 — tạo; nếu PERCENTAGE bắt buộc `maxDiscountAmount` (cap BR-42); code duy nhất; audit (BR-68). `POST /api/v1/vouchers`. ✅ Done: tạo voucher hợp lệ + audit.
+- [x] **UC-22 Sửa voucher** — BR-40 — sửa mọi field trừ `code` (bất biến); audit. `PUT /api/v1/vouchers/{id}`; Test sửa code → 400. ✅ Done: code bất biến.
+- [x] **UC-23 Vô hiệu/Xóa voucher** — BR-41 — deactivate dừng mọi redemption ngay (BR-41); audit. `POST /api/v1/vouchers/{id}/deactivate`. ✅ Done: vô hiệu chặn dùng ngay.
+- [x] **Service dùng lại: `VoucherValidationService.validate(code, order)`** — kiểm tra status ACTIVE, min order, usage limit/khách; trả discount (cap BR-42). *Dùng bởi POS UC-48.* ✅ Done: hàm validate tái sử dụng ở checkout.
 
 ### 1.5 Customer (`com.khoga.customer`) — phụ thuộc: Customer, Audit
-- [ ] **UC-24 List khách / UC-27 Lịch sử** — `GET /api/v1/customers` (search phone/tên), `GET /api/v1/customers/{id}/history`. ✅ Done: tra cứu + lịch sử.
-- [ ] **UC-25 Thêm khách** — BR-71 — bắt buộc consent PDPA (`consentAt`,`consentVersion`) trước khi lưu phone/email; phone duy nhất. `POST /api/v1/customers`; Test thiếu consent → 400. ✅ Done: enrol có consent.
-- [ ] **UC-26 Cập nhật khách / điều chỉnh điểm** — BR-49 — sửa tên/email; điều chỉnh điểm thủ công chỉ businessadmin + bắt buộc lý do; audit. `PUT /api/v1/customers/{id}`. ✅ Done: chỉnh điểm có lý do + log.
-- [ ] **Component dùng lại: `LoyaltyPointCalculator`** — BR-01, BR-02, BR-74, BR-69
+- [x] **UC-24 List khách / UC-27 Lịch sử** — `GET /api/v1/customers` (search phone/tên), `GET /api/v1/customers/{id}/history`. ✅ Done: tra cứu + lịch sử.
+- [x] **UC-25 Thêm khách** — BR-71 — bắt buộc consent PDPA (`consentAt`,`consentVersion`) trước khi lưu phone/email; phone duy nhất. `POST /api/v1/customers`; Test thiếu consent → 400. ✅ Done: enrol có consent.
+- [x] **UC-26 Cập nhật khách / điều chỉnh điểm** — BR-49 — sửa tên/email; điều chỉnh điểm thủ công chỉ businessadmin + bắt buộc lý do; audit. `PUT /api/v1/customers/{id}`. ✅ Done: chỉnh điểm có lý do + log.
+- [x] **Component dùng lại: `LoyaltyPointCalculator`** — BR-01, BR-02, BR-74, BR-69
   - `calcEarned(netTotal, accrual%)` = floor (BR-01, base = Net Total Payable BR-69); `calcRedeemValue(points)` = points×`VALUE_PER_POINT` (bội số 100, BR-74); enforce cap %/tuyệt đối (BR-02)
   - Test: tính điểm + cap chính xác. *Dùng bởi POS UC-49 và Order rollback.* ✅ Done: engine điểm chuẩn, có test số học.
 
@@ -304,6 +306,7 @@ Quy ước bắt buộc (xem [CLAUDE.md](CLAUDE.md)) áp dụng cho MỌI task, 
 - **OTP in-memory** ở P1B: không sống sót restart/đa node — nâng cấp P4.
 - **Tồn kho cho phép âm** (BR-89) là CHỦ Ý (đo hao hụt), không phải bug — không "sửa" thành chặn về 0.
 - **Khác biệt tài liệu vs code**: package gốc là `com.khoga` (RDS ghi nhầm `com.khoga.coffeeshop`); stack thực là Spring Boot 4.1.0/Java 21 (doc ghi 3.x/17). Theo code.
+- **Mô hình Role**: enum `Role` hiện = `{CASHIER, BARISTA, STORE_MANAGER, BUSINESSADMIN, SSADMIN}`. `BUSINESSADMIN` (HQ) đã được wire cho **điều chỉnh điểm KH (BR-49)** và **raw material master (UC-74/BR-63)** qua `@PreAuthorize("hasAnyRole('SSADMIN','BUSINESSADMIN')")`; `SSADMIN` là super-admin (tài khoản seed) nên luôn được phép. Các endpoint HQ khác (branch/user/category/menu/voucher) **vẫn `SSADMIN`-only** — sẽ rà lại RBAC theo từng role (kể cả `ceoviewer` mà doc nhắc nhưng chưa thêm) ở pha sau. Chưa seed sẵn tài khoản `BUSINESSADMIN`.
 
 ## Phụ thuộc tổng (rút gọn)
 
