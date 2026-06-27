@@ -44,4 +44,8 @@ public class Order extends BaseEntity {
     private PaymentStatus paymentStatus;
     @Enumerated(EnumType.STRING)
     private OrderStatus status;
+    /** Loyalty points consumed by redemption on this order (for accrual/rollback, BR-08). */
+    private Integer pointsRedeemed;
+    /** Loyalty points accrued to the customer when this order is paid (BR-01/BR-69). */
+    private Integer pointsEarned;
 }
