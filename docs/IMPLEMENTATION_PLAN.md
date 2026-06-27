@@ -2,7 +2,7 @@
 
 ## Bối cảnh (Context)
 
-Nền tảng (`com.khoga.common` = 22 entity + repository + `ApiResponse` + exception/`GlobalExceptionHandler`; `com.khoga.config` = JPA/CORS/OpenAPI/Security) đã có sẵn. Plan này ban đầu được viết khi repo *chỉ* có base framework; xem **Trạng thái hiện tại** bên dưới để biết phần đã build.
+Nền tảng (`com.khoga.common` = 23 entity + repository + `ApiResponse` + exception/`GlobalExceptionHandler`; `com.khoga.config` = JPA/CORS/OpenAPI/Security) đã có sẵn. Plan này ban đầu được viết khi repo *chỉ* có base framework; xem **Trạng thái hiện tại** bên dưới để biết phần đã build.
 
 > **Trạng thái hiện tại (cập nhật 2026-06-23):** **P0** (hạ tầng + Auth MVP) và **P1** (master data: Branch, User, Catalog, Voucher, Customer) **đã hoàn thành + có test** — toàn bộ checkbox P0/P1 dưới đây đã `[x]`. Bộ test: **89 test xanh** (88 unit + 1 integration full-context trên SQL Server). Còn lại: **P1B** (Auth nâng cao), **P2** (vận hành), **P3** (báo cáo), **P4** (cứng hóa) — vẫn `[ ]`.
 
@@ -287,7 +287,7 @@ Quy ước bắt buộc (xem [CLAUDE.md](CLAUDE.md)) áp dụng cho MỌI task, 
 
 ## Kiểm thử & nghiệm thu (Verification)
 
-**Chạy app:** tạo DB `khoga_coffee_shop` (SQL Server), `./mvnw spring-boot:run` (Windows: `mvnw.cmd`). Hibernate `ddl-auto=update` tự sinh 22 bảng. Xác minh: console hiện `Started CoffeeshopApplication`; Swagger UI `http://localhost:8080/swagger-ui.html` liệt kê endpoint mới.
+**Chạy app:** tạo DB `khoga_coffee_shop` (SQL Server), `./mvnw spring-boot:run` (Windows: `mvnw.cmd`). Hibernate `ddl-auto=update` tự sinh 23 bảng. Xác minh: console hiện `Started CoffeeshopApplication`; Swagger UI `http://localhost:8080/swagger-ui.html` liệt kê endpoint mới.
 
 **Theo từng phase (smoke test qua Swagger/cURL):**
 - P0: login bằng ssadmin seed → nhận JWT; gọi endpoint bảo vệ thiếu token → 401; sai role → 403; sai mật khẩu 5 lần → khóa.
@@ -305,8 +305,10 @@ Quy ước bắt buộc (xem [CLAUDE.md](CLAUDE.md)) áp dụng cho MỌI task, 
 - **`ddl-auto=update`**: schema sinh từ entity, không có migration script — đổi entity là đổi bảng; cân nhắc Flyway ở P4 nếu cần kiểm soát schema.
 - **OTP in-memory** ở P1B: không sống sót restart/đa node — nâng cấp P4.
 - **Tồn kho cho phép âm** (BR-89) là CHỦ Ý (đo hao hụt), không phải bug — không "sửa" thành chặn về 0.
-- **Khác biệt tài liệu vs code**: package gốc là `com.khoga` (RDS ghi nhầm `com.khoga.coffeeshop`); stack thực là Spring Boot 4.1.0/Java 21 (doc ghi 3.x/17). Theo code.
-- **Mô hình Role**: enum `Role` hiện = `{CASHIER, BARISTA, STORE_MANAGER, BUSINESSADMIN, SSADMIN}`. `BUSINESSADMIN` (HQ) đã được wire cho **điều chỉnh điểm KH (BR-49)** và **raw material master (UC-74/BR-63)** qua `@PreAuthorize("hasAnyRole('SSADMIN','BUSINESSADMIN')")`; `SSADMIN` là super-admin (tài khoản seed) nên luôn được phép. Các endpoint HQ khác (branch/user/category/menu/voucher) **vẫn `SSADMIN`-only** — sẽ rà lại RBAC theo từng role (kể cả `ceoviewer` mà doc nhắc nhưng chưa thêm) ở pha sau. Chưa seed sẵn tài khoản `BUSINESSADMIN`.
+- **Khác biệt tài liệu vs code**: package gốc là `com.khoga` (RDS từng ghi nhầm `com.khoga.coffeeshop` — **đã sửa 2026-06-27**); stack thực là Spring Boot 4.1.0/Java 21 (doc từng ghi 3.x/17 — **đã sửa**). Theo code.
+- **Đối soát tài liệu (2026-06-27)**: đã đối soát SRS↔RDS↔code↔plan — xem [DOCS_RECONCILIATION.md](DOCS_RECONCILIATION.md). RDS (bản 2026-06-18) đã được patch theo SRS: sửa BR-id sai (BR-11/BR-54/BR-68/BR-81), UC-id đụng độ (POS/Order/Report), bổ sung UC-02/72/83, MFA TOTP, voucher 3-state, loyalty-liability theo điểm, Z-report theo ngày, anomaly configurable, topping global, MenuItem variant, **BR-85 late-callback** (trước đó RDS đánh PAID vô điều kiện). DB-design đồng bộ code = **23 bảng** (thêm `system_configs`, `menu_item_topping_mappings`).
+- **Mô hình Role (6 role, chốt 2026-06-27)**: enum `Role` = `{CASHIER, BARISTA, STORE_MANAGER, CEOVIEWER, BUSINESSADMIN, SSADMIN}` — khớp SRS §2.1. Seed sẵn `ssadmin`, `bizadmin`, `ceoviewer` (đều `mustChangePassword=true`). `BUSINESSADMIN` wire **điều chỉnh điểm KH (BR-49)** + **raw material master (UC-74/BR-63)**; `SSADMIN` super-admin. `CEOVIEWER` = read-only báo cáo chuỗi (BR-44) — **RBAC `@PreAuthorize` cho endpoint báo cáo HQ (UC-28/29/76/77/78/79/82/83) sẽ wire khi build P3**. Endpoint HQ khác hiện `SSADMIN`-only. ⚠️ Thêm `CEOVIEWER` → DB dev cũ phải drop CHECK-constraint `users.role` trước khi chạy (xem CLAUDE.md gotcha).
+- **Default config theo SRS (2026-06-27)**: `VAT_RATE=10`, `MAX_ACTIVE_BRANCHES=5`, `CANCEL_REFUND_ALERT_THRESHOLD=5`, thêm `LOYALTY_MAX_REDEMPTION_LIMIT=100000`.
 
 ## Phụ thuộc tổng (rút gọn)
 

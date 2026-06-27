@@ -1,6 +1,6 @@
 ### **1.2 Package Diagram**
 
-*\[The overall package diagram shows the decomposition of the system into 18 subsystems (packages). Each package follows the COMET Information Hiding principle, encapsulating its own controller, service, repository, and domain components. The Spring Boot backend is organized under the root package `com.khoga.coffeeshop`. The web frontend uses Thymeleaf templates in `src/main/resources/templates/`. The Flutter application is a separate project `khoga_pos_app/`.\]*
+*\[The overall package diagram shows the decomposition of the system into 18 subsystems (packages). Each package follows the COMET Information Hiding principle, encapsulating its own controller, service, repository, and domain components. The Spring Boot backend is organized under the root package `com.khoga`. The web frontend uses Thymeleaf templates in `src/main/resources/templates/`. The Flutter application is a separate project `khoga_pos_app/`.\]*
 
 ```mermaid
 graph TB
@@ -9,11 +9,11 @@ graph TB
         FLUTTER["khoga_pos_app/ (Flutter POS & Barista App)"]
     end
 
-    subgraph FEATURES["com.khoga.coffeeshop (Feature Packages)"]
+    subgraph FEATURES["com.khoga (Feature Packages)"]
         %% Grid layout using invisible links for clean alignment
         AUTH["auth (Authentication & MFA)"] ~~~ USER["user (User Accounts)"] ~~~ CATALOG["catalog (Menu & Recipes)"] ~~~ VOUCHER["voucher (Voucher System)"]
         CUSTOMER["customer (CRM & Loyalty)"] ~~~ INVENTORY["inventory (Stock & Deduction)"] ~~~ POS["pos (Checkout & Shifts)"] ~~~ ORDER["order (Order & Queue)"]
-        STAFF["staff (Staff & Attendance)"] ~~~ REPORT["report (BI & COGS Reports)"] ~~~ BRANCH["branch (Branch CRUD)"] ~~~ CONFIG["config_module (Central Config)"]
+        STAFF["staff (Staff & Attendance)"] ~~~ REPORT["report (BI & COGS Reports)"] ~~~ BRANCH["branch (Branch CRUD)"] ~~~ CONFIG["config (Central Config)"]
 
         %% Vertical alignment paths
         AUTH ~~~ CUSTOMER ~~~ STAFF
@@ -94,10 +94,10 @@ graph TB
 | 09 | `com.khoga.staff` | Staff scheduling and attendance tracking. Schedule CRUD by storemanager. Attendance check-in with PIN + camera photo (PDPA-compliant BR-72). Worked-hours export. Contains schedule/attendance controllers and services, `AttendancePhotoManager` («application logic»). Coordinates UC-35→UC-39, UC-66, UC-80. |
 | 10 | `com.khoga.report` | All reporting and analytics: HQ consolidated dashboard, COGS/margin, price change history, loyalty liability, labour efficiency, Z-report archive, anomaly detection. Contains `ReportController` («boundary»), multiple report service classes («application logic»). Coordinates UC-28→UC-29, UC-40→UC-41, UC-76→UC-83. |
 | 11 | `com.khoga.branch` | Branch lifecycle management: add, edit, deactivate. Enforces MAX_ACTIVE_BRANCHES constraint (BR-35). Contains `BranchController` («boundary»), `BranchService` («control»). Coordinates UC-63→UC-65. |
-| 12 | `com.khoga.config_module` | Central system configuration (tax rate, loyalty rates, VietQR credentials) managed by ssadmin, and branch-local overrides by storemanager. Contains `ConfigController` («boundary»), `SystemConfigService` («control»). Coordinates UC-30, UC-42. |
+| 12 | `com.khoga.config` | Central system configuration (tax rate, loyalty rates, VietQR credentials) managed by ssadmin, and branch-local overrides by storemanager. Contains `ConfigController` («boundary»), `SystemConfigService` («control»). Coordinates UC-30, UC-42. |
 | 13 | `com.khoga.audit` | Immutable audit log service auto-triggered by @EntityListeners for: price changes, voucher mutations, user account changes, checkout voucher/loyalty usage. Contains `AuditLogService`. Supports BR-68, BR-80, BR-81. |
 | 14 | `com.khoga.integration` | External system adapters («boundary» external proxies): `VietQRClient` + `VietQRSettlementHandler` (payment gateway), `EmailService` (SMTP OTP/alerts), `PrinterService` (ESC/POS receipt and cup label). |
-| 15 | `com.khoga.common` | Shared persistence layer: all 21 JPA `@Entity` classes, `@Repository` interfaces, request/response DTOs, custom exceptions, `@ControllerAdvice`, and input validators. Classified as «entity» (data) subsystem. |
+| 15 | `com.khoga.common` | Shared persistence layer: all 23 JPA `@Entity` classes, `@Repository` interfaces, request/response DTOs, custom exceptions, `@ControllerAdvice`, and input validators. Classified as «entity» (data) subsystem. |
 | 16 | `com.khoga.scheduler` | Spring `@Scheduled` background timer tasks («timer» subsystem): `OrderTimeoutScheduler` (15-min READY→ABANDONED), `ShiftAutoCloseScheduler` (23:59 cron), `LowStockAlertScheduler` (22:00 cron), `ReadyAbandonScheduler`, `OtpExpiryScheduler` (10-min), `PhotoAutoDeleteScheduler` (02:00 cron — PDPA BR-72). |
 | 17 | `src/main/resources/templates/` | Thymeleaf server-side rendered web frontend for HQ Admin Portal and Store Manager Console. Views are rendered by Spring MVC controllers and delivered as HTML. Static assets (CSS/JS/images) reside in `src/main/resources/static/`. Classified as «boundary» (UI Web) subsystem. |
 | 18 | `khoga_pos_app/` | Flutter application for POS Terminal and Barista Queue Monitor. Communicates via `dio` HTTP client over HTTPS/JSON. Always-online; requires active network connection to process transactions. Classified as «boundary» (UI Flutter) subsystem. |

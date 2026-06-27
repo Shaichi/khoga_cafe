@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 import com.khoga.common.model.enums.*;
 
 @Entity
-@Table(name = "branchmenustatuss")
+@Table(name = "branchmenustatuss", uniqueConstraints = @UniqueConstraint(columnNames = {"store_id", "menu_item_id"}))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -19,7 +19,7 @@ public class BranchMenuStatus extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    // TODO: Add composite key (store_id, menu_item_id)
+    // Surrogate UUID PK + unique (store_id, menu_item_id) — enforces one availability row per (branch, item).
     @ManyToOne
     @JoinColumn(name = "store_id")
     private Store store;

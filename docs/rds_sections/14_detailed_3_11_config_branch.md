@@ -1,10 +1,10 @@
 ### **3.11 System Configuration & Branch Management**
 
-*\[Provide the detailed design for System Configuration & Branch Management, covering UC-30 (Central System Config by ssadmin), UC-42 (Branch-Local Config Override by storemanager), and UC-63→UC-65 (Branch Lifecycle: Add/Edit/Deactivate). Key constraints: Adding a branch is blocked if MAX_ACTIVE_BRANCHES is reached (BR-35). Deactivating a branch is blocked if the branch has OPEN shift sessions. All config changes are audit-logged.\]*
+*\[Provide the detailed design for System Configuration & Branch Management, covering UC-30 (Central System Config by ssadmin), UC-42 (Branch Local Settings by storemanager), and UC-63→UC-65 (Branch Lifecycle: View List / Add / Update-Deactivate by ssadmin). Key constraints: Adding a branch is blocked if MAX_ACTIVE_BRANCHES is reached (BR-54). Deactivating a branch is blocked while the branch has OPEN shift sessions or any non-terminal order (BR-55), and on deactivation it cascades per BR-56. All config changes are audit-logged.\]*
 
 #### ***3.11.1 Class Diagram***
 
-*\[Class diagram for Config & Branch Management. COMET stereotypes: SystemConfigForm, BranchLocalConfigForm, AddBranchForm, EditBranchForm, BranchListView («boundary»); SystemConfigCoordinator, BranchCoordinator («control»); SystemConfig, Store, AuditLog («entity»).\]*
+*\[Class diagram for Config & Branch Management. COMET stereotypes: SystemConfigForm, BranchLocalSettingsForm, AddBranchForm, EditBranchForm, BranchListView («boundary»); SystemConfigCoordinator, BranchCoordinator («control»); SystemConfig, Store, AuditLog («entity»).\]*
 
 ```mermaid
 classDiagram
@@ -15,19 +15,21 @@ classDiagram
         +scope: ConfigScope
         +submitUpdate()
     }
-    class BranchLocalConfigForm {
+    class BranchLocalSettingsForm {
         <<boundary>>
         +storeId: UUID
-        +configKey: String
-        +overrideValue: String
-        +submitOverride()
+        +timezone: String
+        +printerIpOrCom: String
+        +cashDrawerIpOrCom: String
+        +logo: Image
+        +submitSettings()
     }
+    note for BranchLocalSettingsForm "UC-42 / BR-47: a FIXED, TYPED settings form owned by the Store Manager (timezone, hardware IP/COM, branch logo) — NOT a generic config key/value override. ssadmin does NOT edit branch-local settings; ssadmin's branch authority is lifecycle UC-63 to UC-65 only."
     class AddBranchForm {
         <<boundary>>
         +name: String
         +address: String
         +phone: String
-        +managerUserId: UUID
         +submitCreate()
     }
     class EditBranchForm {
@@ -45,8 +47,8 @@ classDiagram
         <<control>>
         +getSystemConfig(key): ConfigDto
         +updateSystemConfig(key, value): void
-        +getBranchLocalConfig(storeId, key): ConfigDto
-        +updateBranchLocalConfig(storeId, key, value): void
+        +getBranchLocalSettings(storeId): BranchSettingsDto
+        +updateBranchLocalSettings(storeId, settings): void
     }
     class BranchCoordinator {
         <<control>>
@@ -80,7 +82,7 @@ classDiagram
     }
 
     SystemConfigForm ..> SystemConfigCoordinator
-    BranchLocalConfigForm ..> SystemConfigCoordinator
+    BranchLocalSettingsForm ..> SystemConfigCoordinator
     AddBranchForm ..> BranchCoordinator
     EditBranchForm ..> BranchCoordinator
     BranchListView ..> BranchCoordinator
@@ -105,7 +107,7 @@ sequenceDiagram
     ssadmin->>ConfigForm: openConfigPanel()
     ConfigForm->>ConfigCoord: getSystemConfig(key="*")
     ConfigCoord->>ConfigDB: findAllGlobalConfigs()
-    ConfigDB-->>ConfigCoord: configList[]
+    ConfigDB-->>ConfigCoord: configList[] (TAX_RATE, LOYALTY_EARN_RATE, LOYALTY_REDEEM_RATE,<br/>VIETQR_API_CLIENT_ID, VIETQR_API_API_KEY, VIETQR_API_CHECKSUM_KEY,<br/>MAX_ACTIVE_BRANCHES, CANCEL_REFUND_ALERT_THRESHOLD, ...)
     ConfigCoord-->>ConfigForm: displayConfigGrid()
 
     ssadmin->>ConfigForm: inputConfigValue(key, value)
@@ -120,7 +122,7 @@ sequenceDiagram
 
 #### ***3.11.3 UC-63/64/65 Branch Lifecycle Management***
 
-*\[ssadmin creates, updates, or deactivates branch records. Adding a branch checks MAX_ACTIVE_BRANCHES constraint (BR-35). Deactivating a branch checks that no OPEN shift sessions exist. All operations are audit-logged.\]*
+*\[ssadmin views the branch list (UC-63), adds a branch (UC-64), or updates/deactivates a branch (UC-65). Adding a branch checks the MAX_ACTIVE_BRANCHES constraint (BR-54). Deactivating a branch is blocked while the branch has any OPEN shift session OR any non-terminal order (status PENDING/PREPARING/HOLD/READY) per BR-55. On successful deactivation the change cascades per BR-56 (disable branch users + terminate their tokens, delete future schedules + notify, preserve historical records read-only). All operations are audit-logged.\]*
 
 ```mermaid
 sequenceDiagram
@@ -129,22 +131,25 @@ sequenceDiagram
     participant BranchCoord as BranchCoordinator
     participant ConfigDB as SystemConfig (DB)
     participant ShiftDB as ShiftSession (DB)
+    participant OrderDB as Order (DB)
     participant StoreDB as Store (DB)
+    participant UserDB as User (DB)
+    participant SchedDB as Schedule (DB)
     participant AuditDB as AuditLog (DB)
 
     ssadmin->>BranchForm: submitBranchAction(dto)
     BranchForm->>BranchCoord: submitAction(dto)
 
-    alt ADD Branch (UC-63)
+    alt ADD Branch (UC-64)
         BranchCoord->>ConfigDB: getConfig(MAX_ACTIVE_BRANCHES)
         ConfigDB-->>BranchCoord: maxBranches = N
         BranchCoord->>StoreDB: countActiveBranches()
         StoreDB-->>BranchCoord: currentCount = C
-        BranchCoord->>BranchCoord: validate(C < N) — blocked if C >= N (BR-35)
+        BranchCoord->>BranchCoord: validate(C < N) — blocked if C >= N (BR-54)
         BranchCoord->>StoreDB: createStore(dto, isActive=true)
         StoreDB-->>BranchCoord: newStore
         BranchCoord->>AuditDB: writeAuditLog(CREATE, stores, null, newStore)
-    else EDIT Branch (UC-64)
+    else UPDATE Branch (UC-65)
         BranchCoord->>StoreDB: findById(storeId)
         StoreDB-->>BranchCoord: oldStoreRecord
         BranchCoord->>StoreDB: updateStore(storeId, dto)
@@ -152,8 +157,14 @@ sequenceDiagram
     else DEACTIVATE Branch (UC-65)
         BranchCoord->>ShiftDB: findOpenShifts(storeId)
         ShiftDB-->>BranchCoord: openShiftsList (must be empty)
-        BranchCoord->>BranchCoord: validate(openShifts.isEmpty()) — blocked if open shifts exist
+        BranchCoord->>OrderDB: findNonTerminalOrders(storeId, status in [PENDING,PREPARING,HOLD,READY])
+        OrderDB-->>BranchCoord: nonTerminalOrders (must be empty)
+        BranchCoord->>BranchCoord: validate(openShifts.isEmpty() AND nonTerminalOrders.isEmpty()) — blocked otherwise (BR-55)
         BranchCoord->>StoreDB: setIsActive(storeId, false)
+        Note over BranchCoord,SchedDB: Cascade on deactivation (BR-56)
+        BranchCoord->>UserDB: disableBranchUsers(storeId) + terminateTokens (BR-18)
+        BranchCoord->>SchedDB: deleteFutureSchedules(storeId) + notifyAffectedStaff (BR-37)
+        Note over BranchCoord,StoreDB: historical records preserved read-only
         BranchCoord->>AuditDB: writeAuditLog(DEACTIVATE, stores, isActive=true, isActive=false)
     end
 

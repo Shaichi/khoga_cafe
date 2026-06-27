@@ -1,6 +1,6 @@
 ### **3.2 User Account Management**
 
-*\[Provide the detailed design for User Account Management, covering UC-10→UC-14 (View User List, Add User, Update User, View User Detail, Deactivate/Reactivate User). Actor: ssadmin. The class diagram covers all user management use cases. Sequence diagrams cover the Add User and Update/Deactivate User flows.\]*
+*\[Provide the detailed design for User Account Management, covering UC-10→UC-14 (View User List, Add User, Update User, View User Detail, Deactivate/Reactivate User) plus UC-83 (User Account Change & Access Review Report). Primary actor: **ssadmin**. In addition, a **Store Manager** may **unlock and view their own branch's staff accounts** (the BR-11 / BR-59 branch-scoped exception); **ceoviewer** has read-only access to the review report (UC-83, BR-81). The class diagram covers all user management use cases. Sequence diagrams cover the Add User and Update/Deactivate User flows.\]*
 
 #### ***3.2.1 Class Diagram***
 
@@ -94,9 +94,11 @@ classDiagram
     UserManagementCoordinator --> AuditLog
 ```
 
+*\[**AuditLog note (BR-81):** the entity shape is unchanged — `userId`, `actionType`, `entityAffected`, `oldValueJson`, `newValueJson`, `createdAt`. For account changes, the **actor** is captured by `userId`; the **target** user and the **before/after** role/active-status values are captured inside `oldValueJson` / `newValueJson`. So a single AuditLog row records actor + target + before/after, satisfying BR-81's requirement without adding new columns.\]*
+
 #### ***3.2.2 UC-11 Add User Account***
 
-*\[ssadmin creates a new employee account. System auto-generates a temporary password, sends a welcome email with the temporary password, sets mustChangePassword = true, and writes an audit log entry (BR-80).\]*
+*\[ssadmin creates a new employee account. Validation: **username must be unique**, the referenced **store must exist**, and the **email and phone must also be unique**. The system **auto-generates the employee id (EMP-id) per BR-57** and **derives the username per BR-58**, auto-generates a temporary password, sends a welcome email with the temporary password, sets mustChangePassword = true, and writes an audit log entry (BR-80).\]*
 
 ```mermaid
 sequenceDiagram
@@ -109,11 +111,15 @@ sequenceDiagram
     participant EmailSvc as EmailServiceProxy
     participant AuditDB as AuditLog (DB)
 
-    ssadmin->>AddForm: inputUserDetails(name, username, role, email, phone, storeId)
+    ssadmin->>AddForm: inputUserDetails(name, role, email, phone, storeId)
     AddForm->>UserMgmtCoord: submitForm(dto)
     UserMgmtCoord->>UserDB: checkUsernameUnique(username)
+    UserMgmtCoord->>UserDB: checkEmailUnique(email)
+    UserMgmtCoord->>UserDB: checkPhoneUnique(phone)
     UserMgmtCoord->>StoreDB: verifyStoreExists(storeId)
     StoreDB-->>UserMgmtCoord: storeRecord (if required)
+    UserMgmtCoord->>UserMgmtCoord: generateEmployeeId() [BR-57]
+    UserMgmtCoord->>UserMgmtCoord: generateUsername(name) [BR-58]
     UserMgmtCoord->>UserMgmtCoord: generateTempPassword()
     UserMgmtCoord->>Validator: validate(tempPwd)
     Validator-->>UserMgmtCoord: valid
@@ -127,7 +133,7 @@ sequenceDiagram
 
 #### ***3.2.3 UC-12/UC-14 Update / Deactivate User Account***
 
-*\[ssadmin updates user profile details or deactivates an account. Self-role escalation is blocked (BR-82): ssadmin cannot elevate their own role. An audit log is written for every change (BR-80). Deactivated users cannot login.\]*
+*\[ssadmin updates user profile details or deactivates an account. Self-escalation is blocked (BR-82): **no user may change their own role, permissions, or active status** — such a change must be performed by a **different** ssadmin. An audit log is written for every change (BR-80). Deactivated users cannot login.\]*
 
 ```mermaid
 sequenceDiagram
@@ -139,7 +145,8 @@ sequenceDiagram
 
     ssadmin->>EditForm: select user + edit fields
     EditForm->>UserMgmtCoord: submitChanges(userId, dto)
-    UserMgmtCoord->>UserMgmtCoord: checkNotSelfEscalation(ssadmin.id, userId, newRole)
+    UserMgmtCoord->>UserMgmtCoord: checkNotSelfChange(actor.id, userId, newRole, newPermissions, newActiveStatus) [BR-82]
+    note over UserMgmtCoord: reject if actor.id == userId and any of role / permissions / active-status changes;<br/>such a change must be made by a different ssadmin
 
     alt Update User (UC-12)
         UserMgmtCoord->>UserDB: findById(userId)
@@ -153,5 +160,25 @@ sequenceDiagram
 
     UserMgmtCoord-->>EditForm: showSuccess()
     EditForm-->>ssadmin: display updated user record
+```
+
+#### ***3.2.4 UC-83 View User Account Change & Access Review Report***
+
+*\[A **ceoviewer** opens a **read-only** review report of user-account changes and access events for governance/audit purposes (BR-81). The coordinator queries the AuditLog for account-related actions (CREATE / UPDATE on `users`, lock/unlock, deactivate/reactivate) and renders, per row, the **actor** (`userId`), the **target** user, and the **before/after** role/active-status decoded from `oldValueJson` / `newValueJson`. The actor cannot mutate anything from this view.\]*
+
+```mermaid
+sequenceDiagram
+    actor ceoviewer
+    participant ReviewView as UserAccessReviewView
+    participant UserMgmtCoord as UserManagementCoordinator
+    participant AuditDB as AuditLog (DB)
+
+    ceoviewer->>ReviewView: open Access Review Report (date range / filter)
+    ReviewView->>UserMgmtCoord: viewAccessReviewReport(filter)
+    UserMgmtCoord->>AuditDB: findAccountChangeLogs(filter)
+    AuditDB-->>UserMgmtCoord: auditRows (actor, target, before/after in JSON)
+    UserMgmtCoord->>UserMgmtCoord: decodeOldNewValueJson() -> actor + target + before/after [BR-81]
+    UserMgmtCoord-->>ReviewView: return read-only report rows
+    ReviewView-->>ceoviewer: display review report (no edit actions)
 ```
 

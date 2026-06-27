@@ -26,5 +26,5 @@ public class SystemConfig extends BaseEntity {
     @JoinColumn(name = "store_id")
     private Store store;
     private String updatedBy;
-    private LocalDateTime updatedAt;
+    // updatedAt/createdAt are inherited from BaseEntity (JPA auditing) — do not redeclare.
 }

@@ -5,7 +5,7 @@ import lombok.*;
 import java.util.UUID;
 
 @Entity
-@Table(name = "menu_item_topping_mappings")
+@Table(name = "menu_item_topping_mappings", uniqueConstraints = @UniqueConstraint(columnNames = {"menu_item_id", "option_topping_id"}))
 @Getter
 @Setter
 @NoArgsConstructor

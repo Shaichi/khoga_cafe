@@ -38,6 +38,9 @@ public class DataSeeder implements CommandLineRunner {
     static final String SEED_BIZADMIN_USERNAME = "bizadmin";
     /** Same dev bootstrap password (BR-14 compliant); must be changed on first login. */
     static final String SEED_BIZADMIN_PASSWORD = "Admin@123";
+    static final String SEED_CEOVIEWER_USERNAME = "ceoviewer";
+    /** Same dev bootstrap password (BR-14 compliant); must be changed on first login. */
+    static final String SEED_CEOVIEWER_PASSWORD = "Admin@123";
     private static final String GLOBAL_SCOPE = "GLOBAL";
 
     private final UserRepository userRepository;
@@ -60,6 +63,7 @@ public class DataSeeder implements CommandLineRunner {
         seedDefaultStore();
         seedSuperAdmin();
         seedBusinessAdmin();
+        seedCeoViewer();
     }
 
     private void seedSuperAdmin() {
@@ -69,6 +73,11 @@ public class DataSeeder implements CommandLineRunner {
     /** HQ businessadmin bootstrap (owns master data / promotions / loyalty adjustments — BR-49, UC-74). */
     private void seedBusinessAdmin() {
         seedAdminUser(SEED_BIZADMIN_USERNAME, SEED_BIZADMIN_PASSWORD, Role.BUSINESSADMIN, "Business Admin");
+    }
+
+    /** HQ ceoviewer bootstrap (read-only consolidated chain reports — SRS §2.1, BR-44). */
+    private void seedCeoViewer() {
+        seedAdminUser(SEED_CEOVIEWER_USERNAME, SEED_CEOVIEWER_PASSWORD, Role.CEOVIEWER, "CEO Viewer");
     }
 
     /** Creates an HQ bootstrap account if absent (idempotent); {@code mustChangePassword=true} per BR-82. */
@@ -105,13 +114,14 @@ public class DataSeeder implements CommandLineRunner {
 
     private void seedSystemConfig() {
         Map<String, String> defaults = new LinkedHashMap<>();
-        defaults.put("VAT_RATE", "8");                          // BR-70 VAT inclusive
-        defaults.put("LOYALTY_ACCRUAL_PERCENTAGE", "1");        // BR-01
-        defaults.put("LOYALTY_REDEMPTION_VALUE_PER_POINT", "100"); // BR-74
-        defaults.put("LOYALTY_MAX_REDEMPTION_PERCENT", "50");   // BR-02
-        defaults.put("MAX_ACTIVE_BRANCHES", "10");              // BR-54
+        defaults.put("VAT_RATE", "10");                         // BR-45 (VAT inclusive 10/110), BR-70
+        defaults.put("LOYALTY_ACCRUAL_PERCENTAGE", "1");        // BR-01 / BR-94
+        defaults.put("LOYALTY_REDEMPTION_VALUE_PER_POINT", "100"); // BR-74 / BR-94
+        defaults.put("LOYALTY_MAX_REDEMPTION_PERCENT", "50");   // BR-02 / BR-94
+        defaults.put("LOYALTY_MAX_REDEMPTION_LIMIT", "100000"); // BR-02 / BR-94 (max VND discount/order)
+        defaults.put("MAX_ACTIVE_BRANCHES", "5");               // BR-54
         defaults.put("HQ_MFA_REQUIRED", "true");                // BR-83
-        defaults.put("CANCEL_REFUND_ALERT_THRESHOLD", "10");    // BR-94 / BR-79
+        defaults.put("CANCEL_REFUND_ALERT_THRESHOLD", "5");     // BR-79 / BR-94 (% of orders)
 
         Set<String> existing = systemConfigRepository.findAll().stream()
                 .filter(c -> GLOBAL_SCOPE.equals(c.getScope()))

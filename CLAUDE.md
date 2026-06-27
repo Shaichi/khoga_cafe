@@ -54,9 +54,11 @@ The app connects to a SQL Server database that must exist **before** first run (
 CREATE DATABASE khoga_coffee_shop;
 ```
 
-Connection + credentials live in [backend/src/main/resources/application.properties](backend/src/main/resources/application.properties). `spring.jpa.hibernate.ddl-auto=update` means **the schema is entity-driven** — Hibernate auto-generates/alters the 22 tables from the `@Entity` classes on startup. Changing an entity changes its table automatically; there are no migration scripts.
+Connection + credentials live in [backend/src/main/resources/application.properties](backend/src/main/resources/application.properties). `spring.jpa.hibernate.ddl-auto=update` means **the schema is entity-driven** — Hibernate auto-generates/alters the 23 tables from the `@Entity` classes on startup. Changing an entity changes its table automatically; there are no migration scripts.
 
 > **Gotcha — `@Enumerated(EnumType.STRING)` + `ddl-auto=update`:** Hibernate emits a `CHECK (col IN (...))` constraint listing the enum's values when it first *creates* a column, but `update` mode **never alters or drops** that constraint afterward. So **adding a value to an existing enum breaks INSERTs on an already-provisioned DB** (e.g. adding `BUSINESSADMIN` → `INSERT ... conflicted with CHECK constraint "CK__users__role__..."`). A *fresh* DB is fine (CREATE includes all current values). To fix an existing dev DB, drop the stale constraint — `ALTER TABLE dbo.users DROP CONSTRAINT <name>` (find via `sys.check_constraints`) — or recreate the table. A proper migration tool (Flyway) is deferred to P4.
+>
+> **Applies now (2026-06-27 doc reconciliation):** `Role` gained **`CEOVIEWER`** (6-role model) and `DataSeeder` seeds a `ceoviewer` account. On a dev DB provisioned before this change, drop the stale `users.role` CHECK constraint (above) **before** first run, or the ceoviewer seed INSERT fails.
 
 ## Implementation decisions (locked)
 
@@ -71,7 +73,7 @@ Settled for the P0→P1 build; override later only with a clear reason:
 The root package is **`com.khoga`** (the main class is `com.khoga.CoffeeshopApplication`). The design docs sometimes write `com.khoga.coffeeshop` — that is wrong; use `com.khoga`. Each feature subsystem is its own package directly under `com.khoga` (e.g. `com.khoga.auth`, `com.khoga.catalog`, `com.khoga.pos`).
 
 **Shared Persistence Layer — `com.khoga.common`.** This is a deliberate, non-obvious design choice: **all** JPA entities and repositories live in `common`, shared by every feature, rather than each feature owning its own entities.
-- `common/model/` — the 22 `@Entity` classes + `BaseEntity` (a `@MappedSuperclass`)
+- `common/model/` — the 23 `@Entity` classes + `BaseEntity` (a `@MappedSuperclass`)
 - `common/model/enums/` — status/type enums (persisted as strings)
 - `common/repository/` — one Spring Data `JpaRepository` per entity
 - `common/dto/` — `ApiResponse<T>` (the standard envelope)

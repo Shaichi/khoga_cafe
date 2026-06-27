@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 import com.khoga.common.model.enums.*;
 
 @Entity
-@Table(name = "stockitems")
+@Table(name = "stockitems", uniqueConstraints = @UniqueConstraint(columnNames = {"store_id", "raw_material_id"}))
 @Getter
 @Setter
 @NoArgsConstructor

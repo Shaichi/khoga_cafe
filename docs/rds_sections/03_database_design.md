@@ -1,6 +1,6 @@
 ## **2\. Database Design**
 
-*\[The database design follows the entity relationships defined in the SRS (§3.1.5 / §3.1.6). The system uses `SQL Server` with ACID transactions and Unicode support (`NVARCHAR`). All primary keys use `UUID` (`VARCHAR(36)`). The diagrams below show the entity relationships with full column definitions, followed by the table descriptions.\]*
+*\[The database design follows the entity relationships defined in the SRS (§3.1.5 / §3.1.6). The system uses `SQL Server` with ACID transactions and Unicode support (`NVARCHAR`). All primary keys use `UUID` (`VARCHAR(36)`). The diagrams below show the entity relationships with full column definitions, followed by the table descriptions. Every table also carries an `updated_at` column from the shared `BaseEntity` (JPA auditing), omitted from the diagrams for brevity. The live schema is entity-driven (`ddl-auto=update`) — there are **23 tables**; generated names are concatenated-lowercase (e.g. `categorys`, `menuitems`) pending naming normalization under Flyway (P4).\]*
 
 ### **2.1. Core Sales & POS ERD**
 
@@ -27,6 +27,10 @@ erDiagram
         string email
         string phone
         uuid store_id FK
+        string employee_id
+        int failed_attempts
+        datetime lock_expiry_at
+        datetime password_last_changed_at
         datetime created_at
         datetime last_login_at
         boolean must_change_password
@@ -43,12 +47,15 @@ erDiagram
     MENU_ITEM {
         uuid id PK
         uuid category_id FK
+        uuid parent_item_id FK
         string name
         decimal price
         text description
         boolean is_active
         string image_url
         string barcode
+        string sku
+        string size_name
         string abbreviation
         datetime created_at
         boolean is_deleted
@@ -62,7 +69,6 @@ erDiagram
 
     OPTION_TOPPING {
         uuid id PK
-        uuid menu_item_id FK
         string name
         decimal price
         boolean is_active
@@ -74,9 +80,17 @@ erDiagram
         string full_name
         int points
         string email
+        date birth_date
+        boolean is_active
         datetime created_at
         datetime consent_at
         string consent_version
+    }
+
+    MENU_ITEM_TOPPING_MAPPING {
+        uuid id PK
+        uuid menu_item_id FK
+        uuid option_topping_id FK
     }
 
     SHIFT_SESSION {
@@ -105,7 +119,7 @@ erDiagram
         decimal total
         enum payment_method
         enum payment_status
-        enum order_status
+        enum status
         datetime created_at
     }
 
@@ -173,7 +187,8 @@ erDiagram
     USER ||--o{ ORDER_REFUND : "authorises"
 
     CATEGORY ||--o{ MENU_ITEM : "contains"
-    MENU_ITEM ||--o{ OPTION_TOPPING : "has"
+    MENU_ITEM ||--o{ MENU_ITEM_TOPPING_MAPPING : "offers"
+    OPTION_TOPPING ||--o{ MENU_ITEM_TOPPING_MAPPING : "linked via"
     MENU_ITEM ||--o{ ORDER_ITEM : "ordered in"
     MENU_ITEM ||--o{ BRANCH_MENU_STATUS : "status at"
 
@@ -213,6 +228,10 @@ erDiagram
         string email
         string phone
         uuid store_id FK
+        string employee_id
+        int failed_attempts
+        datetime lock_expiry_at
+        datetime password_last_changed_at
         datetime created_at
         datetime last_login_at
         boolean must_change_password
@@ -227,7 +246,7 @@ erDiagram
         decimal suggested_min_threshold
         decimal standard_cost
         boolean is_active
-        enum category
+        string category
     }
 
     STOCK_ITEM {
@@ -259,12 +278,15 @@ erDiagram
     MENU_ITEM {
         uuid id PK
         uuid category_id FK
+        uuid parent_item_id FK
         string name
         decimal price
         text description
         boolean is_active
         string image_url
         string barcode
+        string sku
+        string size_name
         string abbreviation
         datetime created_at
         boolean is_deleted
@@ -272,7 +294,6 @@ erDiagram
 
     OPTION_TOPPING {
         uuid id PK
-        uuid menu_item_id FK
         string name
         decimal price
         boolean is_active
@@ -312,8 +333,18 @@ erDiagram
         datetime created_at
     }
 
+    SYSTEM_CONFIG {
+        uuid id PK
+        string config_key
+        string config_value
+        string scope
+        uuid store_id FK
+        string updated_by
+    }
+
     %% Relationships
     STORE ||--o{ STOCK_ITEM : "holds"
+    STORE ||--o{ SYSTEM_CONFIG : "overrides"
     STORE ||--o{ STAFF_SCHEDULE : "schedules"
     STORE ||--o{ ATTENDANCE : "tracks"
 
@@ -337,8 +368,8 @@ erDiagram
 | 01 | users | Stores login credentials, RBAC roles, and attendance PIN for check-in/out (BR-93). attendance_pin must be unique per store (store_id). Key definitions: PK is id (UUID); FK is store_id → stores(id) |
 | 02 | categories | Main food and beverage product groupings (e.g., Coffee, Tea, Pastry). Used to organize the menu catalog chain-wide. Key definitions: PK is id (UUID) |
 | 03 | menu_items | Individual beverage/food catalog listings with pricing, barcodes, chain-wide active status, and image references. Soft-delete supported via is_deleted flag. Key definitions: PK is id (UUID); FK is category_id → categories(id) |
-| 04 | branch_menu_status | Per-branch item availability toggle. Allows Store Manager to temporarily disable items locally without affecting other branches. Key definitions: PK is (store_id, menu_item_id) — composite; FK is store_id → stores(id), menu_item_id → menu_items(id) |
-| 05 | option_toppings | Customizable add-ons for menu items (e.g., Extra Shot, Oat Milk, Tapioca Pearls). Each topping has a price and may have a recipe formula. Key definitions: PK is id (UUID); FK is menu_item_id → menu_items(id) |
+| 04 | branch_menu_status | Per-branch item availability toggle. Allows Store Manager to temporarily disable items locally without affecting other branches. Tracks last_updated_by/last_updated_at. Key definitions: PK is id (UUID); UNIQUE (store_id, menu_item_id); FK is store_id → stores(id), menu_item_id → menu_items(id) |
+| 05 | option_toppings | Global customizable add-ons (e.g., Extra Shot, Oat Milk, Tapioca Pearls), shared across menu items via menu_item_topping_mappings (BR-29). Price may be 0 (e.g. "No Ice"); a topping may carry its own recipe (BR-65). Key definitions: PK is id (UUID) — no direct menu_item FK (toppings are chain-wide global) |
 | 06 | customers | Loyalty membership registry tracking points balance. Includes PDPA consent timestamp (consent_at) and consent version (consent_version) (BR-71). Key definitions: PK is id (UUID) |
 | 07 | shift_sessions | POS cashier work session records including opening/closing cash float, discrepancy, and shift status (OPEN / CLOSED). Key definitions: PK is id (UUID); FK is store_id → stores(id), user_id → users(id) |
 | 08 | orders | Sales transaction records linking customer, shift, voucher, payment status, and fulfillment status (7 states: PENDING / PREPARING / HOLD / READY / COMPLETED / CANCELLED / ABANDONED). Key definitions: PK is id (UUID); FK is store_id → stores(id), shift_session_id → shift_sessions(id), customer_id → customers(id), voucher_id → vouchers(id) |
@@ -353,5 +384,7 @@ erDiagram
 | 17 | recipe_items | Ingredient formula defining how much of a raw material is consumed to produce one unit of a menu item or topping. Exactly one of menu_item_id or option_topping_id is non-null. Key definitions: PK is id (UUID); FK is menu_item_id → menu_items(id), option_topping_id → option_toppings(id), raw_material_id → raw_materials(id) |
 | 18 | stores | Physical branch locations with name, address, phone, and active status. Root entity that many other entities reference. Key definitions: PK is id (UUID) |
 | 19 | staff_schedules | Assigned employee shift blocks (MORNING / AFTERNOON / FULL_DAY) per date and branch. Includes shift_start_time, shift_end_time, and optional pos_register_id allocation. Key definitions: PK is id (UUID); FK is store_id → stores(id), user_id → users(id) |
-| 20 | attendance_logs | Employee clock-in/out records. At check-in, system snapshots scheduled_start (shift start time) to calculate lateness dynamically at the reporting layer; lateness is not stored in the database. Mandatory check-in photo_path stored server-side. PDPA: auto-purged after 90 days (BR-72). Key definitions: PK is id (UUID); FK is store_id → stores(id), user_id → users(id) |
+| 20 | attendance_logs | Employee clock-in/out records. At check-in, system snapshots scheduled_start (shift start time) to calculate lateness dynamically at the reporting layer; lateness is not stored in the database. Mandatory check-in photo_url stored; the URL is nulled by the 90-day PDPA purge (BR-72) while the row is retained for payroll. One row per attendance pairing (check_in_at + check_out_at). Key definitions: PK is id (UUID); FK is store_id → stores(id), user_id → users(id) |
 | 21 | audit_logs | Immutable security event log (append-only, no UPDATE / DELETE permitted). Records price changes, voucher mutations, user account changes, checkout voucher/point usage. Key definitions: PK is id (UUID); FK is user_id → users(id) |
+| 22 | system_configs | Central (scope GLOBAL) and per-branch (scope BRANCH) runtime parameters as key/value rows: VAT_RATE, LOYALTY_* , MAX_ACTIVE_BRANCHES, HQ_MFA_REQUIRED, CANCEL_REFUND_ALERT_THRESHOLD, VietQR credentials, branch timezone/hardware overrides (UC-30/UC-42). Key definitions: PK is id (UUID); FK is store_id → stores(id) (null for GLOBAL scope) |
+| 23 | menu_item_topping_mappings | Join table linking global option_toppings to the menu_items that offer them (many-to-many, BR-29). Key definitions: PK is id (UUID); UNIQUE (menu_item_id, option_topping_id); FK is menu_item_id → menu_items(id), option_topping_id → option_toppings(id) |
