@@ -27,6 +27,11 @@ public class StockTransaction extends BaseEntity {
     private User manager;
     @Enumerated(EnumType.STRING)
     private TransactionType transactionType;
+    /** Signed change applied to the stock balance (after − before); for PHANTOM_USAGE this is the deficit magnitude. */
     private BigDecimal quantity;
+    /** Balance snapshot before this movement (audit trail). */
+    private BigDecimal quantityBefore;
+    /** Balance snapshot after this movement (audit trail). */
+    private BigDecimal quantityAfter;
     private String reason;
 }
