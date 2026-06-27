@@ -4,7 +4,7 @@
 
 Nền tảng (`com.khoga.common` = 23 entity + repository + `ApiResponse` + exception/`GlobalExceptionHandler`; `com.khoga.config` = JPA/CORS/OpenAPI/Security) đã có sẵn. Plan này ban đầu được viết khi repo *chỉ* có base framework; xem **Trạng thái hiện tại** bên dưới để biết phần đã build.
 
-> **Trạng thái hiện tại (cập nhật 2026-06-23):** **P0** (hạ tầng + Auth MVP) và **P1** (master data: Branch, User, Catalog, Voucher, Customer) **đã hoàn thành + có test** — toàn bộ checkbox P0/P1 dưới đây đã `[x]`. Bộ test: **89 test xanh** (88 unit + 1 integration full-context trên SQL Server). Còn lại: **P1B** (Auth nâng cao), **P2** (vận hành), **P3** (báo cáo), **P4** (cứng hóa) — vẫn `[ ]`.
+> **Trạng thái hiện tại (cập nhật 2026-06-27):** **P0** (hạ tầng + Auth MVP), **P1** (master data) và **P2.1 Inventory / P2.2 POS / P2.3 Order** **đã hoàn thành + có test** — checkbox tương ứng đã `[x]`. Bộ test: **119 test xanh** (118 unit + 1 integration full-context trên SQL Server). Còn lại: **P2.4 Staff**, **P1B** (Auth nâng cao), **P3** (báo cáo), **P4** (cứng hóa) — vẫn `[ ]`.
 
 Tài liệu thiết kế (`docs/sections/` = URD, `docs/rds_sections/` = RDS) đặc tả **83 use case (UC-01→83)**, **~95 business rule (BR)**, 22 bảng và các thuật toán phức tạp (pipeline checkout BR-70, trừ kho theo recipe UC-62/BR-89, đối soát ca, COGS/shrinkage, loyalty, anomaly...).
 
@@ -232,15 +232,15 @@ Quy ước bắt buộc (xem [CLAUDE.md](CLAUDE.md)) áp dụng cho MỌI task, 
 - [ ] **`ShiftAutoCloseScheduler` (23:59)** — BR-88: tự đóng ca OPEN quá ngày. ✅ Done: auto-close ca quên đóng.
 
 ### 2.3 Order (`com.khoga.order`) — phụ thuộc: Order, OrderItem, OrderCancellation, OrderRefund; Inventory (2.1), Customer, Voucher, Printer
-- [ ] **UC-57 Hàng đợi barista / UC-58 Cập nhật trạng thái** — state machine PENDING→PREPARING→(HOLD)→READY→COMPLETED/ABANDONED
-  - PENDING→PREPARING gọi `RecipeDeductionEngine` (2.1) ngay; `GET /api/v1/queue`, `POST /api/v1/orders/{id}/status`. ✅ Done: chuyển trạng thái hợp lệ + trừ kho khi PREPARING.
-- [ ] **UC-59 In tem / UC-60 Báo sự cố** — in cup label khi READY; HOLD khi báo sự cố. ✅ Done: in tem + HOLD.
-- [ ] **UC-54 Lịch sử đơn / UC-73 Chi tiết đơn** — `GET /api/v1/orders`, `GET /api/v1/orders/{id}` (scope theo branch). ✅ Done: tra cứu đơn theo branch.
-- [ ] **UC-55 Hủy đơn (PENDING)** — BR-05, BR-08, BR-51
-  - Guard chỉ PENDING (BR-05); ghi `OrderCancellation` bất biến (BR-51); rollback voucher (khôi phục limit) + loyalty (trừ điểm đã cộng, hoàn điểm đã dùng) (BR-08). `POST /api/v1/orders/{id}/cancel`. ✅ Done: hủy đúng trạng thái + rollback BR-08.
-- [ ] **UC-75 Refund/Comp (sau PENDING, SM duyệt)** — BR-67, BR-09
-  - Yêu cầu PIN/login SM; ghi `OrderRefund`; REFUND tiền mặt trừ quỹ ca đang mở (BR-09), card/VietQR qua gateway; đảo điểm tích/hoàn điểm đã dùng theo tỉ lệ; COMP_REMAKE tạo đơn 0đ vào lại queue (trừ kho lại). `POST /api/v1/orders/{id}/refund`. ✅ Done: refund/comp có duyệt SM + tác động quỹ/điểm.
-- [ ] **`OrderTimeoutScheduler` (1 phút)** — BR-88: READY quá 15' → ABANDONED (không hoàn kho). ✅ Done: tự bỏ đơn quá hạn.
+- [x] **UC-57 Hàng đợi barista / UC-58 Cập nhật trạng thái** — state machine PENDING→PREPARING→(HOLD)→READY→COMPLETED/ABANDONED
+  - PENDING→PREPARING gọi `RecipeDeductionEngine` (2.1) ngay; `GET /api/v1/queue`, `POST /api/v1/orders/{id}/status`. ✅ Done: state machine `OrderService.ALLOWED` enforce; trừ kho 1 lần tại PENDING→PREPARING (HOLD→PREPARING không trừ lại); phantom-usage trả về `stockWarnings`.
+- [x] **UC-59 In tem / UC-60 Báo sự cố** — in cup label khi READY; HOLD khi báo sự cố. ✅ Done: `printLabel` tại →READY; PREPARING→HOLD (báo sự cố) và HOLD→PREPARING (xử lý xong) trong state machine.
+- [x] **UC-54 Lịch sử đơn / UC-73 Chi tiết đơn** — `GET /api/v1/orders`, `GET /api/v1/orders/{id}` (scope theo branch). ✅ Done: history phân trang + lọc status; detail kèm line + topping; `loadForStore` chặn cross-branch (BR-59).
+- [x] **UC-55 Hủy đơn (PENDING)** — BR-05, BR-08, BR-51
+  - Guard chỉ PENDING (BR-05); ghi `OrderCancellation` bất biến (BR-51); rollback voucher (khôi phục limit) + loyalty (trừ điểm đã cộng, hoàn điểm đã dùng) (BR-08). `POST /api/v1/orders/{id}/cancel`. ✅ Done: chỉ rollback khi đơn đã PAID → đặt `REFUNDED` để loại khỏi doanh thu.
+- [x] **UC-75 Refund/Comp (sau PENDING, SM duyệt)** — BR-67, BR-09
+  - Yêu cầu PIN SM; ghi `OrderRefund`; REFUND tiền mặt trừ quỹ ca đang mở (BR-09 — gắn `shiftSession`, `ShiftService` cộng dồn khi đóng ca), card/VietQR qua gateway; đảo điểm tích/hoàn điểm đã dùng; COMP_REMAKE tạo đơn clone PENDING 0đ vào lại queue (trừ kho lại khi PREPARING). `POST /api/v1/orders/{id}/refund`. ✅ Done: SM auth qua `attendancePin`; cash-refund tác động quỹ ca.
+- [x] **`OrderTimeoutScheduler` (1 phút)** — BR-88: READY quá 15' → ABANDONED (không hoàn kho). ✅ Done: `OrderService.abandonStaleReadyOrders` (cutoff = `READY_ABANDON_TIMEOUT` config, mặc định 15').
 
 ### 2.4 Staff (`com.khoga.staff`) — phụ thuộc: User, StaffSchedule, AttendanceLog; Email/Photo storage
 - [ ] **UC-35 Xem lịch / UC-66 Danh sách NV** — BR-59 — SM chỉ xem branch mình; `GET /api/v1/schedules`, `GET /api/v1/staff`. ✅ Done: scope branch (BR-59).

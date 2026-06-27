@@ -18,5 +18,8 @@ public interface ShiftSessionRepository extends JpaRepository<ShiftSession, UUID
 
     Optional<ShiftSession> findFirstByUserIdAndStatus(UUID userId, ShiftStatus status);
 
+    /** Any open shift at a branch — used to attach a cash refund's drawer impact (BR-09). */
+    Optional<ShiftSession> findFirstByStoreIdAndStatus(UUID storeId, ShiftStatus status);
+
     List<ShiftSession> findByStatus(ShiftStatus status);
 }

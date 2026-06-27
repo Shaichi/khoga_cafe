@@ -7,8 +7,10 @@ import com.khoga.common.model.User;
 import com.khoga.common.model.enums.OrderStatus;
 import com.khoga.common.model.enums.PaymentMethod;
 import com.khoga.common.model.enums.PaymentStatus;
+import com.khoga.common.model.enums.RefundType;
 import com.khoga.common.model.enums.Role;
 import com.khoga.common.model.enums.ShiftStatus;
+import com.khoga.common.repository.OrderRefundRepository;
 import com.khoga.common.repository.OrderRepository;
 import com.khoga.common.repository.ShiftSessionRepository;
 import com.khoga.common.repository.UserRepository;
@@ -43,6 +45,7 @@ class ShiftServiceTest {
 
     @Mock private ShiftSessionRepository shiftSessionRepository;
     @Mock private OrderRepository orderRepository;
+    @Mock private OrderRefundRepository orderRefundRepository;
     @Mock private UserRepository userRepository;
     @Mock private EmailService emailService;
     @InjectMocks private ShiftService service;
@@ -125,6 +128,7 @@ class ShiftServiceTest {
         when(orderRepository.existsByShiftSessionIdAndStatusIn(eq(sid), anyCollection())).thenReturn(false);
         when(orderRepository.sumSales(sid, PaymentMethod.CASH, PaymentStatus.PAID))
                 .thenReturn(new BigDecimal("1000000"));
+        when(orderRefundRepository.sumByShiftAndType(sid, RefundType.REFUND)).thenReturn(BigDecimal.ZERO);
         when(userRepository.findByStoreId(storeId)).thenReturn(List.of(sm));
 
         // expected = 500000 + 1000000 = 1500000; counted 1200000 → discrepancy -300000 (> 100k) → flagged

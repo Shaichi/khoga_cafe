@@ -9,8 +9,10 @@ import com.khoga.common.model.User;
 import com.khoga.common.model.enums.OrderStatus;
 import com.khoga.common.model.enums.PaymentMethod;
 import com.khoga.common.model.enums.PaymentStatus;
+import com.khoga.common.model.enums.RefundType;
 import com.khoga.common.model.enums.Role;
 import com.khoga.common.model.enums.ShiftStatus;
+import com.khoga.common.repository.OrderRefundRepository;
 import com.khoga.common.repository.OrderRepository;
 import com.khoga.common.repository.ShiftSessionRepository;
 import com.khoga.common.repository.UserRepository;
@@ -43,13 +45,16 @@ public class ShiftService {
 
     private final ShiftSessionRepository shiftSessionRepository;
     private final OrderRepository orderRepository;
+    private final OrderRefundRepository orderRefundRepository;
     private final UserRepository userRepository;
     private final EmailService emailService;
 
     public ShiftService(ShiftSessionRepository shiftSessionRepository, OrderRepository orderRepository,
-                        UserRepository userRepository, EmailService emailService) {
+                        OrderRefundRepository orderRefundRepository, UserRepository userRepository,
+                        EmailService emailService) {
         this.shiftSessionRepository = shiftSessionRepository;
         this.orderRepository = orderRepository;
+        this.orderRefundRepository = orderRefundRepository;
         this.userRepository = userRepository;
         this.emailService = emailService;
     }
@@ -129,7 +134,8 @@ public class ShiftService {
         BigDecimal opening = nz(session.getStartingCash());
         BigDecimal totalCashSales = nz(orderRepository.sumSales(
                 session.getId(), PaymentMethod.CASH, PaymentStatus.PAID));
-        BigDecimal refunds = BigDecimal.ZERO; // cash refunds (BR-09) reduce this — wired in P2.3
+        // BR-09: cash refunds authorized against this shift came out of the drawer
+        BigDecimal refunds = nz(orderRefundRepository.sumByShiftAndType(session.getId(), RefundType.REFUND));
         BigDecimal expected = opening.add(totalCashSales).subtract(refunds);
         BigDecimal counted = closingCash == null ? expected : closingCash;
         BigDecimal discrepancy = counted.subtract(expected);
