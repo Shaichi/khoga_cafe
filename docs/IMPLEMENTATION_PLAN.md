@@ -4,7 +4,7 @@
 
 Nền tảng (`com.khoga.common` = 23 entity + repository + `ApiResponse` + exception/`GlobalExceptionHandler`; `com.khoga.config` = JPA/CORS/OpenAPI/Security) đã có sẵn. Plan này ban đầu được viết khi repo *chỉ* có base framework; xem **Trạng thái hiện tại** bên dưới để biết phần đã build.
 
-> **Trạng thái hiện tại (cập nhật 2026-06-27):** **P0** (hạ tầng + Auth MVP), **P1** (master data) và **P2.1 Inventory / P2.2 POS / P2.3 Order** **đã hoàn thành + có test** — checkbox tương ứng đã `[x]`. Bộ test: **119 test xanh** (118 unit + 1 integration full-context trên SQL Server). Còn lại: **P2.4 Staff**, **P1B** (Auth nâng cao), **P3** (báo cáo), **P4** (cứng hóa) — vẫn `[ ]`.
+> **Trạng thái hiện tại (cập nhật 2026-06-27):** **P0** (hạ tầng + Auth MVP), **P1** (master data) và **toàn bộ P2 Vận hành (2.1 Inventory / 2.2 POS / 2.3 Order / 2.4 Staff)** **đã hoàn thành + có test** — checkbox tương ứng đã `[x]`. Bộ test: **137 test xanh** (136 unit + 1 integration full-context trên SQL Server). Còn lại: **P1B** (Auth nâng cao), **P3** (báo cáo), **P4** (cứng hóa) — vẫn `[ ]`.
 
 Tài liệu thiết kế (`docs/sections/` = URD, `docs/rds_sections/` = RDS) đặc tả **83 use case (UC-01→83)**, **~95 business rule (BR)**, 22 bảng và các thuật toán phức tạp (pipeline checkout BR-70, trừ kho theo recipe UC-62/BR-89, đối soát ca, COGS/shrinkage, loyalty, anomaly...).
 
@@ -243,15 +243,15 @@ Quy ước bắt buộc (xem [CLAUDE.md](CLAUDE.md)) áp dụng cho MỌI task, 
 - [x] **`OrderTimeoutScheduler` (1 phút)** — BR-88: READY quá 15' → ABANDONED (không hoàn kho). ✅ Done: `OrderService.abandonStaleReadyOrders` (cutoff = `READY_ABANDON_TIMEOUT` config, mặc định 15').
 
 ### 2.4 Staff (`com.khoga.staff`) — phụ thuộc: User, StaffSchedule, AttendanceLog; Email/Photo storage
-- [ ] **UC-35 Xem lịch / UC-66 Danh sách NV** — BR-59 — SM chỉ xem branch mình; `GET /api/v1/schedules`, `GET /api/v1/staff`. ✅ Done: scope branch (BR-59).
-- [ ] **UC-36 Tạo lịch** — BR-90, BR-92
-  - Cross-branch không cần duyệt + audit (BR-90); ràng buộc cứng `MAX_DAILY/WEEKLY_HOURS`, `MIN_REST_HOURS` (BR-92); ngân sách lao động mềm (override có lý do); chống trùng ca. `POST /api/v1/schedules`. ✅ Done: chặn vượt giờ, cảnh báo ngân sách.
-- [ ] **UC-37 Sửa lịch / UC-38 Xóa lịch** — BR-36, BR-37 — không sửa lịch quá khứ (BR-36); xóa gửi thông báo NV (BR-37). ✅ Done: bảo vệ quá khứ + thông báo.
-- [ ] **Chấm công Check-in/out** — BR-38, BR-39, BR-53, BR-93
-  - PIN 4 số (duy nhất/branch, khóa khi sai nhiều — BR-93) + ảnh bắt buộc; nếu thiếu camera → xếp hàng chờ SM xác nhận (BR-93); snapshot `scheduledStart` lúc check-in (BR-38). `POST /api/v1/attendance/check-in|check-out`. ✅ Done: chấm công có ảnh + PIN chống gian lận.
-- [ ] **UC-39 Báo cáo chấm công** — BR-39, BR-91 — tính trễ/absence/OT/early-leave động ở tầng report (timezone branch — BR-39). `GET /api/v1/attendance`. ✅ Done: chỉ số phái sinh đúng.
-- [ ] **UC-80 Xuất giờ công** — BR-77 — ghép cặp check-in/out theo NV/ngày; thiếu checkout → flag & loại; xuất CSV/PDF. `GET /api/v1/attendance/export`. ✅ Done: xuất giờ công cho payroll.
-- [ ] **`PhotoAutoDeleteScheduler` (02:00)** — BR-72 — xóa ảnh >90 ngày, null `photoUrl`, giữ log. ✅ Done: tuân thủ PDPA ảnh.
+- [x] **UC-35 Xem lịch / UC-66 Danh sách NV** — BR-59 — SM chỉ xem branch mình; `GET /api/v1/schedules` (mặc định tuần hiện tại), `GET /api/v1/staff` (kèm trạng thái PIN). ✅ Done: scope branch (BR-59).
+- [x] **UC-36 Tạo lịch** — BR-90, BR-92
+  - Cross-branch không cần duyệt + audit (BR-90); ràng buộc cứng `STAFF_MAX_DAILY/WEEKLY_HOURS`, `STAFF_MIN_REST_HOURS` (BR-92); ngân sách lao động mềm `STORE_DAILY_LABOUR_BUDGET_HOURS` (override có lý do + audit); chống trùng ca. `POST /api/v1/schedules`. ✅ Done: `ScheduleService.validateConstraints` enforce giờ/nghỉ/trùng + budget mềm; A46 cashier bắt buộc posRegisterId.
+- [x] **UC-37 Sửa lịch / UC-38 Xóa lịch** — BR-36, BR-37 — không sửa lịch quá khứ (BR-36, re-validate excluding self); xóa gửi email thông báo NV (BR-37). ✅ Done: `PUT/DELETE /api/v1/schedules/{id}`.
+- [x] **Chấm công Check-in/out (UC-67)** — BR-38, BR-39, BR-53, BR-93
+  - PIN duy nhất/branch định danh NV; **khóa được enforce** (`pinLockedUntil`) + reset khi thành công (BR-93); ảnh: thiếu ảnh → `pendingVerification=true` chờ SM xác nhận (`POST /api/v1/attendance/{id}/verify`); snapshot `scheduledStart` lúc check-in (BR-38); 1 dòng/cặp (check-out cập nhật cùng row). `POST /api/v1/attendance/check-in|check-out`. ✅ Done. ⚠️ *Tích lũy số lần sai PIN để tự khóa* hoãn sang P4 (luồng PIN-only không quy được lần sai cho 1 NV cụ thể).
+- [x] **UC-39 Báo cáo chấm công** — BR-39, BR-91 — `AttendanceMetricsCalculator` tính trễ/absence/OT/early-leave động; ghép schedule↔log theo (NV, ngày). `GET /api/v1/attendance`. ✅ Done.
+- [x] **UC-80 Xuất giờ công** — BR-77 — ghép cặp check-in/out; xuất **CSV** (`GET /api/v1/attendance/export`). ✅ Done CSV. ⚠️ *PDF* gộp chung với cụm export báo cáo ở **P3** (cần thư viện PDF).
+- [x] **`PhotoAutoDeleteScheduler` (02:00)** — BR-72 — `AttendanceService.purgeExpiredPhotos` null `photoUrl` quá `PHOTO_RETENTION_DAYS` (90), giữ log. ✅ Done.
 
 ---
 

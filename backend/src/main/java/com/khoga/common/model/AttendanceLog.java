@@ -32,4 +32,6 @@ public class AttendanceLog extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private AttendanceStatus status;
     private String photoUrl;
+    /** BR-93 fallback: check-in recorded without a photo, awaiting Store Manager verification. */
+    private Boolean pendingVerification;
 }

@@ -38,4 +38,7 @@ public class User extends BaseEntity {
     private Integer failedAttempts;
     private LocalDateTime lockExpiryAt;
     private LocalDateTime passwordLastChangedAt;
+    /** Attendance-PIN lockout (BR-93) — distinct from the login lockout above. */
+    private Integer pinFailedAttempts;
+    private LocalDateTime pinLockedUntil;
 }
