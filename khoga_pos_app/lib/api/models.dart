@@ -60,3 +60,31 @@ class Shift {
         status: j['status'] as String? ?? 'OPEN',
       );
 }
+
+/// Mirrors com.khoga.catalog.dto.CategoryResponse (subset).
+class Category {
+  final String id;
+  final String name;
+  Category({required this.id, required this.name});
+  factory Category.fromJson(Map<String, dynamic> j) =>
+      Category(id: j['id'] as String, name: j['name'] as String);
+}
+
+/// Mirrors com.khoga.catalog.dto.MenuItemResponse (subset used by the POS).
+class MenuItem {
+  final String id;
+  final String name;
+  final num price;
+  final String? categoryId;
+  final String? categoryName;
+
+  MenuItem({required this.id, required this.name, required this.price, this.categoryId, this.categoryName});
+
+  factory MenuItem.fromJson(Map<String, dynamic> j) => MenuItem(
+        id: j['id'] as String,
+        name: j['name'] as String,
+        price: (j['price'] as num?) ?? 0,
+        categoryId: j['categoryId'] as String?,
+        categoryName: j['categoryName'] as String?,
+      );
+}

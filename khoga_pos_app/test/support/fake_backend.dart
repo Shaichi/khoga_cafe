@@ -17,6 +17,14 @@ http.Response apiError(String message, int status) => http.Response(
       headers: _jsonHeaders,
     );
 
+Map<String, dynamic> _page(List<Map<String, dynamic>> content) => {
+      'content': content,
+      'page': 0,
+      'size': content.length,
+      'totalElements': content.length,
+      'totalPages': 1,
+    };
+
 Map<String, dynamic> _shift({String? register, dynamic startingCash}) => {
       'id': 'shift-1',
       'storeId': 's1',
@@ -66,6 +74,22 @@ MockClient authBackend({
         message: 'Đã mở ca',
         status: 201,
       );
+    }
+    if (path.endsWith('/categories')) {
+      return apiOk(_page([
+        {'id': 'c1', 'name': 'Cà phê'},
+        {'id': 'c2', 'name': 'Trà'},
+      ]));
+    }
+    if (path.endsWith('/menu-items')) {
+      final items = [
+        {'id': 'm1', 'name': 'Espresso', 'price': 30000, 'categoryId': 'c1', 'categoryName': 'Cà phê'},
+        {'id': 'm2', 'name': 'Cà phê đen đá', 'price': 25000, 'categoryId': 'c1', 'categoryName': 'Cà phê'},
+        {'id': 'm3', 'name': 'Trà đào', 'price': 20000, 'categoryId': 'c2', 'categoryName': 'Trà'},
+      ];
+      final cat = req.url.queryParameters['categoryId'];
+      final filtered = cat == null ? items : items.where((i) => i['categoryId'] == cat).toList();
+      return apiOk(_page(filtered));
     }
     return apiError('Not mocked: $path', 404);
   });

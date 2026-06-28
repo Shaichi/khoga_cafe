@@ -6,6 +6,7 @@ import 'api/auth_api.dart';
 import 'api/shift_api.dart';
 import 'app.dart';
 import 'auth/auth_controller.dart';
+import 'pos/cart_controller.dart';
 import 'pos/shift_controller.dart';
 
 void main() {
@@ -19,6 +20,9 @@ void main() {
         ),
         ChangeNotifierProvider<ShiftController>(
           create: (_) => ShiftController(ShiftApi(apiClient)),
+        ),
+        ChangeNotifierProvider<CartController>(
+          create: (_) => CartController(),
         ),
       ],
       child: const KhogaPosApp(),
