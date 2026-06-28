@@ -43,3 +43,20 @@ class Profile {
         storeId: j['storeId'] as String?,
       );
 }
+
+/// Mirrors com.khoga.pos.dto.ShiftResponse (status is "OPEN" / "CLOSED").
+class Shift {
+  final String id;
+  final String posRegisterId;
+  final num startingCash;
+  final String status;
+
+  Shift({required this.id, required this.posRegisterId, required this.startingCash, required this.status});
+
+  factory Shift.fromJson(Map<String, dynamic> j) => Shift(
+        id: j['id'] as String,
+        posRegisterId: j['posRegisterId'] as String? ?? '',
+        startingCash: (j['startingCash'] as num?) ?? 0,
+        status: j['status'] as String? ?? 'OPEN',
+      );
+}

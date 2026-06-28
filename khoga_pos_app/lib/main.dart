@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 
 import 'api/api_client.dart';
 import 'api/auth_api.dart';
+import 'api/shift_api.dart';
 import 'app.dart';
 import 'auth/auth_controller.dart';
+import 'pos/shift_controller.dart';
 
 void main() {
   final apiClient = ApiClient();
@@ -14,6 +16,9 @@ void main() {
         Provider<ApiClient>.value(value: apiClient),
         ChangeNotifierProvider<AuthController>(
           create: (_) => AuthController(apiClient, AuthApi(apiClient)),
+        ),
+        ChangeNotifierProvider<ShiftController>(
+          create: (_) => ShiftController(ShiftApi(apiClient)),
         ),
       ],
       child: const KhogaPosApp(),

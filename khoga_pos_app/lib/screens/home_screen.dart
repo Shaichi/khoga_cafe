@@ -2,15 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../auth/auth_controller.dart';
+import '../pos/shift_controller.dart';
 import '../theme.dart';
 
-/// Placeholder post-login home. The shift dashboard + POS land in slices F3+.
+/// Post-login / post-open-shift home. POS checkout lands in slice F4.
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
+    final shift = context.watch<ShiftController>().active;
     final profile = auth.profile;
     return Scaffold(
       appBar: AppBar(
@@ -30,11 +32,20 @@ class HomeScreen extends StatelessWidget {
             Text(profile?.fullName ?? '',
                 style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: kBrown)),
             const SizedBox(height: 24),
+            if (shift != null)
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.point_of_sale, color: kBrown),
+                  title: Text('Ca đang mở · ${shift.posRegisterId}'),
+                  subtitle: Text('Tiền đầu ca: ${shift.startingCash} đ'),
+                ),
+              ),
+            const SizedBox(height: 8),
             const Card(
               child: ListTile(
-                leading: Icon(Icons.point_of_sale, color: kBrown),
-                title: Text('Bán hàng (POS)'),
-                subtitle: Text('Mở ca & màn hình bán hàng — bước kế tiếp'),
+                leading: Icon(Icons.shopping_cart_outlined, color: kBrown),
+                title: Text('Màn hình bán hàng (POS)'),
+                subtitle: Text('Lưới món & giỏ hàng — bước kế tiếp'),
               ),
             ),
           ],
