@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../auth/auth_controller.dart';
+import '../orders/order_history_screen.dart';
 import '../pos/close_shift_screen.dart';
 import '../pos/pos_screen.dart';
 import '../pos/shift_controller.dart';
@@ -59,6 +60,18 @@ class HomeScreen extends StatelessWidget {
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(builder: (_) => const PosScreen()),
+                ),
+              ),
+            ),
+            Card(
+              child: ListTile(
+                key: const Key('order-history-action'),
+                leading: const Icon(Icons.receipt_long_outlined, color: kBrown),
+                title: const Text('Lịch sử đơn hàng'),
+                subtitle: const Text('Xem & tra cứu đơn đã tạo'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const OrderHistoryScreen()),
                 ),
               ),
             ),

@@ -113,6 +113,56 @@ MockClient authBackend({
         'closedAt': '2026-06-28T17:00:00',
       }, message: 'Đã đóng ca');
     }
+    // Order detail (UC-73): /orders/{id} — matched before the list endpoint.
+    final orderDetailMatch = RegExp(r'/orders/([\w-]+)$').firstMatch(path);
+    if (orderDetailMatch != null && req.method == 'GET') {
+      final id = orderDetailMatch.group(1)!;
+      return apiOk({
+        'id': id,
+        'orderNumber': 'ORD-001',
+        'storeId': 's1',
+        'status': 'COMPLETED',
+        'paymentStatus': 'PAID',
+        'paymentMethod': 'CASH',
+        'orderType': 'TAKEAWAY',
+        'subtotal': 50000,
+        'discount': 0,
+        'taxAmount': 4545,
+        'total': 50000,
+        'pointsRedeemed': 0,
+        'pointsEarned': 50,
+        'customerName': 'Khách lẻ',
+        'items': [
+          {
+            'menuItemName': 'Espresso',
+            'quantity': 1,
+            'unitPrice': 30000,
+            'toppings': [
+              {'name': 'Shot thêm', 'quantity': 1, 'unitPrice': 5000},
+            ],
+          },
+          {'menuItemName': 'Trà đào', 'quantity': 1, 'unitPrice': 20000, 'toppings': []},
+        ],
+        'createdAt': '2026-06-28T09:15:00',
+      });
+    }
+    if (path.endsWith('/orders')) {
+      final status = req.url.queryParameters['status'];
+      final all = [
+        {
+          'id': 'o1', 'orderNumber': 'ORD-001', 'status': 'COMPLETED', 'paymentStatus': 'PAID',
+          'paymentMethod': 'CASH', 'orderType': 'TAKEAWAY', 'total': 50000, 'itemCount': 2,
+          'customerName': 'Khách lẻ', 'createdAt': '2026-06-28T09:15:00',
+        },
+        {
+          'id': 'o2', 'orderNumber': 'ORD-002', 'status': 'CANCELLED', 'paymentStatus': 'UNPAID',
+          'paymentMethod': 'VIETQR', 'orderType': 'DINE_IN', 'total': 30000, 'itemCount': 1,
+          'customerName': null, 'createdAt': '2026-06-28T10:05:00',
+        },
+      ];
+      final filtered = status == null ? all : all.where((o) => o['status'] == status).toList();
+      return apiOk(_page(filtered));
+    }
     if (path.endsWith('/categories')) {
       return apiOk(_page([
         {'id': 'c1', 'name': 'Cà phê'},

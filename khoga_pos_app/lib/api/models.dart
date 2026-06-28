@@ -61,6 +61,135 @@ class Shift {
       );
 }
 
+/// Mirrors com.khoga.order.dto.OrderSummaryResponse (history row / queue row).
+class OrderSummary {
+  final String id;
+  final String orderNumber;
+  final String status;
+  final String paymentStatus;
+  final String paymentMethod;
+  final String orderType;
+  final num total;
+  final int itemCount;
+  final String? customerName;
+  final String? createdAt;
+
+  OrderSummary({
+    required this.id,
+    required this.orderNumber,
+    required this.status,
+    required this.paymentStatus,
+    required this.paymentMethod,
+    required this.orderType,
+    required this.total,
+    required this.itemCount,
+    this.customerName,
+    this.createdAt,
+  });
+
+  factory OrderSummary.fromJson(Map<String, dynamic> j) => OrderSummary(
+        id: j['id'] as String,
+        orderNumber: j['orderNumber'] as String? ?? '',
+        status: j['status'] as String? ?? '',
+        paymentStatus: j['paymentStatus'] as String? ?? '',
+        paymentMethod: j['paymentMethod'] as String? ?? '',
+        orderType: j['orderType'] as String? ?? '',
+        total: (j['total'] as num?) ?? 0,
+        itemCount: (j['itemCount'] as int?) ?? 0,
+        customerName: j['customerName'] as String?,
+        createdAt: j['createdAt'] as String?,
+      );
+}
+
+/// Mirrors com.khoga.order.dto.OrderItemLine (+ toppings).
+class OrderItemLine {
+  final String menuItemName;
+  final int quantity;
+  final num unitPrice;
+  final List<OrderToppingLine> toppings;
+
+  OrderItemLine({
+    required this.menuItemName,
+    required this.quantity,
+    required this.unitPrice,
+    this.toppings = const [],
+  });
+
+  factory OrderItemLine.fromJson(Map<String, dynamic> j) => OrderItemLine(
+        menuItemName: j['menuItemName'] as String? ?? '',
+        quantity: (j['quantity'] as int?) ?? 0,
+        unitPrice: (j['unitPrice'] as num?) ?? 0,
+        toppings: ((j['toppings'] as List?) ?? const [])
+            .map((t) => OrderToppingLine.fromJson(t as Map<String, dynamic>))
+            .toList(),
+      );
+
+  num get lineTotal => unitPrice * quantity + toppings.fold<num>(0, (s, t) => s + t.unitPrice * t.quantity);
+}
+
+class OrderToppingLine {
+  final String name;
+  final int quantity;
+  final num unitPrice;
+  OrderToppingLine({required this.name, required this.quantity, required this.unitPrice});
+  factory OrderToppingLine.fromJson(Map<String, dynamic> j) => OrderToppingLine(
+        name: j['name'] as String? ?? '',
+        quantity: (j['quantity'] as int?) ?? 0,
+        unitPrice: (j['unitPrice'] as num?) ?? 0,
+      );
+}
+
+/// Mirrors com.khoga.order.dto.OrderDetailResponse (UC-73 full order view).
+class OrderDetail {
+  final String id;
+  final String orderNumber;
+  final String status;
+  final String paymentStatus;
+  final String paymentMethod;
+  final String orderType;
+  final num subtotal;
+  final num discount;
+  final num taxAmount;
+  final num total;
+  final String? customerName;
+  final List<OrderItemLine> items;
+  final String? createdAt;
+
+  OrderDetail({
+    required this.id,
+    required this.orderNumber,
+    required this.status,
+    required this.paymentStatus,
+    required this.paymentMethod,
+    required this.orderType,
+    required this.subtotal,
+    required this.discount,
+    required this.taxAmount,
+    required this.total,
+    required this.items,
+    this.customerName,
+    this.createdAt,
+  });
+
+  factory OrderDetail.fromJson(Map<String, dynamic> j) => OrderDetail(
+        id: j['id'] as String,
+        orderNumber: j['orderNumber'] as String? ?? '',
+        status: j['status'] as String? ?? '',
+        paymentStatus: j['paymentStatus'] as String? ?? '',
+        paymentMethod: j['paymentMethod'] as String? ?? '',
+        orderType: j['orderType'] as String? ?? '',
+        subtotal: (j['subtotal'] as num?) ?? 0,
+        discount: (j['discount'] as num?) ?? 0,
+        taxAmount: (j['taxAmount'] as num?) ?? 0,
+        total: (j['total'] as num?) ?? 0,
+        customerName: j['customerName'] as String?,
+        items: ((j['items'] as List?) ?? const [])
+            .map((i) => OrderItemLine.fromJson(i as Map<String, dynamic>))
+            .toList(),
+        createdAt: j['createdAt'] as String?,
+      );
+}
+
 /// Mirrors com.khoga.pos.dto.ZReportResponse (UC-53 close-shift reconciliation).
 class ZReport {
   final String sessionId;
