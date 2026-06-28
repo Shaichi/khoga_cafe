@@ -25,4 +25,11 @@ class ShiftApi {
     });
     return Shift.fromJson(data as Map<String, dynamic>);
   }
+
+  /// Closes the shift and returns its Z-report reconciliation (UC-53). [closingCash]
+  /// is the cash counted in the drawer; the backend compares it against expected.
+  Future<ZReport> close(String shiftId, num closingCash) async {
+    final data = await _client.post('/shifts/$shiftId/close', {'closingCash': closingCash});
+    return ZReport.fromJson(data as Map<String, dynamic>);
+  }
 }

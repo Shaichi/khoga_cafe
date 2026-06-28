@@ -40,6 +40,17 @@ class ShiftController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Closes the active shift, clears it (so the gate falls back to open-shift), and
+  /// returns the Z-report. Throws [ApiException] if there is no shift to close.
+  Future<ZReport> close(num closingCash) async {
+    final shift = _active;
+    if (shift == null) throw ApiException('Không có ca đang mở để đóng');
+    final report = await _api.close(shift.id, closingCash);
+    _active = null;
+    notifyListeners();
+    return report;
+  }
+
   void reset() {
     _active = null;
     _loaded = false;

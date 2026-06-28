@@ -61,6 +61,40 @@ class Shift {
       );
 }
 
+/// Mirrors com.khoga.pos.dto.ZReportResponse (UC-53 close-shift reconciliation).
+class ZReport {
+  final String sessionId;
+  final String posRegisterId;
+  final num openingCash;
+  final num totalCashSales;
+  final num expectedCash;
+  final num closingCash;
+  final num discrepancy;
+  final bool discrepancyFlagged;
+
+  ZReport({
+    required this.sessionId,
+    required this.posRegisterId,
+    required this.openingCash,
+    required this.totalCashSales,
+    required this.expectedCash,
+    required this.closingCash,
+    required this.discrepancy,
+    required this.discrepancyFlagged,
+  });
+
+  factory ZReport.fromJson(Map<String, dynamic> j) => ZReport(
+        sessionId: j['sessionId'] as String? ?? '',
+        posRegisterId: j['posRegisterId'] as String? ?? '',
+        openingCash: (j['openingCash'] as num?) ?? 0,
+        totalCashSales: (j['totalCashSales'] as num?) ?? 0,
+        expectedCash: (j['expectedCash'] as num?) ?? 0,
+        closingCash: (j['closingCash'] as num?) ?? 0,
+        discrepancy: (j['discrepancy'] as num?) ?? 0,
+        discrepancyFlagged: j['discrepancyFlagged'] as bool? ?? false,
+      );
+}
+
 /// Mirrors com.khoga.catalog.dto.CategoryResponse (subset).
 class Category {
   final String id;

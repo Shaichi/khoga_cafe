@@ -94,6 +94,25 @@ MockClient authBackend({
         status: 201,
       );
     }
+    if (path.contains('/shifts/') && path.endsWith('/close')) {
+      final body = jsonDecode(req.body) as Map<String, dynamic>;
+      final closing = (body['closingCash'] as num?) ?? 0;
+      const opening = 1000000, sales = 200000;
+      const expected = opening + sales; // expected drawer = float + cash sales
+      final discrepancy = closing - expected;
+      return apiOk({
+        'sessionId': 'shift-1',
+        'posRegisterId': 'POS-01',
+        'openingCash': opening,
+        'totalCashSales': sales,
+        'expectedCash': expected,
+        'closingCash': closing,
+        'discrepancy': discrepancy,
+        'discrepancyFlagged': discrepancy != 0,
+        'startTime': '2026-06-28T08:00:00',
+        'closedAt': '2026-06-28T17:00:00',
+      }, message: 'Đã đóng ca');
+    }
     if (path.endsWith('/categories')) {
       return apiOk(_page([
         {'id': 'c1', 'name': 'Cà phê'},

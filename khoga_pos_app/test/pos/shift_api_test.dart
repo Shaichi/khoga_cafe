@@ -26,5 +26,19 @@ void main() {
       expect(s.startingCash, 500000);
       expect(s.status, 'OPEN');
     });
+
+    test('close posts the counted cash and returns the Z-report reconciliation', () async {
+      final z = await ShiftApi(_client(hasOpenShift: true)).close('shift-1', 1200000);
+      expect(z.expectedCash, 1200000); // opening 1.000.000 + cash sales 200.000
+      expect(z.closingCash, 1200000);
+      expect(z.discrepancy, 0);
+      expect(z.discrepancyFlagged, isFalse);
+    });
+
+    test('close flags a discrepancy when counted cash differs from expected', () async {
+      final z = await ShiftApi(_client(hasOpenShift: true)).close('shift-1', 1150000);
+      expect(z.discrepancy, -50000);
+      expect(z.discrepancyFlagged, isTrue);
+    });
   });
 }

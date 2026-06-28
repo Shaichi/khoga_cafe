@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../auth/auth_controller.dart';
+import '../pos/close_shift_screen.dart';
 import '../pos/pos_screen.dart';
 import '../pos/shift_controller.dart';
 import '../theme.dart';
@@ -39,6 +40,14 @@ class HomeScreen extends StatelessWidget {
                   leading: const Icon(Icons.point_of_sale, color: kBrown),
                   title: Text('Ca đang mở · ${shift.posRegisterId}'),
                   subtitle: Text('Tiền đầu ca: ${shift.startingCash} đ'),
+                  trailing: TextButton.icon(
+                    key: const Key('close-shift-action'),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(builder: (_) => const CloseShiftScreen()),
+                    ),
+                    icon: const Icon(Icons.logout, size: 18),
+                    label: const Text('Đóng ca'),
+                  ),
                 ),
               ),
             const SizedBox(height: 8),
