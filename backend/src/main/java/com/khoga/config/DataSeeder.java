@@ -64,6 +64,7 @@ public class DataSeeder implements CommandLineRunner {
         seedSuperAdmin();
         seedBusinessAdmin();
         seedCeoViewer();
+        seedStaff();
     }
 
     private void seedSuperAdmin() {
@@ -140,5 +141,35 @@ public class DataSeeder implements CommandLineRunner {
             systemConfigRepository.save(cfg);
             log.info("[seed] SystemConfig {}={}", key, value);
         });
+    }
+
+    private void seedStaff() {
+        Store store = storeRepository.findAll().stream().findFirst().orElse(null);
+        if (store == null) {
+            log.error("[seed] No store found to associate staff!");
+            return;
+        }
+        seedStaffUser("cashier", "Admin@123", Role.CASHIER, "Default Cashier", store, "EMP-001");
+        seedStaffUser("manager", "Admin@123", Role.STORE_MANAGER, "Default Store Manager", store, "EMP-002");
+    }
+
+    private void seedStaffUser(String username, String rawPassword, Role role, String fullName, Store store, String employeeId) {
+        if (userRepository.findByUsername(username).isPresent()) {
+            log.info("[seed] Staff {} already present — skipping", username);
+            return;
+        }
+        User user = new User();
+        user.setUsername(username);
+        user.setPasswordHash(passwordEncoder.encode(rawPassword));
+        user.setRole(role);
+        user.setFullName(fullName);
+        user.setIsActive(true);
+        user.setMustChangePassword(false);
+        user.setFailedAttempts(0);
+        user.setStore(store);
+        user.setEmployeeId(employeeId);
+        user.setAttendancePin("1234");
+        userRepository.save(user);
+        log.warn("[seed] Created staff {} (username='{}', password='{}')", role, username, rawPassword);
     }
 }
