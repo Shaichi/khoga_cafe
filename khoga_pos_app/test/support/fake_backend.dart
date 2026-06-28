@@ -114,6 +114,34 @@ MockClient authBackend({
         'closedAt': '2026-06-28T17:00:00',
       }, message: 'Đã đóng ca');
     }
+    // Barista queue (UC-57) — active orders oldest-first.
+    if (path.endsWith('/queue')) {
+      return apiOk([
+        {
+          'id': 'oq1', 'orderNumber': 'ORD-101', 'status': 'PENDING', 'paymentStatus': 'PAID',
+          'paymentMethod': 'CASH', 'orderType': 'DINE_IN', 'total': 30000, 'itemCount': 1,
+          'customerName': null, 'createdAt': '2026-06-28T11:00:00',
+        },
+        {
+          'id': 'oq2', 'orderNumber': 'ORD-102', 'status': 'PREPARING', 'paymentStatus': 'PAID',
+          'paymentMethod': 'VIETQR', 'orderType': 'TAKEAWAY', 'total': 45000, 'itemCount': 2,
+          'customerName': 'Anh Minh', 'createdAt': '2026-06-28T11:05:00',
+        },
+      ]);
+    }
+    // Barista status transition (UC-58): /orders/{id}/status.
+    final statusMatch = RegExp(r'/orders/([\w-]+)/status$').firstMatch(path);
+    if (statusMatch != null && req.method == 'POST') {
+      final body = jsonDecode(req.body) as Map<String, dynamic>;
+      final status = body['status'] as String? ?? '';
+      return apiOk({
+        'id': statusMatch.group(1),
+        'orderNumber': 'ORD-101',
+        'status': status,
+        // BR-89: deducting on PREPARING may push an ingredient negative.
+        'stockWarnings': status == 'PREPARING' ? ['Cà phê hạt đã âm kho — cần nhập thêm'] : <String>[],
+      }, message: 'Đã cập nhật trạng thái đơn');
+    }
     // Order detail (UC-73): /orders/{id} — matched before the list endpoint.
     final orderDetailMatch = RegExp(r'/orders/([\w-]+)$').firstMatch(path);
     if (orderDetailMatch != null && req.method == 'GET') {

@@ -1,0 +1,155 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../api/api_client.dart';
+import '../api/models.dart';
+import '../api/order_api.dart';
+import '../theme.dart';
+import 'order_labels.dart';
+
+/// Screen 57/58 — live barista queue. Shows active orders oldest-first and lets
+/// the barista advance each one through its lifecycle (UC-58). Stock warnings
+/// from recipe deduction (BR-89) surface in a snackbar.
+class BaristaQueueScreen extends StatefulWidget {
+  const BaristaQueueScreen({super.key});
+
+  @override
+  State<BaristaQueueScreen> createState() => _BaristaQueueScreenState();
+}
+
+class _BaristaQueueScreenState extends State<BaristaQueueScreen> {
+  late final OrderApi _api;
+  List<OrderSummary> _orders = const [];
+  bool _loading = true;
+  String? _busyId;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _api = OrderApi(context.read<ApiClient>());
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final list = await _api.queue();
+      if (mounted) setState(() => _orders = list);
+    } catch (e) {
+      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Không tải được hàng đợi');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// The next state in the lifecycle and its action label, or null if terminal.
+  (String, String)? _next(String status) => switch (status) {
+        'PENDING' => ('PREPARING', 'Bắt đầu pha'),
+        'HOLD' => ('PREPARING', 'Tiếp tục pha'),
+        'PREPARING' => ('READY', 'Pha xong'),
+        'READY' => ('COMPLETED', 'Giao khách'),
+        _ => null,
+      };
+
+  Future<void> _advance(OrderSummary o, String target) async {
+    setState(() => _busyId = o.id);
+    try {
+      final res = await _api.updateStatus(o.id, target);
+      if (!mounted) return;
+      if (res.stockWarnings.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: kDanger,
+            content: Text(res.stockWarnings.join('\n')),
+          ),
+        );
+      }
+      await _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e is ApiException ? e.message : 'Cập nhật thất bại')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busyId = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: kBrown,
+        foregroundColor: Colors.white,
+        title: const Text('Hàng đợi pha chế'),
+        actions: [
+          IconButton(
+            key: const Key('queue-refresh'),
+            tooltip: 'Làm mới',
+            icon: const Icon(Icons.refresh),
+            onPressed: _load,
+          ),
+        ],
+      ),
+      body: SafeArea(child: _body()),
+    );
+  }
+
+  Widget _body() {
+    if (_loading) return const Center(child: Text('Đang tải…'));
+    if (_error != null) return Center(child: Text(_error!, style: const TextStyle(color: kDanger)));
+    if (_orders.isEmpty) {
+      return const Center(child: Text('Không có đơn đang chờ', key: Key('queue-empty'), style: TextStyle(color: kMuted)));
+    }
+    return ListView.separated(
+      key: const Key('queue-list'),
+      padding: const EdgeInsets.all(16),
+      itemCount: _orders.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
+      itemBuilder: (_, i) => _card(_orders[i]),
+    );
+  }
+
+  Widget _card(OrderSummary o) {
+    final next = _next(o.status);
+    final busy = _busyId == o.id;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(o.orderNumber, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kBrown)),
+                StatusChip(o.status),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text('${o.itemCount} món · ${orderTypeLabel(o.orderType)}'
+                '${o.customerName != null ? ' · ${o.customerName}' : ''}',
+                style: const TextStyle(color: kMuted, fontSize: 13)),
+            if (next != null) ...[
+              const SizedBox(height: 12),
+              ElevatedButton(
+                key: Key('advance-${o.id}'),
+                onPressed: busy ? null : () => _advance(o, next.$1),
+                child: busy
+                    ? const SizedBox(
+                        height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : Text(next.$2.toUpperCase()),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}

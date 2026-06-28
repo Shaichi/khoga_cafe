@@ -101,6 +101,28 @@ class OrderSummary {
       );
 }
 
+/// Mirrors com.khoga.order.dto.StatusUpdateResponse (UC-58 transition result).
+class StatusUpdate {
+  final String id;
+  final String orderNumber;
+  final String status;
+  final List<String> stockWarnings;
+
+  StatusUpdate({
+    required this.id,
+    required this.orderNumber,
+    required this.status,
+    this.stockWarnings = const [],
+  });
+
+  factory StatusUpdate.fromJson(Map<String, dynamic> j) => StatusUpdate(
+        id: j['id'] as String,
+        orderNumber: j['orderNumber'] as String? ?? '',
+        status: j['status'] as String? ?? '',
+        stockWarnings: ((j['stockWarnings'] as List?) ?? const []).map((e) => e as String).toList(),
+      );
+}
+
 /// Mirrors com.khoga.order.dto.OrderItemLine (+ toppings).
 class OrderItemLine {
   final String menuItemName;

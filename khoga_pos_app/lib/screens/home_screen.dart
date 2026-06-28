@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../auth/auth_controller.dart';
 import '../inventory/stock_list_screen.dart';
+import '../orders/barista_queue_screen.dart';
 import '../orders/order_history_screen.dart';
 import '../pos/close_shift_screen.dart';
 import '../pos/pos_screen.dart';
@@ -76,6 +77,18 @@ class HomeScreen extends StatelessWidget {
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(builder: (_) => const OrderHistoryScreen()),
+                ),
+              ),
+            ),
+            Card(
+              child: ListTile(
+                key: const Key('queue-action'),
+                leading: const Icon(Icons.local_cafe_outlined, color: kBrown),
+                title: const Text('Hàng đợi pha chế'),
+                subtitle: const Text('Đơn đang chờ & cập nhật trạng thái'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const BaristaQueueScreen()),
                 ),
               ),
             ),

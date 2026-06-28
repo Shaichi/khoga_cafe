@@ -21,6 +21,8 @@ void main() {
 
     // Manager-only entry present.
     expect(find.byKey(const Key('inventory-action')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('inventory-action')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('inventory-action')));
     await tester.pumpAndSettle();
 

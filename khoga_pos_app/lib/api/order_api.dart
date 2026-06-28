@@ -22,4 +22,17 @@ class OrderApi {
     final data = await _client.get('/orders/$id');
     return OrderDetail.fromJson(data as Map<String, dynamic>);
   }
+
+  /// Live barista queue — active orders, oldest first (UC-57).
+  Future<List<OrderSummary>> queue() async {
+    final data = await _client.get('/queue');
+    return (data as List).map((j) => OrderSummary.fromJson(j as Map<String, dynamic>)).toList();
+  }
+
+  /// Advance an order to the next state (UC-58); returns the new state plus any
+  /// stock warnings raised by recipe deduction (BR-89).
+  Future<StatusUpdate> updateStatus(String id, String status) async {
+    final data = await _client.post('/orders/$id/status', {'status': status});
+    return StatusUpdate.fromJson(data as Map<String, dynamic>);
+  }
 }
