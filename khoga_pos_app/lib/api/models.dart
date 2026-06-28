@@ -224,6 +224,108 @@ class ZReport {
       );
 }
 
+/// Mirrors com.khoga.staff.dto.ScheduleResponse (UC-35 scheduled shift).
+class ScheduleShift {
+  final String id;
+  final String employeeId;
+  final String employeeName;
+  final String role;
+  final String shiftDate;
+  final String shiftType;
+  final String? shiftStartTime;
+  final String? shiftEndTime;
+  final String? posRegisterId;
+  final bool crossBranch;
+
+  ScheduleShift({
+    required this.id,
+    required this.employeeId,
+    required this.employeeName,
+    required this.role,
+    required this.shiftDate,
+    required this.shiftType,
+    this.shiftStartTime,
+    this.shiftEndTime,
+    this.posRegisterId,
+    this.crossBranch = false,
+  });
+
+  factory ScheduleShift.fromJson(Map<String, dynamic> j) => ScheduleShift(
+        id: j['id'] as String,
+        employeeId: j['employeeId'] as String? ?? '',
+        employeeName: j['employeeName'] as String? ?? '',
+        role: j['role'] as String? ?? '',
+        shiftDate: j['shiftDate'] as String? ?? '',
+        shiftType: j['shiftType'] as String? ?? '',
+        shiftStartTime: j['shiftStartTime'] as String?,
+        shiftEndTime: j['shiftEndTime'] as String?,
+        posRegisterId: j['posRegisterId'] as String?,
+        crossBranch: j['crossBranch'] as bool? ?? false,
+      );
+}
+
+/// Mirrors com.khoga.staff.dto.StaffRosterResponse (UC-66 roster row).
+class StaffRoster {
+  final String userId;
+  final String? employeeId;
+  final String fullName;
+  final String role;
+  final bool pinSet;
+  final bool pinLocked;
+  final bool isActive;
+
+  StaffRoster({
+    required this.userId,
+    required this.fullName,
+    required this.role,
+    required this.pinSet,
+    required this.pinLocked,
+    required this.isActive,
+    this.employeeId,
+  });
+
+  factory StaffRoster.fromJson(Map<String, dynamic> j) => StaffRoster(
+        userId: j['userId'] as String,
+        employeeId: j['employeeId'] as String?,
+        fullName: j['fullName'] as String? ?? '',
+        role: j['role'] as String? ?? '',
+        pinSet: j['pinSet'] as bool? ?? false,
+        pinLocked: j['pinLocked'] as bool? ?? false,
+        isActive: j['isActive'] as bool? ?? true,
+      );
+}
+
+/// Mirrors com.khoga.staff.dto.AttendanceResponse (UC-67 attendance pairing).
+class Attendance {
+  final String id;
+  final String employeeName;
+  final String? checkInAt;
+  final String? checkOutAt;
+  final String status;
+  final bool pendingVerification;
+  final bool photoCaptured;
+
+  Attendance({
+    required this.id,
+    required this.employeeName,
+    required this.status,
+    this.checkInAt,
+    this.checkOutAt,
+    this.pendingVerification = false,
+    this.photoCaptured = false,
+  });
+
+  factory Attendance.fromJson(Map<String, dynamic> j) => Attendance(
+        id: j['id'] as String,
+        employeeName: j['employeeName'] as String? ?? '',
+        checkInAt: j['checkInAt'] as String?,
+        checkOutAt: j['checkOutAt'] as String?,
+        status: j['status'] as String? ?? '',
+        pendingVerification: j['pendingVerification'] as bool? ?? false,
+        photoCaptured: j['photoCaptured'] as bool? ?? false,
+      );
+}
+
 /// Mirrors com.khoga.inventory.dto.StockItemResponse (UC-31 stock dashboard row).
 class StockItem {
   final String id;

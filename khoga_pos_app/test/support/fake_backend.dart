@@ -164,6 +164,57 @@ MockClient authBackend({
       final filtered = status == null ? all : all.where((o) => o['status'] == status).toList();
       return apiOk(_page(filtered));
     }
+    // ---- Staff: attendance (UC-67, all staff) ----
+    if (path.endsWith('/attendance/check-in')) {
+      final body = jsonDecode(req.body) as Map<String, dynamic>;
+      if ((body['pin'] as String?) != '1234') return apiError('Mã PIN không đúng', 400);
+      final hasPhoto = (body['photoUrl'] as String?)?.isNotEmpty ?? false;
+      return apiOk({
+        'id': 'att-1', 'userId': 'u1', 'employeeName': 'Nguyễn Thu Ngân',
+        'shiftDate': '2026-06-28', 'checkInAt': '2026-06-28T08:02:00', 'checkOutAt': null,
+        'scheduledStart': '2026-06-28T08:00:00', 'status': 'PRESENT',
+        'pendingVerification': !hasPhoto, 'photoCaptured': hasPhoto,
+      }, message: 'Đã check-in');
+    }
+    if (path.endsWith('/attendance/check-out')) {
+      final body = jsonDecode(req.body) as Map<String, dynamic>;
+      if ((body['pin'] as String?) != '1234') return apiError('Mã PIN không đúng', 400);
+      return apiOk({
+        'id': 'att-1', 'userId': 'u1', 'employeeName': 'Nguyễn Thu Ngân',
+        'shiftDate': '2026-06-28', 'checkInAt': '2026-06-28T08:02:00', 'checkOutAt': '2026-06-28T16:30:00',
+        'scheduledStart': '2026-06-28T08:00:00', 'status': 'PRESENT',
+        'pendingVerification': false, 'photoCaptured': true,
+      }, message: 'Đã check-out');
+    }
+
+    // ---- Staff: scheduling + roster (UC-35/66), Store Manager ----
+    if (path.endsWith('/schedules')) {
+      return apiOk([
+        {
+          'id': 'sc1', 'employeeId': 'u1', 'employeeName': 'Nguyễn Thu Ngân', 'role': 'CASHIER',
+          'shiftDate': '2026-06-28', 'shiftType': 'MORNING', 'shiftStartTime': '08:00', 'shiftEndTime': '12:00',
+          'posRegisterId': 'POS-01', 'crossBranch': false,
+        },
+        {
+          'id': 'sc2', 'employeeId': 'u2', 'employeeName': 'Lê Pha Chế', 'role': 'BARISTA',
+          'shiftDate': '2026-06-28', 'shiftType': 'AFTERNOON', 'shiftStartTime': '12:00', 'shiftEndTime': '18:00',
+          'posRegisterId': null, 'crossBranch': true,
+        },
+      ]);
+    }
+    if (path.endsWith('/staff')) {
+      return apiOk([
+        {
+          'userId': 'u1', 'employeeId': 'EMP-001', 'fullName': 'Nguyễn Thu Ngân', 'role': 'CASHIER',
+          'pinSet': true, 'pinLocked': false, 'isActive': true,
+        },
+        {
+          'userId': 'u2', 'employeeId': 'EMP-002', 'fullName': 'Lê Pha Chế', 'role': 'BARISTA',
+          'pinSet': false, 'pinLocked': false, 'isActive': true,
+        },
+      ]);
+    }
+
     // ---- Inventory (UC-31/32/61), Store Manager ----
     if (path.endsWith('/stock/transactions')) {
       final type = req.url.queryParameters['type'];

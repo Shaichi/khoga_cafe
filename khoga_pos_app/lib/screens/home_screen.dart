@@ -7,6 +7,8 @@ import '../orders/order_history_screen.dart';
 import '../pos/close_shift_screen.dart';
 import '../pos/pos_screen.dart';
 import '../pos/shift_controller.dart';
+import '../staff/attendance_screen.dart';
+import '../staff/schedule_screen.dart';
 import '../theme.dart';
 
 /// Post-login / post-open-shift home. POS checkout lands in slice F4.
@@ -28,7 +30,7 @@ class HomeScreen extends StatelessWidget {
           IconButton(onPressed: auth.logout, icon: const Icon(Icons.logout), tooltip: 'Đăng xuất'),
         ],
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,6 +79,18 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
             ),
+            Card(
+              child: ListTile(
+                key: const Key('attendance-action'),
+                leading: const Icon(Icons.badge_outlined, color: kBrown),
+                title: const Text('Chấm công'),
+                subtitle: const Text('Vào ca / tan ca bằng mã PIN'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const AttendanceScreen()),
+                ),
+              ),
+            ),
             if (isManager) ...[
               const SizedBox(height: 16),
               const Text('Quản lý chi nhánh', style: TextStyle(color: kMuted, fontSize: 13, fontWeight: FontWeight.bold)),
@@ -90,6 +104,18 @@ class HomeScreen extends StatelessWidget {
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(builder: (_) => const StockListScreen()),
+                  ),
+                ),
+              ),
+              Card(
+                child: ListTile(
+                  key: const Key('schedule-action'),
+                  leading: const Icon(Icons.calendar_month_outlined, color: kBrown),
+                  title: const Text('Lịch làm việc'),
+                  subtitle: const Text('Ca làm & nhân sự chi nhánh'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) => const ScheduleScreen()),
                   ),
                 ),
               ),
