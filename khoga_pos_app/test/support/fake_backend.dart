@@ -59,6 +59,7 @@ Map<String, dynamic> _shift({String? register, dynamic startingCash}) => {
 /// proves the token was attached after authentication.
 MockClient authBackend({
   Map<String, dynamic>? profile,
+  String role = 'CASHIER',
   bool mustChangePassword = false,
   bool loginFails = false,
   bool hasOpenShift = false,
@@ -66,9 +67,9 @@ MockClient authBackend({
   final p = profile ??
       <String, dynamic>{
         'id': 'u1',
-        'username': 'cashier01',
-        'fullName': 'Nguyễn Thu Ngân',
-        'role': 'CASHIER',
+        'username': role == 'STORE_MANAGER' ? 'manager01' : 'cashier01',
+        'fullName': role == 'STORE_MANAGER' ? 'Trần Quản Lý' : 'Nguyễn Thu Ngân',
+        'role': role,
         'email': null,
         'phone': null,
         'storeId': 's1',
@@ -161,6 +162,54 @@ MockClient authBackend({
         },
       ];
       final filtered = status == null ? all : all.where((o) => o['status'] == status).toList();
+      return apiOk(_page(filtered));
+    }
+    // ---- Inventory (UC-31/32/61), Store Manager ----
+    if (path.endsWith('/stock/transactions')) {
+      final type = req.url.queryParameters['type'];
+      final all = [
+        {
+          'id': 'tx1', 'stockItemId': 'si1', 'materialName': 'Cà phê hạt', 'transactionType': 'IMPORT',
+          'quantity': 10, 'quantityBefore': 2, 'quantityAfter': 12, 'reason': 'Nhập hàng',
+          'managerName': 'Quản lý', 'createdAt': '2026-06-28T08:30:00',
+        },
+        {
+          'id': 'tx2', 'stockItemId': 'si2', 'materialName': 'Sữa tươi', 'transactionType': 'RECIPE_DEDUCTION',
+          'quantity': -1, 'quantityBefore': 6, 'quantityAfter': 5, 'reason': 'Trừ công thức',
+          'managerName': null, 'createdAt': '2026-06-28T09:00:00',
+        },
+      ];
+      final filtered = type == null ? all : all.where((t) => t['transactionType'] == type).toList();
+      return apiOk(_page(filtered));
+    }
+    if (path.endsWith('/stock/import')) {
+      final body = jsonDecode(req.body) as Map<String, dynamic>;
+      final qty = (body['quantity'] as num?) ?? 0;
+      return apiOk({
+        'id': 'tx-new', 'stockItemId': body['stockItemId'], 'materialName': 'Cà phê hạt',
+        'transactionType': 'IMPORT', 'quantity': qty, 'quantityBefore': 2, 'quantityAfter': 2 + qty,
+        'reason': body['note'], 'managerName': 'Quản lý', 'createdAt': '2026-06-28T10:00:00',
+      }, message: 'Nhập kho thành công');
+    }
+    if (path.endsWith('/stock')) {
+      final lowOnly = req.url.queryParameters['lowStock'] == 'true';
+      final search = req.url.queryParameters['search'];
+      final all = [
+        {
+          'id': 'si1', 'rawMaterialId': 'rm1', 'code': 'CF-01', 'name': 'Cà phê hạt', 'unit': 'kg',
+          'currentQuantity': 2, 'minAlertThreshold': 5, 'standardCost': 200000, 'lowStock': true,
+        },
+        {
+          'id': 'si2', 'rawMaterialId': 'rm2', 'code': 'ST-01', 'name': 'Sữa tươi', 'unit': 'lít',
+          'currentQuantity': 12, 'minAlertThreshold': 4, 'standardCost': 25000, 'lowStock': false,
+        },
+      ];
+      var filtered = lowOnly ? all.where((s) => s['lowStock'] == true).toList() : all;
+      if (search != null && search.isNotEmpty) {
+        filtered = filtered
+            .where((s) => (s['name'] as String).toLowerCase().contains(search.toLowerCase()))
+            .toList();
+      }
       return apiOk(_page(filtered));
     }
     if (path.endsWith('/categories')) {

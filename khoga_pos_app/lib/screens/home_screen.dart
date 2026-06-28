@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../auth/auth_controller.dart';
+import '../inventory/stock_list_screen.dart';
 import '../orders/order_history_screen.dart';
 import '../pos/close_shift_screen.dart';
 import '../pos/pos_screen.dart';
@@ -17,6 +18,7 @@ class HomeScreen extends StatelessWidget {
     final auth = context.watch<AuthController>();
     final shift = context.watch<ShiftController>().active;
     final profile = auth.profile;
+    final isManager = profile?.role == 'STORE_MANAGER';
     return Scaffold(
       appBar: AppBar(
         backgroundColor: kBrown,
@@ -75,6 +77,23 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
             ),
+            if (isManager) ...[
+              const SizedBox(height: 16),
+              const Text('Quản lý chi nhánh', style: TextStyle(color: kMuted, fontSize: 13, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Card(
+                child: ListTile(
+                  key: const Key('inventory-action'),
+                  leading: const Icon(Icons.inventory_2_outlined, color: kBrown),
+                  title: const Text('Kho chi nhánh'),
+                  subtitle: const Text('Tồn kho, nhập hàng, lịch sử'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) => const StockListScreen()),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

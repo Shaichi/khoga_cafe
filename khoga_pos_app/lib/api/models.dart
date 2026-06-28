@@ -224,6 +224,80 @@ class ZReport {
       );
 }
 
+/// Mirrors com.khoga.inventory.dto.StockItemResponse (UC-31 stock dashboard row).
+class StockItem {
+  final String id;
+  final String rawMaterialId;
+  final String code;
+  final String name;
+  final String unit;
+  final num currentQuantity;
+  final num minAlertThreshold;
+  final num standardCost;
+  final bool lowStock;
+
+  StockItem({
+    required this.id,
+    required this.rawMaterialId,
+    required this.code,
+    required this.name,
+    required this.unit,
+    required this.currentQuantity,
+    required this.minAlertThreshold,
+    required this.standardCost,
+    required this.lowStock,
+  });
+
+  factory StockItem.fromJson(Map<String, dynamic> j) => StockItem(
+        id: j['id'] as String,
+        rawMaterialId: j['rawMaterialId'] as String? ?? '',
+        code: j['code'] as String? ?? '',
+        name: j['name'] as String? ?? '',
+        unit: j['unit'] as String? ?? '',
+        currentQuantity: (j['currentQuantity'] as num?) ?? 0,
+        minAlertThreshold: (j['minAlertThreshold'] as num?) ?? 0,
+        standardCost: (j['standardCost'] as num?) ?? 0,
+        lowStock: j['lowStock'] as bool? ?? false,
+      );
+}
+
+/// Mirrors com.khoga.inventory.dto.StockTransactionResponse (UC-61 ledger row).
+class StockTransaction {
+  final String id;
+  final String materialName;
+  final String transactionType;
+  final num quantity;
+  final num quantityBefore;
+  final num quantityAfter;
+  final String? reason;
+  final String? managerName;
+  final String? createdAt;
+
+  StockTransaction({
+    required this.id,
+    required this.materialName,
+    required this.transactionType,
+    required this.quantity,
+    required this.quantityBefore,
+    required this.quantityAfter,
+    this.reason,
+    this.managerName,
+    this.createdAt,
+  });
+
+  factory StockTransaction.fromJson(Map<String, dynamic> j) => StockTransaction(
+        id: j['id'] as String,
+        materialName: j['materialName'] as String? ?? '',
+        transactionType: j['transactionType'] as String? ?? '',
+        quantity: (j['quantity'] as num?) ?? 0,
+        quantityBefore: (j['quantityBefore'] as num?) ?? 0,
+        quantityAfter: (j['quantityAfter'] as num?) ?? 0,
+        reason: j['reason'] as String?,
+        managerName: j['managerName'] as String?,
+        createdAt: j['createdAt'] as String?,
+      );
+}
+
 /// Mirrors com.khoga.catalog.dto.CategoryResponse (subset).
 class Category {
   final String id;
