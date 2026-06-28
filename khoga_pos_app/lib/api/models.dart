@@ -88,3 +88,65 @@ class MenuItem {
         categoryName: j['categoryName'] as String?,
       );
 }
+
+/// Mirrors com.khoga.pos.dto.DiscountBreakdown (BR-70 stacking pipeline).
+class CheckoutBreakdown {
+  final num grossSubtotal;
+  final num voucherDiscount;
+  final num pointDiscount;
+  final num taxAmount;
+  final num netTotalPayable;
+  final int pointsEarned;
+
+  CheckoutBreakdown({
+    required this.grossSubtotal,
+    required this.voucherDiscount,
+    required this.pointDiscount,
+    required this.taxAmount,
+    required this.netTotalPayable,
+    required this.pointsEarned,
+  });
+
+  factory CheckoutBreakdown.fromJson(Map<String, dynamic> j) => CheckoutBreakdown(
+        grossSubtotal: (j['grossSubtotal'] as num?) ?? 0,
+        voucherDiscount: (j['voucherDiscount'] as num?) ?? 0,
+        pointDiscount: (j['pointDiscount'] as num?) ?? 0,
+        taxAmount: (j['taxAmount'] as num?) ?? 0,
+        netTotalPayable: (j['netTotalPayable'] as num?) ?? 0,
+        pointsEarned: (j['pointsEarned'] as int?) ?? 0,
+      );
+}
+
+/// Mirrors com.khoga.pos.dto.CheckoutResponse.
+class CheckoutResult {
+  final String orderId;
+  final String orderNumber;
+  final String status;
+  final String paymentStatus;
+  final String paymentMethod;
+  final num changeDue;
+  final String? qrContent;
+  final CheckoutBreakdown breakdown;
+
+  CheckoutResult({
+    required this.orderId,
+    required this.orderNumber,
+    required this.status,
+    required this.paymentStatus,
+    required this.paymentMethod,
+    required this.changeDue,
+    required this.breakdown,
+    this.qrContent,
+  });
+
+  factory CheckoutResult.fromJson(Map<String, dynamic> j) => CheckoutResult(
+        orderId: j['orderId'] as String,
+        orderNumber: j['orderNumber'] as String? ?? '',
+        status: j['status'] as String? ?? '',
+        paymentStatus: j['paymentStatus'] as String? ?? '',
+        paymentMethod: j['paymentMethod'] as String? ?? '',
+        changeDue: (j['changeDue'] as num?) ?? 0,
+        qrContent: j['qrContent'] as String?,
+        breakdown: CheckoutBreakdown.fromJson((j['breakdown'] as Map<String, dynamic>?) ?? const {}),
+      );
+}

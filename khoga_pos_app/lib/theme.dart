@@ -8,6 +8,8 @@ const Color kBg = Color(0xFFFCFAF7);
 const Color kBorder = Color(0xFFEADDD3);
 const Color kMuted = Color(0xFF8C766C);
 const Color kDanger = Color(0xFFB3261E);
+const Color kSuccess = Color(0xFF2E7D32);
+const Color kBgAlt = Color(0xFFFAF6F0);
 
 final ThemeData khogaTheme = ThemeData(
   useMaterial3: true,

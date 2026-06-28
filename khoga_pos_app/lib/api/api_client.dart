@@ -1,10 +1,13 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 
 import 'package:http/http.dart' as http;
 
 /// Default backend base URL. `10.0.2.2` is the Android emulator's alias for the
 /// host machine's `localhost`; for Chrome/desktop dev override with `localhost`.
-const String kApiBaseUrl = 'http://10.0.2.2:8080/api/v1';
+const String kApiBaseUrl = kIsWeb
+    ? 'http://localhost:8080/api/v1'
+    : 'http://10.0.2.2:8080/api/v1';
 
 /// Thrown when the backend returns an error envelope or a non-2xx status. Carries
 /// the human-readable message from `ApiResponse.message` when available.
@@ -25,42 +28,56 @@ class ApiClient {
   final String baseUrl;
   String? _token;
 
-  ApiClient({http.Client? client, this.baseUrl = kApiBaseUrl}) : _client = client ?? http.Client();
+  ApiClient({http.Client? client, this.baseUrl = kApiBaseUrl})
+    : _client = client ?? http.Client();
 
   /// Set (or clear, with null) the bearer token sent on subsequent requests.
   void setToken(String? token) => _token = token;
 
   Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        if (_token != null) 'Authorization': 'Bearer $_token',
-      };
+    'Content-Type': 'application/json',
+    if (_token != null) 'Authorization': 'Bearer $_token',
+  };
 
   Future<dynamic> get(String path) async {
-    return _unwrap(await _client.get(Uri.parse('$baseUrl$path'), headers: _headers));
+    return _unwrap(
+      await _client.get(Uri.parse('$baseUrl$path'), headers: _headers),
+    );
   }
 
   Future<dynamic> post(String path, [Map<String, dynamic>? body]) async {
     return _unwrap(
-      await _client.post(Uri.parse('$baseUrl$path'), headers: _headers, body: jsonEncode(body ?? {})),
+      await _client.post(
+        Uri.parse('$baseUrl$path'),
+        headers: _headers,
+        body: jsonEncode(body ?? {}),
+      ),
     );
   }
 
   Future<dynamic> put(String path, [Map<String, dynamic>? body]) async {
     return _unwrap(
-      await _client.put(Uri.parse('$baseUrl$path'), headers: _headers, body: jsonEncode(body ?? {})),
+      await _client.put(
+        Uri.parse('$baseUrl$path'),
+        headers: _headers,
+        body: jsonEncode(body ?? {}),
+      ),
     );
   }
 
   dynamic _unwrap(http.Response res) {
     dynamic decoded;
     try {
-      decoded = res.bodyBytes.isEmpty ? null : jsonDecode(utf8.decode(res.bodyBytes));
+      decoded = res.bodyBytes.isEmpty
+          ? null
+          : jsonDecode(utf8.decode(res.bodyBytes));
     } catch (_) {
       decoded = null;
     }
     final isEnvelope = decoded is Map<String, dynamic>;
     final status = isEnvelope ? decoded['status'] : null;
-    final isOk = res.statusCode >= 200 && res.statusCode < 300 && status != 'error';
+    final isOk =
+        res.statusCode >= 200 && res.statusCode < 300 && status != 'error';
     if (isOk) {
       return isEnvelope ? decoded['data'] : decoded;
     }

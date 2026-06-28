@@ -8,6 +8,7 @@ import '../auth/auth_controller.dart';
 import '../format.dart';
 import '../theme.dart';
 import 'cart_controller.dart';
+import 'payment_screen.dart';
 import 'shift_controller.dart';
 
 /// Screen 35 — "POS Checkout Grid & Cart". Lists menu items (category tabs +
@@ -221,8 +222,8 @@ class _PosScreenState extends State<PosScreen> {
                   key: const Key('checkout-button'),
                   onPressed: cart.isEmpty
                       ? null
-                      : () => ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Thanh toán — slice kế tiếp (F5)')),
+                      : () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(builder: (_) => const PaymentScreen()),
                           ),
                   child: const Text('THANH TOÁN'),
                 ),

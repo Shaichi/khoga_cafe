@@ -17,6 +17,25 @@ http.Response apiError(String message, int status) => http.Response(
       headers: _jsonHeaders,
     );
 
+const _prices = {'m1': 30000, 'm2': 25000, 'm3': 20000};
+
+num _grossOf(List<dynamic> items) => items.fold<num>(0, (sum, it) {
+      final m = it as Map<String, dynamic>;
+      final price = _prices[m['menuItemId']] ?? 0;
+      return sum + price * (m['quantity'] as num);
+    });
+
+Map<String, dynamic> _breakdown(num gross) => {
+      'grossSubtotal': gross,
+      'voucherDiscount': 0,
+      'pointsRedeemed': 0,
+      'pointDiscount': 0,
+      'finalTaxableSubtotal': gross,
+      'taxAmount': (gross * 10 / 110).round(),
+      'netTotalPayable': gross,
+      'pointsEarned': (gross / 1000).floor(),
+    };
+
 Map<String, dynamic> _page(List<Map<String, dynamic>> content) => {
       'content': content,
       'page': 0,
@@ -90,6 +109,27 @@ MockClient authBackend({
       final cat = req.url.queryParameters['categoryId'];
       final filtered = cat == null ? items : items.where((i) => i['categoryId'] == cat).toList();
       return apiOk(_page(filtered));
+    }
+    if (path.endsWith('/checkout/preview')) {
+      final body = jsonDecode(req.body) as Map<String, dynamic>;
+      return apiOk(_breakdown(_grossOf(body['items'] as List)));
+    }
+    if (path.endsWith('/checkout')) {
+      final body = jsonDecode(req.body) as Map<String, dynamic>;
+      final gross = _grossOf(body['items'] as List);
+      final method = body['paymentMethod'] as String;
+      final cash = (body['cashReceived'] as num?) ?? 0;
+      return apiOk({
+        'orderId': 'o1',
+        'orderNumber': 'ORD-001',
+        'status': 'PENDING',
+        'paymentStatus': method == 'VIETQR' ? 'AWAITING_PAYMENT' : 'PAID',
+        'paymentMethod': method,
+        'breakdown': _breakdown(gross),
+        'changeDue': method == 'CASH' ? (cash - gross) : 0,
+        'qrContent': method == 'VIETQR' ? 'vietqr://order/o1' : null,
+        'qrReference': method == 'VIETQR' ? 'REF-1' : null,
+      }, message: 'Tạo đơn thành công', status: 201);
     }
     return apiError('Not mocked: $path', 404);
   });
