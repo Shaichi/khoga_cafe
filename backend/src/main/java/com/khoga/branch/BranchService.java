@@ -3,6 +3,7 @@ package com.khoga.branch;
 import com.khoga.audit.AuditLogService;
 import com.khoga.branch.dto.BranchResponse;
 import com.khoga.branch.dto.BranchSettingsRequest;
+import com.khoga.branch.dto.BranchSettingsResponse;
 import com.khoga.branch.dto.CreateBranchRequest;
 import com.khoga.branch.dto.UpdateBranchRequest;
 import com.khoga.common.exception.AppException;
@@ -131,6 +132,21 @@ public class BranchService {
         store.setIsActive(false);
         storeRepository.save(store);
         auditLogService.record(ActionType.UPDATE, "Store", null, "{\"event\":\"DEACTIVATE\"}", actorId);
+    }
+
+    /** UC-42: read current branch settings, scoped like {@link #updateSettings} (manager = own branch). */
+    @Transactional(readOnly = true)
+    public BranchSettingsResponse getSettings(UUID id, UUID actorId) {
+        load(id);
+        User actor = userRepository.findById(actorId)
+                .orElseThrow(() -> new AppException("Yêu cầu xác thực"));
+        if (actor.getRole() == Role.STORE_MANAGER
+                && (actor.getStore() == null || !id.equals(actor.getStore().getId()))) {
+            throw new AccessDeniedException("Chỉ được xem cấu hình chi nhánh của mình");
+        }
+        return new BranchSettingsResponse(
+                systemConfigService.getBranch(id, "TIMEZONE", null),
+                systemConfigService.getBranch(id, "PRINTER_ADDRESS", null));
     }
 
     /** UC-42: a store manager may configure only their own branch (BR-47/48). */

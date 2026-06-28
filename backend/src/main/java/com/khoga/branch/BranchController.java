@@ -3,6 +3,7 @@ package com.khoga.branch;
 import com.khoga.auth.SecurityUtil;
 import com.khoga.branch.dto.BranchResponse;
 import com.khoga.branch.dto.BranchSettingsRequest;
+import com.khoga.branch.dto.BranchSettingsResponse;
 import com.khoga.branch.dto.CreateBranchRequest;
 import com.khoga.branch.dto.UpdateBranchRequest;
 import com.khoga.common.dto.ApiResponse;
@@ -73,6 +74,12 @@ public class BranchController {
     public ResponseEntity<ApiResponse<Void>> deactivate(@PathVariable UUID id) {
         branchService.deactivate(id, SecurityUtil.currentUserId());
         return ResponseEntity.ok(ApiResponse.success(null, "Đã vô hiệu hóa chi nhánh"));
+    }
+
+    @GetMapping("/{id}/settings")
+    @PreAuthorize("hasAnyRole('SSADMIN','STORE_MANAGER')")
+    public ResponseEntity<ApiResponse<BranchSettingsResponse>> getSettings(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success(branchService.getSettings(id, SecurityUtil.currentUserId())));
     }
 
     @PutMapping("/{id}/settings")

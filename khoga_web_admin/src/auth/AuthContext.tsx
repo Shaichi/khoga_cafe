@@ -11,6 +11,8 @@ interface AuthState {
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   completePasswordChange: () => void;
+  /** Re-fetch the current user (e.g. after a self-service profile edit). */
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
@@ -54,9 +56,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionStorage.removeItem(MUST_CHANGE_KEY);
   };
 
+  const refreshProfile = async () => {
+    setUser(await authApi.getProfile());
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, loading, mustChangePassword, login, logout, completePasswordChange }}
+      value={{ user, loading, mustChangePassword, login, logout, completePasswordChange, refreshProfile }}
     >
       {children}
     </AuthContext.Provider>

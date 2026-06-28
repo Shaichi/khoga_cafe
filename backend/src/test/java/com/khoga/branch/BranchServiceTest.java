@@ -1,11 +1,13 @@
 package com.khoga.branch;
 
 import com.khoga.audit.AuditLogService;
+import com.khoga.branch.dto.BranchSettingsResponse;
 import com.khoga.branch.dto.CreateBranchRequest;
 import com.khoga.common.exception.AppException;
 import com.khoga.common.model.Store;
 import com.khoga.common.model.User;
 import com.khoga.common.model.enums.OrderStatus;
+import com.khoga.common.model.enums.Role;
 import com.khoga.common.model.enums.ShiftStatus;
 import com.khoga.common.repository.OrderRepository;
 import com.khoga.common.repository.ShiftSessionRepository;
@@ -23,6 +25,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -135,6 +138,24 @@ class BranchServiceTest {
         verify(userRepository).saveAll(any());
         verify(staffScheduleRepository).deleteByStoreIdAndShiftDateGreaterThanEqual(eq(id), any(LocalDate.class));
         verify(storeRepository).save(store);
+    }
+
+    @Test
+    void getSettings_returnsBranchScopedConfigValues() {
+        UUID id = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+        User actor = new User();
+        actor.setId(actorId);
+        actor.setRole(Role.SSADMIN);
+        when(storeRepository.findById(id)).thenReturn(Optional.of(activeStore(id)));
+        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
+        when(systemConfigService.getBranch(id, "TIMEZONE", null)).thenReturn("Asia/Ho_Chi_Minh");
+        when(systemConfigService.getBranch(id, "PRINTER_ADDRESS", null)).thenReturn("192.168.1.50");
+
+        BranchSettingsResponse res = service().getSettings(id, actorId);
+
+        assertEquals("Asia/Ho_Chi_Minh", res.timezone());
+        assertEquals("192.168.1.50", res.printerAddress());
     }
 
     private Store activeStore(UUID id) {

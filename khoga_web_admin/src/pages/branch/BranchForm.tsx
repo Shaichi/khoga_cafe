@@ -101,6 +101,11 @@ export default function BranchForm() {
           <button type="button" className="btn btn--ghost" onClick={() => navigate('/branches')}>
             Hủy bỏ
           </button>
+          {isEdit && (
+            <Link to={`/branches/${id}/settings`} className="btn btn--ghost">
+              Cấu hình vận hành
+            </Link>
+          )}
           {isEdit && active && (
             <button type="button" className="btn btn--danger" style={{ marginLeft: 'auto' }} onClick={handleDeactivate}>
               Vô hiệu hóa

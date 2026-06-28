@@ -46,3 +46,18 @@ export async function updateBranch(id: string, input: BranchInput): Promise<Bran
 export async function deactivateBranch(id: string): Promise<void> {
   await apiClient.post(`/branches/${id}/deactivate`);
 }
+
+/** com.khoga.branch.dto.BranchSettingsResponse — branch-scoped operational settings (UC-42). */
+export interface BranchSettings {
+  timezone: string | null;
+  printerAddress: string | null;
+}
+
+export async function getBranchSettings(id: string): Promise<BranchSettings> {
+  const res = await apiClient.get<ApiResponse<BranchSettings>>(`/branches/${id}/settings`);
+  return res.data.data;
+}
+
+export async function updateBranchSettings(id: string, input: BranchSettings): Promise<void> {
+  await apiClient.put(`/branches/${id}/settings`, input);
+}

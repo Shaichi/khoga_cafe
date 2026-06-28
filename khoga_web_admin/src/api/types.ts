@@ -1,6 +1,6 @@
 // Mirrors the backend DTOs (com.khoga.*). Keep in sync with the Java records.
 
-export type Role = 'CASHIER' | 'BARISTA' | 'STORE_MANAGER' | 'BUSINESSADMIN' | 'SSADMIN';
+export type Role = 'CASHIER' | 'BARISTA' | 'STORE_MANAGER' | 'CEOVIEWER' | 'BUSINESSADMIN' | 'SSADMIN';
 
 /** Standard envelope returned by every controller (com.khoga.common.dto.ApiResponse). */
 export interface ApiResponse<T> {
@@ -41,6 +41,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   CASHIER: 'Thu ngân',
   BARISTA: 'Pha chế',
   STORE_MANAGER: 'Quản lý chi nhánh',
+  CEOVIEWER: 'Giám đốc (chỉ xem)',
   BUSINESSADMIN: 'Quản trị kinh doanh',
   SSADMIN: 'Quản trị hệ thống',
 };

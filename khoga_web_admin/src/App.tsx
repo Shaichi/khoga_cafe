@@ -4,9 +4,9 @@ import AppLayout from './layout/AppLayout';
 import Login from './pages/Login';
 import ForcePasswordChange from './pages/ForcePasswordChange';
 import Dashboard from './pages/Dashboard';
-import Placeholder from './pages/Placeholder';
 import BranchList from './pages/branch/BranchList';
 import BranchForm from './pages/branch/BranchForm';
+import BranchSettings from './pages/branch/BranchSettings';
 import UserList from './pages/user/UserList';
 import UserForm from './pages/user/UserForm';
 import UserDetail from './pages/user/UserDetail';
@@ -20,6 +20,10 @@ import VoucherForm from './pages/voucher/VoucherForm';
 import CustomerList from './pages/customer/CustomerList';
 import CustomerForm from './pages/customer/CustomerForm';
 import CustomerHistory from './pages/customer/CustomerHistory';
+import ProfileView from './pages/profile/ProfileView';
+import ProfileEdit from './pages/profile/ProfileEdit';
+import ChangePassword from './pages/profile/ChangePassword';
+import CentralSettings from './pages/settings/CentralSettings';
 
 export default function App() {
   return (
@@ -34,6 +38,7 @@ export default function App() {
           <Route path="/branches" element={<BranchList />} />
           <Route path="/branches/new" element={<BranchForm />} />
           <Route path="/branches/:id" element={<BranchForm />} />
+          <Route path="/branches/:id/settings" element={<BranchSettings />} />
           <Route path="/users" element={<UserList />} />
           <Route path="/users/new" element={<UserForm />} />
           <Route path="/users/:id" element={<UserDetail />} />
@@ -52,7 +57,10 @@ export default function App() {
           <Route path="/customers/new" element={<CustomerForm />} />
           <Route path="/customers/:id/edit" element={<CustomerForm />} />
           <Route path="/customers/:id/history" element={<CustomerHistory />} />
-          <Route path="/settings" element={<Placeholder title="Cấu hình hệ thống" hint="UC-24 · SystemConfig" />} />
+          <Route path="/profile" element={<ProfileView />} />
+          <Route path="/profile/edit" element={<ProfileEdit />} />
+          <Route path="/profile/password" element={<ChangePassword />} />
+          <Route path="/settings" element={<CentralSettings />} />
         </Route>
       </Route>
 

@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ROLE_LABELS } from '../api/types';
 import CupIcon from '../components/CupIcon';
@@ -60,11 +60,13 @@ export default function AppLayout() {
         <header className="topbar">
           <div className="topbar__spacer" />
           <div className="topbar__user">
-            <div className="topbar__user-meta">
-              <span className="topbar__user-name">{user?.fullName || user?.username}</span>
-              <span className="topbar__user-role">{user ? ROLE_LABELS[user.role] : ''}</span>
-            </div>
-            <div className="avatar">{initials}</div>
+            <Link to="/profile" className="topbar__user-link" title="Thông tin cá nhân">
+              <div className="topbar__user-meta">
+                <span className="topbar__user-name">{user?.fullName || user?.username}</span>
+                <span className="topbar__user-role">{user ? ROLE_LABELS[user.role] : ''}</span>
+              </div>
+              <div className="avatar">{initials}</div>
+            </Link>
             <button type="button" className="btn btn--ghost btn--sm" onClick={handleLogout}>
               Đăng xuất
             </button>
