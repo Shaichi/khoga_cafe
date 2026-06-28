@@ -20,6 +20,47 @@ class ScheduleApi {
     final data = await _client.get('/staff');
     return (data as List).map((j) => StaffRoster.fromJson(j as Map<String, dynamic>)).toList();
   }
+
+  /// Create a shift (UC-36). Times are 'HH:mm', date 'yyyy-MM-dd'.
+  Future<ScheduleShift> create({
+    required String employeeId,
+    required String shiftDate,
+    required String shiftType,
+    required String shiftStartTime,
+    required String shiftEndTime,
+    String? posRegisterId,
+    String? overrideReason,
+  }) async {
+    final data = await _client.post('/schedules', {
+      'employeeId': employeeId,
+      'shiftDate': shiftDate,
+      'shiftType': shiftType,
+      'shiftStartTime': shiftStartTime,
+      'shiftEndTime': shiftEndTime,
+      if (posRegisterId != null && posRegisterId.isNotEmpty) 'posRegisterId': posRegisterId,
+      if (overrideReason != null && overrideReason.isNotEmpty) 'overrideReason': overrideReason,
+    });
+    return ScheduleShift.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// Edit a shift (UC-37); the date + employee are fixed.
+  Future<ScheduleShift> update(
+    String id, {
+    required String shiftType,
+    required String shiftStartTime,
+    required String shiftEndTime,
+    String? posRegisterId,
+    String? overrideReason,
+  }) async {
+    final data = await _client.put('/schedules/$id', {
+      'shiftType': shiftType,
+      'shiftStartTime': shiftStartTime,
+      'shiftEndTime': shiftEndTime,
+      if (posRegisterId != null && posRegisterId.isNotEmpty) 'posRegisterId': posRegisterId,
+      if (overrideReason != null && overrideReason.isNotEmpty) 'overrideReason': overrideReason,
+    });
+    return ScheduleShift.fromJson(data as Map<String, dynamic>);
+  }
 }
 
 /// Attendance terminal (UC-67). Operated at the branch by any staff; the PIN

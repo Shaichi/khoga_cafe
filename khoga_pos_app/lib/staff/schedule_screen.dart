@@ -5,6 +5,7 @@ import '../api/api_client.dart';
 import '../api/models.dart';
 import '../api/staff_api.dart';
 import '../theme.dart';
+import 'schedule_form_screen.dart';
 
 /// Screen 30 — staff schedule + roster (UC-35/66). Store Manager view: the
 /// scheduled shifts and the branch roster with PIN status.
@@ -59,7 +60,21 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         title: const Text('Lịch làm việc'),
       ),
       body: SafeArea(child: _body()),
+      floatingActionButton: FloatingActionButton(
+        key: const Key('schedule-add'),
+        backgroundColor: kBrown,
+        foregroundColor: Colors.white,
+        onPressed: () => _openForm(),
+        child: const Icon(Icons.add),
+      ),
     );
+  }
+
+  Future<void> _openForm([ScheduleShift? existing]) async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(builder: (_) => ScheduleFormScreen(existing: existing)),
+    );
+    if (saved == true) _load();
   }
 
   Widget _body() {
@@ -98,6 +113,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           subtitle: Text('${_shiftTypeLabel(s.shiftType)} · ${s.shiftStartTime ?? ''}–${s.shiftEndTime ?? ''}'
               '${s.posRegisterId != null ? ' · ${s.posRegisterId}' : ''}'),
           trailing: Text(s.shiftDate, style: const TextStyle(color: kMuted, fontSize: 12)),
+          onTap: () => _openForm(s),
         ),
       );
 

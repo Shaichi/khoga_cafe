@@ -44,6 +44,19 @@ Map<String, dynamic> _page(List<Map<String, dynamic>> content) => {
       'totalPages': 1,
     };
 
+Map<String, dynamic> _scheduleFromBody(String id, Map<String, dynamic> body) => {
+      'id': id,
+      'employeeId': body['employeeId'] ?? 'u1',
+      'employeeName': body['employeeId'] == 'u2' ? 'Lê Pha Chế' : 'Nguyễn Thu Ngân',
+      'role': 'CASHIER',
+      'shiftDate': body['shiftDate'] ?? '2026-06-29',
+      'shiftType': body['shiftType'] ?? 'MORNING',
+      'shiftStartTime': body['shiftStartTime'],
+      'shiftEndTime': body['shiftEndTime'],
+      'posRegisterId': body['posRegisterId'],
+      'crossBranch': false,
+    };
+
 Map<String, dynamic> _shift({String? register, dynamic startingCash}) => {
       'id': 'shift-1',
       'storeId': 's1',
@@ -229,7 +242,16 @@ MockClient authBackend({
     }
 
     // ---- Staff: scheduling + roster (UC-35/66), Store Manager ----
+    final schedMatch = RegExp(r'/schedules/([\w-]+)$').firstMatch(path);
+    if (schedMatch != null && req.method == 'PUT') {
+      final body = jsonDecode(req.body) as Map<String, dynamic>;
+      return apiOk(_scheduleFromBody(schedMatch.group(1)!, body), message: 'Đã cập nhật lịch');
+    }
     if (path.endsWith('/schedules')) {
+      if (req.method == 'POST') {
+        final body = jsonDecode(req.body) as Map<String, dynamic>;
+        return apiOk(_scheduleFromBody('sc-new', body), message: 'Đã tạo lịch làm việc', status: 201);
+      }
       return apiOk([
         {
           'id': 'sc1', 'employeeId': 'u1', 'employeeName': 'Nguyễn Thu Ngân', 'role': 'CASHIER',
