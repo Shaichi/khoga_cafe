@@ -60,4 +60,39 @@ void main() {
     expect(find.textContaining('chưa đủ'), findsOneWidget);
     expect(find.byKey(const Key('order-number')), findsNothing);
   });
+
+  testWidgets('VietQR creates the order, shows the QR, then polls to a PAID success (38)',
+      (tester) async {
+    final client = ApiClient(client: authBackend(), baseUrl: 'http://test/api/v1')..setToken('jwt-1');
+    final cart = CartController()..add(MenuItem(id: 'm1', name: 'Espresso', price: 30000));
+
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        Provider<ApiClient>.value(value: client),
+        ChangeNotifierProvider<CartController>.value(value: cart),
+      ],
+      child: const MaterialApp(home: PaymentScreen(pollInterval: Duration(milliseconds: 20))),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('method-VIETQR')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('confirm-payment')));
+    await tester.pump(); // submit resolves -> awaiting QR
+    await tester.pump();
+
+    // Awaiting state: QR shown, order created, not yet confirmed.
+    expect(find.byKey(const Key('qr-awaiting')), findsOneWidget);
+    expect(find.textContaining('chờ'), findsWidgets);
+
+    // Advance past the poll interval; the order detail reports PAID.
+    await tester.pump(const Duration(milliseconds: 25));
+    await tester.pump(); // detail future resolves -> setState to success
+    await tester.pump();
+
+    expect(find.byKey(const Key('qr-awaiting')), findsNothing);
+    expect(find.byKey(const Key('order-number')), findsOneWidget);
+    expect(find.textContaining('Đã thanh toán'), findsOneWidget);
+    expect(cart.isEmpty, isTrue);
+  });
 }

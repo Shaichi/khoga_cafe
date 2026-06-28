@@ -5,16 +5,20 @@ import 'package:provider/provider.dart';
 import '../api/api_client.dart';
 import '../api/checkout_api.dart';
 import '../api/models.dart';
+import '../api/order_api.dart';
 import '../format.dart';
 import '../theme.dart';
 import 'cart_controller.dart';
 
 /// Screen 38 — "Payment Checkout Modal". Previews the breakdown, lets the cashier
 /// pick a method (cash/card/VietQR) and, for cash, the amount tendered, then
-/// submits the order. CASH is the fully-wired path; VietQR shows the returned
-/// code + an awaiting-payment state (the gateway callback flow is deferred).
+/// submits the order. CASH/CARD confirm immediately; VietQR shows the returned QR
+/// and polls the order until the gateway callback flips it to PAID (BR-84/85).
 class PaymentScreen extends StatefulWidget {
-  const PaymentScreen({super.key});
+  /// How often to poll the order's payment status while awaiting the VietQR
+  /// gateway callback. Overridable so tests can drive it fast.
+  final Duration pollInterval;
+  const PaymentScreen({super.key, this.pollInterval = const Duration(seconds: 3)});
 
   @override
   State<PaymentScreen> createState() => _PaymentScreenState();
@@ -28,6 +32,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   ];
 
   late final CheckoutApi _api;
+  late final OrderApi _orderApi;
   late final CartController _cart;
   final _cashCtrl = TextEditingController();
 
@@ -37,17 +42,21 @@ class _PaymentScreenState extends State<PaymentScreen> {
   bool _submitting = false;
   String? _error;
   CheckoutResult? _result;
+  CheckoutResult? _awaiting; // VietQR order created, waiting for the gateway callback
+  bool _disposed = false;
 
   @override
   void initState() {
     super.initState();
     _api = CheckoutApi(context.read<ApiClient>());
+    _orderApi = OrderApi(context.read<ApiClient>());
     _cart = context.read<CartController>();
     _loadPreview();
   }
 
   @override
   void dispose() {
+    _disposed = true;
     _cashCtrl.dispose();
     super.dispose();
   }
@@ -86,11 +95,41 @@ class _PaymentScreenState extends State<PaymentScreen> {
     try {
       final res = await _api.submit(_request(cashReceived: _method == 'CASH' ? _cashReceived : null));
       _cart.clear();
-      if (mounted) setState(() => _result = res);
+      if (!mounted) return;
+      if (_method == 'VIETQR' && res.paymentStatus != 'PAID') {
+        // Order created, awaiting the gateway callback — show the QR and poll.
+        setState(() => _awaiting = res);
+        _pollPayment(res.orderId);
+      } else {
+        setState(() => _result = res);
+      }
     } catch (e) {
       if (mounted) setState(() => _error = e is ApiException ? e.message : 'Thanh toán thất bại');
     } finally {
       if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  /// Polls the order until the VietQR gateway marks it PAID (BR-85), then flips to
+  /// the success view. Stops on dispose or when the awaiting order is dismissed.
+  Future<void> _pollPayment(String orderId) async {
+    while (!_disposed && _awaiting != null) {
+      await Future<void>.delayed(widget.pollInterval);
+      if (_disposed || _awaiting == null) return;
+      try {
+        final order = await _orderApi.detail(orderId);
+        if (order.paymentStatus == 'PAID') {
+          if (!_disposed) {
+            setState(() {
+              _result = _awaiting;
+              _awaiting = null;
+            });
+          }
+          return;
+        }
+      } catch (_) {
+        // transient failure — keep polling
+      }
     }
   }
 
@@ -107,9 +146,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
       body: SafeArea(
         child: _result != null
             ? _success(_result!)
-            : _loading
-                ? const Center(child: Text('Đang tải hóa đơn…'))
-                : _form(),
+            : _awaiting != null
+                ? _qrAwaiting(_awaiting!)
+                : _loading
+                    ? const Center(child: Text('Đang tải hóa đơn…'))
+                    : _form(),
       ),
     );
   }
@@ -239,6 +280,40 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
+  Widget _qrAwaiting(CheckoutResult r) {
+    return Center(
+      key: const Key('qr-awaiting'),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.qr_code_2, color: kBrown, size: 96),
+            const SizedBox(height: 12),
+            Text(r.orderNumber, key: const Key('order-number'), style: const TextStyle(fontSize: 16, color: kMuted)),
+            const SizedBox(height: 6),
+            Text('${formatVnd(r.breakdown.netTotalPayable)} VND',
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: kBrown)),
+            const SizedBox(height: 16),
+            const Text('Khách quét mã VietQR để thanh toán.', style: TextStyle(color: kMuted)),
+            const SizedBox(height: 20),
+            const SizedBox(
+              height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: kBrown)),
+            const SizedBox(height: 12),
+            const Text('Đang chờ xác nhận từ cổng thanh toán…',
+                style: TextStyle(color: kMuted, fontStyle: FontStyle.italic)),
+            const SizedBox(height: 24),
+            TextButton(
+              key: const Key('cancel-awaiting'),
+              onPressed: () => setState(() => _awaiting = null),
+              child: const Text('Hủy chờ & quay lại', style: TextStyle(color: kGold, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _success(CheckoutResult r) {
     return Center(
       child: Padding(
@@ -254,8 +329,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
             const SizedBox(height: 16),
             if (r.paymentMethod == 'CASH')
               Text('Tiền thối lại: ${formatVnd(r.changeDue)} VND', style: const TextStyle(color: kBrown)),
-            if (r.paymentMethod == 'VIETQR' && r.qrContent != null)
-              Text('Chờ thanh toán VietQR (${r.qrContent})', style: const TextStyle(color: kMuted)),
+            if (r.paymentMethod == 'VIETQR')
+              const Text('Đã thanh toán VietQR', style: TextStyle(color: kSuccess, fontWeight: FontWeight.w600)),
             const SizedBox(height: 28),
             ElevatedButton(
               key: const Key('new-order'),
