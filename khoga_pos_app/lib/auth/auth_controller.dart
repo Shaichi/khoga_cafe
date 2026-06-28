@@ -28,6 +28,16 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Update editable contact fields (UC-08) and refresh the cached profile.
+  Future<void> updateProfile({String? email, String? phone}) async {
+    _profile = await _authApi.updateProfile(email: email, phone: phone);
+    notifyListeners();
+  }
+
+  /// Change the signed-in user's password (UC-06).
+  Future<void> changePassword(String currentPassword, String newPassword) =>
+      _authApi.changePassword(currentPassword, newPassword);
+
   void logout() {
     _apiClient.setToken(null);
     _profile = null;

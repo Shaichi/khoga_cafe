@@ -6,6 +6,8 @@ import 'package:http/testing.dart';
 import 'package:khoga_pos_app/api/api_client.dart';
 import 'package:khoga_pos_app/api/auth_api.dart';
 
+import '../support/fake_backend.dart';
+
 // Tracer: proves the HTTP + ApiResponse-envelope + auth path end-to-end against a
 // mocked transport (MockClient is our MSW equivalent).
 void main() {
@@ -46,6 +48,27 @@ void main() {
       expect(
         () => api.login('x', 'y'),
         throwsA(isA<ApiException>().having((e) => e.message, 'message', contains('Sai tài khoản'))),
+      );
+    });
+  });
+
+  group('AuthApi profile/password', () {
+    ApiClient client() => ApiClient(client: authBackend(), baseUrl: 'http://test/api/v1')..setToken('jwt-1');
+
+    test('updateProfile sends contact fields and returns the merged profile', () async {
+      final p = await AuthApi(client()).updateProfile(email: 'a@b.com', phone: '0900000000');
+      expect(p.email, 'a@b.com');
+      expect(p.phone, '0900000000');
+    });
+
+    test('changePassword succeeds for the right current password', () async {
+      await AuthApi(client()).changePassword('Admin@123', 'NewPass@123');
+    });
+
+    test('changePassword throws on a wrong current password', () async {
+      expect(
+        () => AuthApi(client()).changePassword('wrong', 'NewPass@123'),
+        throwsA(isA<ApiException>()),
       );
     });
   });

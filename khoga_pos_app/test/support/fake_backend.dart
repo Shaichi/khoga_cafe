@@ -82,7 +82,20 @@ MockClient authBackend({
     }
     if (req.headers['Authorization'] != 'Bearer jwt-1') return apiError('Yêu cầu xác thực', 401);
 
-    if (path.endsWith('/profile')) return apiOk(p);
+    if (path.endsWith('/profile')) {
+      if (req.method == 'PUT') {
+        final body = jsonDecode(req.body) as Map<String, dynamic>;
+        return apiOk({...p, 'email': body['email'], 'phone': body['phone']}, message: 'Cập nhật hồ sơ thành công');
+      }
+      return apiOk(p);
+    }
+    if (path.endsWith('/auth/change-password')) {
+      final body = jsonDecode(req.body) as Map<String, dynamic>;
+      if ((body['currentPassword'] as String?) == 'wrong') {
+        return apiError('Mật khẩu hiện tại không đúng', 400);
+      }
+      return apiOk(null, message: 'Đổi mật khẩu thành công');
+    }
     if (path.endsWith('/shifts/active')) {
       if (!hasOpenShift) return apiError('Không có ca đang mở', 404);
       return apiOk(_shift());

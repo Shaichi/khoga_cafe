@@ -17,6 +17,12 @@ class AuthApi {
     return Profile.fromJson(data as Map<String, dynamic>);
   }
 
+  /// Self-service profile edit (UC-08): only contact fields are editable.
+  Future<Profile> updateProfile({String? email, String? phone}) async {
+    final data = await _client.put('/profile', {'email': email, 'phone': phone});
+    return Profile.fromJson(data as Map<String, dynamic>);
+  }
+
   Future<void> changePassword(String currentPassword, String newPassword) async {
     await _client.post('/auth/change-password', {
       'currentPassword': currentPassword,

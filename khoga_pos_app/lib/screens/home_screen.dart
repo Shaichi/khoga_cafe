@@ -8,6 +8,7 @@ import '../orders/order_history_screen.dart';
 import '../pos/close_shift_screen.dart';
 import '../pos/pos_screen.dart';
 import '../pos/shift_controller.dart';
+import '../profile/profile_screen.dart';
 import '../staff/attendance_screen.dart';
 import '../staff/schedule_screen.dart';
 import '../theme.dart';
@@ -28,6 +29,14 @@ class HomeScreen extends StatelessWidget {
         foregroundColor: Colors.white,
         title: const Text('Khoga POS'),
         actions: [
+          IconButton(
+            key: const Key('profile-action'),
+            tooltip: 'Hồ sơ',
+            icon: const Icon(Icons.account_circle_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const ProfileScreen()),
+            ),
+          ),
           IconButton(onPressed: auth.logout, icon: const Icon(Icons.logout), tooltip: 'Đăng xuất'),
         ],
       ),
