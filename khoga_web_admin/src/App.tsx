@@ -24,6 +24,16 @@ import ProfileView from './pages/profile/ProfileView';
 import ProfileEdit from './pages/profile/ProfileEdit';
 import ChangePassword from './pages/profile/ChangePassword';
 import CentralSettings from './pages/settings/CentralSettings';
+import ReportsHome from './pages/reports/ReportsHome';
+import HqConsolidated from './pages/reports/HqConsolidated';
+import StoreRevenue from './pages/reports/StoreRevenue';
+import CogsReport from './pages/reports/CogsReport';
+import ChangeHistory from './pages/reports/ChangeHistory';
+import AccessReview from './pages/reports/AccessReview';
+import LoyaltyLiability from './pages/reports/LoyaltyLiability';
+import LabourReport from './pages/reports/LabourReport';
+import ZReport from './pages/reports/ZReport';
+import AnomalyReport from './pages/reports/AnomalyReport';
 
 export default function App() {
   return (
@@ -61,6 +71,16 @@ export default function App() {
           <Route path="/profile/edit" element={<ProfileEdit />} />
           <Route path="/profile/password" element={<ChangePassword />} />
           <Route path="/settings" element={<CentralSettings />} />
+          <Route path="/reports" element={<ReportsHome />} />
+          <Route path="/reports/hq-consolidated" element={<HqConsolidated />} />
+          <Route path="/reports/store-revenue" element={<StoreRevenue />} />
+          <Route path="/reports/cogs" element={<CogsReport />} />
+          <Route path="/reports/change-history" element={<ChangeHistory />} />
+          <Route path="/reports/access-review" element={<AccessReview />} />
+          <Route path="/reports/loyalty-liability" element={<LoyaltyLiability />} />
+          <Route path="/reports/labour" element={<LabourReport />} />
+          <Route path="/reports/z-report" element={<ZReport />} />
+          <Route path="/reports/anomaly" element={<AnomalyReport />} />
         </Route>
       </Route>
 

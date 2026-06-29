@@ -11,6 +11,7 @@ const NAV = [
   { to: '/raw-materials', label: 'Nguyên liệu' },
   { to: '/vouchers', label: 'Voucher' },
   { to: '/customers', label: 'Khách hàng' },
+  { to: '/reports', label: 'Báo cáo' },
   { to: '/settings', label: 'Cấu hình hệ thống' },
 ];
 
