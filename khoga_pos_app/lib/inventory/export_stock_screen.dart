@@ -7,23 +7,21 @@ import '../api/models.dart';
 import '../api/stock_api.dart';
 import '../format.dart';
 import '../theme.dart';
-import 'export_stock_screen.dart';
 
-/// Screen 32 — record a stock delivery (UC-32) for one material. On success it
-/// pops with `true` so the dashboard can refresh. The app-bar action switches to
-/// the export screen (28) for the same material (wastage/withdrawal, UC-33).
-class ImportStockScreen extends StatefulWidget {
+/// Screen 28 (export) — withdraw/waste stock (UC-33). Reason is mandatory. Pops
+/// with `true` on success so the dashboard refreshes.
+class ExportStockScreen extends StatefulWidget {
   final StockItem item;
-  const ImportStockScreen({super.key, required this.item});
+  const ExportStockScreen({super.key, required this.item});
 
   @override
-  State<ImportStockScreen> createState() => _ImportStockScreenState();
+  State<ExportStockScreen> createState() => _ExportStockScreenState();
 }
 
-class _ImportStockScreenState extends State<ImportStockScreen> {
+class _ExportStockScreenState extends State<ExportStockScreen> {
   late final StockApi _api;
   final _qty = TextEditingController();
-  final _note = TextEditingController();
+  final _reason = TextEditingController();
   bool _submitting = false;
   String? _error;
   StockTransaction? _result;
@@ -37,7 +35,7 @@ class _ImportStockScreenState extends State<ImportStockScreen> {
   @override
   void dispose() {
     _qty.dispose();
-    _note.dispose();
+    _reason.dispose();
     super.dispose();
   }
 
@@ -47,15 +45,19 @@ class _ImportStockScreenState extends State<ImportStockScreen> {
       setState(() => _error = 'Vui lòng nhập số lượng hợp lệ');
       return;
     }
+    if (_reason.text.trim().isEmpty) {
+      setState(() => _error = 'Vui lòng nhập lý do xuất kho');
+      return;
+    }
     setState(() {
       _error = null;
       _submitting = true;
     });
     try {
-      final tx = await _api.import(widget.item.id, qty, note: _note.text.trim());
+      final tx = await _api.export(widget.item.id, qty, _reason.text.trim());
       if (mounted) setState(() => _result = tx);
     } catch (e) {
-      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Nhập kho thất bại');
+      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Xuất kho thất bại');
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -69,21 +71,7 @@ class _ImportStockScreenState extends State<ImportStockScreen> {
       appBar: AppBar(
         backgroundColor: kBrown,
         foregroundColor: Colors.white,
-        title: const Text('Nhập kho'),
-        actions: [
-          IconButton(
-            key: const Key('to-export-action'),
-            tooltip: 'Xuất kho',
-            icon: const Icon(Icons.outbox_outlined),
-            onPressed: () async {
-              final nav = Navigator.of(context);
-              final exported = await nav.push<bool>(
-                MaterialPageRoute<bool>(builder: (_) => ExportStockScreen(item: item)),
-              );
-              if (exported == true) nav.pop(true);
-            },
-          ),
-        ],
+        title: const Text('Xuất kho'),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -98,30 +86,29 @@ class _ImportStockScreenState extends State<ImportStockScreen> {
                         style: const TextStyle(color: kMuted, fontSize: 13)),
                     const SizedBox(height: 24),
                     if (_error != null) ...[
-                      Text(_error!, key: const Key('import-error'), style: const TextStyle(color: kDanger)),
+                      Text(_error!, key: const Key('export-error'), style: const TextStyle(color: kDanger)),
                       const SizedBox(height: 12),
                     ],
-                    Text('Số lượng nhập (${item.unit}) *',
+                    Text('Số lượng xuất (${item.unit}) *',
                         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: kBrown)),
                     const SizedBox(height: 8),
                     TextField(
-                      key: const Key('import-quantity'),
+                      key: const Key('export-quantity'),
                       controller: _qty,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
                     ),
                     const SizedBox(height: 16),
-                    const Text('Ghi chú', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: kBrown)),
+                    const Text('Lý do *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: kBrown)),
                     const SizedBox(height: 8),
-                    TextField(key: const Key('import-note'), controller: _note),
+                    TextField(key: const Key('export-reason'), controller: _reason, decoration: const InputDecoration(hintText: 'Hỏng / hết hạn…')),
                     const SizedBox(height: 28),
                     ElevatedButton(
-                      key: const Key('import-submit'),
+                      key: const Key('export-submit'),
                       onPressed: _submitting ? null : _submit,
                       child: _submitting
-                          ? const SizedBox(
-                              height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Text('XÁC NHẬN NHẬP KHO'),
+                          ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Text('XÁC NHẬN XUẤT KHO'),
                     ),
                   ],
                 ),
@@ -131,18 +118,18 @@ class _ImportStockScreenState extends State<ImportStockScreen> {
   }
 
   Widget _success(StockTransaction tx) => Column(
-        key: const Key('import-success'),
+        key: const Key('export-success'),
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(Icons.check_circle, color: kSuccess, size: 64),
           const SizedBox(height: 12),
-          const Text('Nhập kho thành công', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: kBrown)),
+          const Text('Xuất kho thành công', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: kBrown)),
           const SizedBox(height: 8),
           Text('${tx.materialName}: ${formatVnd(tx.quantityBefore)} → ${formatVnd(tx.quantityAfter)}',
               style: const TextStyle(color: kMuted)),
           const SizedBox(height: 24),
           ElevatedButton(
-            key: const Key('import-done'),
+            key: const Key('export-done'),
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('XONG'),
           ),

@@ -296,6 +296,31 @@ MockClient authBackend({
       final filtered = type == null ? all : all.where((t) => t['transactionType'] == type).toList();
       return apiOk(_page(filtered));
     }
+    if (path.endsWith('/stock/export')) {
+      final body = jsonDecode(req.body) as Map<String, dynamic>;
+      final qty = (body['quantity'] as num?) ?? 0;
+      return apiOk({
+        'id': 'tx-exp', 'stockItemId': body['stockItemId'], 'materialName': 'Sữa tươi',
+        'transactionType': 'EXPORT', 'quantity': -qty, 'quantityBefore': 12, 'quantityAfter': 12 - qty,
+        'reason': body['reason'], 'managerName': 'Quản lý', 'createdAt': '2026-06-28T10:30:00',
+      }, message: 'Xuất kho thành công');
+    }
+    if (path.endsWith('/stock/audit')) {
+      final body = jsonDecode(req.body) as Map<String, dynamic>;
+      final items = (body['items'] as List).cast<Map<String, dynamic>>();
+      const system = {'si1': 5, 'si2': 12};
+      const names = {'si1': 'Cà phê hạt', 'si2': 'Sữa tươi'};
+      return apiOk([
+        for (final it in items)
+          {
+            'stockItemId': it['stockItemId'],
+            'name': names[it['stockItemId']] ?? 'Nguyên liệu',
+            'systemQuantity': system[it['stockItemId']] ?? 0,
+            'actualQuantity': it['actualQuantity'],
+            'adjustment': (it['actualQuantity'] as num) - (system[it['stockItemId']] ?? 0),
+          },
+      ], message: 'Kiểm kê hoàn tất');
+    }
     if (path.endsWith('/stock/import')) {
       final body = jsonDecode(req.body) as Map<String, dynamic>;
       final qty = (body['quantity'] as num?) ?? 0;

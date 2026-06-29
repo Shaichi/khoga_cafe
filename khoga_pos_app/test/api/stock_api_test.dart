@@ -35,6 +35,29 @@ void main() {
       expect(tx.quantityAfter, 12);
     });
 
+    test('export records a withdrawal and returns the ledger entry', () async {
+      final tx = await StockApi(_client()).export('si2', 4, 'Hỏng');
+      expect(tx.transactionType, 'EXPORT');
+      expect(tx.quantity, -4);
+      expect(tx.quantityBefore, 12);
+      expect(tx.quantityAfter, 8);
+      expect(tx.reason, 'Hỏng');
+    });
+
+    test('audit returns the per-item discrepancy report', () async {
+      final results = await StockApi(_client()).audit([
+        {'stockItemId': 'si1', 'actualQuantity': 4},
+        {'stockItemId': 'si2', 'actualQuantity': 12},
+      ]);
+      expect(results, hasLength(2));
+      final coffee = results.firstWhere((r) => r.stockItemId == 'si1');
+      expect(coffee.systemQuantity, 5);
+      expect(coffee.actualQuantity, 4);
+      expect(coffee.adjustment, -1);
+      final milk = results.firstWhere((r) => r.stockItemId == 'si2');
+      expect(milk.adjustment, 0);
+    });
+
     test('transactions returns the ledger, filterable by type', () async {
       final all = await StockApi(_client()).transactions();
       expect(all, hasLength(2));

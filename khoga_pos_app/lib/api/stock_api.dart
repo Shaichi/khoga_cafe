@@ -27,6 +27,22 @@ class StockApi {
     return StockTransaction.fromJson(data as Map<String, dynamic>);
   }
 
+  /// Record a stock withdrawal/wastage (UC-33). Reason is mandatory.
+  Future<StockTransaction> export(String stockItemId, num quantity, String reason) async {
+    final data = await _client.post('/stock/export', {
+      'stockItemId': stockItemId,
+      'quantity': quantity,
+      'reason': reason,
+    });
+    return StockTransaction.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// Submit a physical count (UC-34). Returns the per-item discrepancy report.
+  Future<List<StockAuditResult>> audit(List<Map<String, dynamic>> items) async {
+    final data = await _client.post('/stock/audit', {'items': items});
+    return (data as List).map((j) => StockAuditResult.fromJson(j as Map<String, dynamic>)).toList();
+  }
+
   /// Stock movement ledger (UC-61), optionally filtered by transaction [type].
   Future<List<StockTransaction>> transactions({String? type, int page = 0}) async {
     final q = <String>['page=$page'];

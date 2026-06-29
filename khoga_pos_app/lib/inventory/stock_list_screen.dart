@@ -7,6 +7,7 @@ import '../api/stock_api.dart';
 import '../format.dart';
 import '../theme.dart';
 import 'import_stock_screen.dart';
+import 'stock_audit_screen.dart';
 import 'stock_transactions_screen.dart';
 
 /// Screen 26 — branch stock dashboard (UC-31). Search + low-stock filter; tapping
@@ -62,6 +63,17 @@ class _StockListScreenState extends State<StockListScreen> {
         foregroundColor: Colors.white,
         title: const Text('Kho chi nhánh'),
         actions: [
+          IconButton(
+            key: const Key('stock-audit-action'),
+            tooltip: 'Kiểm kê kho',
+            icon: const Icon(Icons.fact_check_outlined),
+            onPressed: () async {
+              final refreshed = await Navigator.of(context).push<bool>(
+                MaterialPageRoute<bool>(builder: (_) => const StockAuditScreen()),
+              );
+              if (refreshed == true) _load();
+            },
+          ),
           IconButton(
             key: const Key('stock-ledger-action'),
             tooltip: 'Lịch sử kho',

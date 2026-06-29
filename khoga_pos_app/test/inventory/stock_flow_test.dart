@@ -55,6 +55,73 @@ void main() {
     expect(find.byKey(const Key('tx-list')), findsOneWidget);
   });
 
+  testWidgets('export (28): import screen -> export -> success returns to dashboard', (tester) async {
+    final client = ApiClient(
+        client: authBackend(role: 'STORE_MANAGER', hasOpenShift: true), baseUrl: 'http://test/api/v1');
+    await tester.pumpWidget(buildApp(client));
+    await _loginManager(tester);
+
+    await tester.ensureVisible(find.byKey(const Key('inventory-action')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('inventory-action')));
+    await tester.pumpAndSettle();
+
+    // Open a material, switch to the export screen via the app-bar action.
+    await tester.tap(find.byKey(const Key('stock-row-si1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('to-export-action')));
+    await tester.pumpAndSettle();
+
+    // Reason is mandatory: submitting without it shows an error.
+    await tester.enterText(find.byKey(const Key('export-quantity')), '4');
+    await tester.tap(find.byKey(const Key('export-submit')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('export-error')), findsOneWidget);
+
+    // With a reason it succeeds and "Xong" returns all the way to the dashboard.
+    await tester.enterText(find.byKey(const Key('export-reason')), 'Hỏng');
+    await tester.tap(find.byKey(const Key('export-submit')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('export-success')), findsOneWidget);
+    expect(find.textContaining('→'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('export-done')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('stock-list')), findsOneWidget);
+  });
+
+  testWidgets('audit (28): count items -> discrepancy report -> back to dashboard', (tester) async {
+    final client = ApiClient(
+        client: authBackend(role: 'STORE_MANAGER', hasOpenShift: true), baseUrl: 'http://test/api/v1');
+    await tester.pumpWidget(buildApp(client));
+    await _loginManager(tester);
+
+    await tester.ensureVisible(find.byKey(const Key('inventory-action')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('inventory-action')));
+    await tester.pumpAndSettle();
+
+    // Open the audit screen from the dashboard app bar.
+    await tester.tap(find.byKey(const Key('stock-audit-action')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('audit-list')), findsOneWidget);
+
+    // Count both items: si1 short by one, si2 matches.
+    await tester.enterText(find.byKey(const Key('audit-count-si1')), '4');
+    await tester.enterText(find.byKey(const Key('audit-count-si2')), '12');
+    await tester.tap(find.byKey(const Key('audit-submit')));
+    await tester.pumpAndSettle();
+
+    // Report shows the discrepancy line and the matched line.
+    expect(find.byKey(const Key('audit-report')), findsOneWidget);
+    expect(find.byKey(const Key('audit-result-si1')), findsOneWidget);
+    expect(find.text('-1'), findsOneWidget);
+    expect(find.text('Khớp'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('audit-done')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('stock-list')), findsOneWidget);
+  });
+
   testWidgets('cashier home hides the manager inventory entry', (tester) async {
     final client = ApiClient(client: authBackend(hasOpenShift: true), baseUrl: 'http://test/api/v1');
     await tester.pumpWidget(buildApp(client));

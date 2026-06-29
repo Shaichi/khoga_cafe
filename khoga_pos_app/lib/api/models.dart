@@ -422,6 +422,31 @@ class StockTransaction {
       );
 }
 
+/// Mirrors com.khoga.inventory.dto.StockAuditResultLine (UC-34 discrepancy line).
+class StockAuditResult {
+  final String stockItemId;
+  final String name;
+  final num systemQuantity;
+  final num actualQuantity;
+  final num adjustment;
+
+  StockAuditResult({
+    required this.stockItemId,
+    required this.name,
+    required this.systemQuantity,
+    required this.actualQuantity,
+    required this.adjustment,
+  });
+
+  factory StockAuditResult.fromJson(Map<String, dynamic> j) => StockAuditResult(
+        stockItemId: j['stockItemId'] as String? ?? '',
+        name: j['name'] as String? ?? '',
+        systemQuantity: (j['systemQuantity'] as num?) ?? 0,
+        actualQuantity: (j['actualQuantity'] as num?) ?? 0,
+        adjustment: (j['adjustment'] as num?) ?? 0,
+      );
+}
+
 /// Mirrors com.khoga.catalog.dto.CategoryResponse (subset).
 class Category {
   final String id;
