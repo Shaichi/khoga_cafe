@@ -45,13 +45,20 @@ class AuthServiceTest {
     private JwtTokenProvider tokenProvider;
     @Mock
     private AuditLogService auditLogService;
+    @Mock
+    private OtpStore otpStore;
+    @Mock
+    private com.khoga.integration.EmailService emailService;
+    @Mock
+    private com.khoga.config.SystemConfigService systemConfig;
 
     private final PasswordEncoder encoder = new BCryptPasswordEncoder();
     private AuthService authService;
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(userRepository, encoder, tokenProvider, auditLogService);
+        authService = new AuthService(userRepository, encoder, tokenProvider, auditLogService,
+                otpStore, emailService, systemConfig);
     }
 
     private User activeUser(String rawPassword) {
@@ -181,5 +188,126 @@ class AuthServiceTest {
         assertFalse(response.mustChangePassword());
         assertFalse(Boolean.TRUE.equals(u.getMustChangePassword()));
         assertTrue(encoder.matches("NewSecret@123", u.getPasswordHash()));
+    }
+
+    // ----- P1B: forgot-password OTP flow (UC-03/04/05) -----
+
+    private User hqUser(String rawPassword) {
+        User u = activeUser(rawPassword);
+        u.setUsername("ceo");
+        u.setRole(com.khoga.common.model.enums.Role.CEOVIEWER);
+        u.setEmail("ceo@khoga.com");
+        return u;
+    }
+
+    @Test
+    void forgotPassword_existingActiveEmail_issuesAndEmailsOtp() {
+        User u = hqUser("Secret@123");
+        when(userRepository.findByEmail("ceo@khoga.com")).thenReturn(Optional.of(u));
+        when(otpStore.issue(eq("RESET:" + u.getId()), eq(u.getId()))).thenReturn("123456");
+
+        authService.forgotPassword(new com.khoga.auth.dto.ForgotPasswordRequest("ceo@khoga.com"));
+
+        verify(otpStore).issue("RESET:" + u.getId(), u.getId());
+        verify(emailService).send(eq("ceo@khoga.com"), any(), org.mockito.ArgumentMatchers.contains("123456"));
+    }
+
+    @Test
+    void forgotPassword_unknownEmail_isSilentNoOp() {
+        when(userRepository.findByEmail("nobody@khoga.com")).thenReturn(Optional.empty());
+
+        authService.forgotPassword(new com.khoga.auth.dto.ForgotPasswordRequest("nobody@khoga.com"));
+
+        org.mockito.Mockito.verifyNoInteractions(otpStore, emailService);
+    }
+
+    @Test
+    void verifyOtp_invalidCode_throws() {
+        User u = hqUser("Secret@123");
+        when(userRepository.findByEmail("ceo@khoga.com")).thenReturn(Optional.of(u));
+        when(otpStore.verify("RESET:" + u.getId(), "000000")).thenReturn(OtpStore.Result.INVALID);
+
+        assertThrows(AppException.class, () ->
+                authService.verifyOtp(new com.khoga.auth.dto.VerifyOtpRequest("ceo@khoga.com", "000000")));
+    }
+
+    @Test
+    void resetPassword_validOtp_setsPasswordConsumesAndAudits() {
+        User u = hqUser("Secret@123");
+        when(userRepository.findByEmail("ceo@khoga.com")).thenReturn(Optional.of(u));
+        when(otpStore.verify("RESET:" + u.getId(), "123456")).thenReturn(OtpStore.Result.OK);
+
+        authService.resetPassword(
+                new com.khoga.auth.dto.ResetPasswordRequest("ceo@khoga.com", "123456", "Brand@New9"));
+
+        assertTrue(encoder.matches("Brand@New9", u.getPasswordHash()));
+        verify(otpStore).consume("RESET:" + u.getId());
+        verify(auditLogService).record(eq(ActionType.UPDATE), eq("User"), any(), any(), eq(u.getId()));
+    }
+
+    @Test
+    void resetPassword_lockedOtp_throws() {
+        User u = hqUser("Secret@123");
+        when(userRepository.findByEmail("ceo@khoga.com")).thenReturn(Optional.of(u));
+        when(otpStore.verify("RESET:" + u.getId(), "999999")).thenReturn(OtpStore.Result.LOCKED);
+
+        assertThrows(AppException.class, () -> authService.resetPassword(
+                new com.khoga.auth.dto.ResetPasswordRequest("ceo@khoga.com", "999999", "Brand@New9")));
+    }
+
+    // ----- P1B: HQ login MFA (BR-83) -----
+
+    @Test
+    void login_hqWithMfaEnabled_returnsMfaRequiredWithoutToken() {
+        User u = hqUser("Secret@123");
+        when(userRepository.findByUsername("ceo")).thenReturn(Optional.of(u));
+        when(systemConfig.getGlobalBoolean(eq("HQ_MFA_REQUIRED"), org.mockito.ArgumentMatchers.anyBoolean()))
+                .thenReturn(true);
+        when(otpStore.issue(any(), eq(u.getId()))).thenReturn("654321");
+
+        LoginResponse response = authService.login(new LoginRequest("ceo", "Secret@123"));
+
+        assertEquals(LoginResponse.MFA_REQUIRED, response.status());
+        assertNull(response.token());
+        assertNotNull(response.mfaToken());
+        verify(emailService).send(eq("ceo@khoga.com"), any(), org.mockito.ArgumentMatchers.contains("654321"));
+        org.mockito.Mockito.verifyNoInteractions(tokenProvider); // no JWT until OTP cleared
+    }
+
+    @Test
+    void login_hqWithMfaDisabled_issuesTokenDirectly() {
+        User u = hqUser("Secret@123");
+        when(userRepository.findByUsername("ceo")).thenReturn(Optional.of(u));
+        when(systemConfig.getGlobalBoolean(eq("HQ_MFA_REQUIRED"), org.mockito.ArgumentMatchers.anyBoolean()))
+                .thenReturn(false);
+        when(tokenProvider.generateToken(any(), eq(com.khoga.common.model.enums.Role.CEOVIEWER), any()))
+                .thenReturn("hq-token");
+
+        LoginResponse response = authService.login(new LoginRequest("ceo", "Secret@123"));
+
+        assertEquals(LoginResponse.AUTHENTICATED, response.status());
+        assertEquals("hq-token", response.token());
+    }
+
+    @Test
+    void loginMfa_validOtp_issuesToken() {
+        User u = hqUser("Secret@123");
+        when(otpStore.verify("mfa-1", "654321")).thenReturn(OtpStore.Result.OK);
+        when(otpStore.consume("mfa-1")).thenReturn(u.getId());
+        when(userRepository.findById(u.getId())).thenReturn(Optional.of(u));
+        when(tokenProvider.generateToken(any(), any(), any())).thenReturn("hq-token");
+
+        LoginResponse response = authService.loginMfa(new com.khoga.auth.dto.MfaLoginRequest("mfa-1", "654321"));
+
+        assertEquals("hq-token", response.token());
+        assertNotNull(u.getLastLoginAt());
+    }
+
+    @Test
+    void loginMfa_wrongOtp_throws() {
+        when(otpStore.verify("mfa-1", "000000")).thenReturn(OtpStore.Result.INVALID);
+
+        assertThrows(AppException.class, () ->
+                authService.loginMfa(new com.khoga.auth.dto.MfaLoginRequest("mfa-1", "000000")));
     }
 }

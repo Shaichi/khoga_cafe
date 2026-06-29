@@ -55,6 +55,7 @@ public class SecurityConfig {
                         // profile endpoints fall through to authenticated() below.
                         .requestMatchers(HttpMethod.POST,
                                 "/api/v1/auth/login",
+                                "/api/v1/auth/login/mfa",
                                 "/api/v1/auth/forgot-password",
                                 "/api/v1/auth/verify-otp",
                                 "/api/v1/auth/reset-password",

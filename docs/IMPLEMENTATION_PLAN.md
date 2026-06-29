@@ -4,7 +4,7 @@
 
 Nền tảng (`com.khoga.common` = 23 entity + repository + `ApiResponse` + exception/`GlobalExceptionHandler`; `com.khoga.config` = JPA/CORS/OpenAPI/Security) đã có sẵn. Plan này ban đầu được viết khi repo *chỉ* có base framework; xem **Trạng thái hiện tại** bên dưới để biết phần đã build.
 
-> **Trạng thái hiện tại (cập nhật 2026-06-29):** **P0** (hạ tầng + Auth MVP), **P1** (master data), **toàn bộ P2 Vận hành (2.1 Inventory / 2.2 POS / 2.3 Order / 2.4 Staff)** và **toàn bộ P3 Báo cáo & BI (UC-28/29/40/41/76/77/78/79/81/82/83)** **đã hoàn thành + có test** — checkbox tương ứng đã `[x]`. Bộ test: **161 test xanh** (160 unit + 1 integration full-context trên SQL Server; P3 thêm 20 unit test trong `com.khoga.report`). Còn lại: **P1B** (Auth nâng cao), **P4** (cứng hóa) — vẫn `[ ]`. *Export P3 hiện là **CSV** (UC-29/41/82) như UC-80; **Excel/PDF** nhị phân hoãn sang P4 (cần thư viện).*
+> **Trạng thái hiện tại (cập nhật 2026-06-29):** **P0** (hạ tầng + Auth MVP), **P1** (master data), **P1B** (Auth nâng cao: quên mật khẩu UC-03/04/05 + MFA HQ BR-83), **toàn bộ P2 Vận hành (2.1 Inventory / 2.2 POS / 2.3 Order / 2.4 Staff)** và **toàn bộ P3 Báo cáo & BI (UC-28/29/40/41/76/77/78/79/81/82/83)** **đã hoàn thành + có test** — checkbox tương ứng đã `[x]`. Bộ test: **175 test xanh** (174 unit + 1 integration full-context trên SQL Server). Còn lại: chỉ **P4** (cứng hóa) — vẫn `[ ]`. *Lưu ý hoãn sang P4: OTP in-memory (cần DB/Redis); export P3 mới có **CSV** (UC-29/41/82), **Excel/PDF** nhị phân chưa làm.*
 
 Tài liệu thiết kế (`docs/sections/` = URD, `docs/rds_sections/` = RDS) đặc tả **83 use case (UC-01→83)**, **~95 business rule (BR)**, 22 bảng và các thuật toán phức tạp (pipeline checkout BR-70, trừ kho theo recipe UC-62/BR-89, đối soát ca, COGS/shrinkage, loyalty, anomaly...).
 
@@ -183,17 +183,18 @@ Quy ước bắt buộc (xem [CLAUDE.md](CLAUDE.md)) áp dụng cho MỌI task, 
 
 > Không chặn P1/P2 (đã có login MVP). Chỉ cần SMTP stub (P0.4) + nơi lưu OTP. Quyết định lưu OTP: in-memory cache (`ConcurrentHashMap`/Caffeine) cho bản đầu — ghi rõ hạn chế (không sống sót restart/đa node), nâng cấp ở P4.
 
-- [ ] **UC-03 Quên mật khẩu** — BR-16
-  - Service: `findByEmail`; sinh OTP 6 số; lưu OTP + hạn 10' (BR-16); gửi email (stub). Controller `POST /api/v1/auth/forgot-password`. ✅ Done: gửi OTP qua email stub.
-- [ ] **UC-04 Xác thực OTP** — BR-16, BR-17
-  - Service: verify OTP + còn hạn; tối đa 3 lần sai → khóa (BR-17). Controller `POST /api/v1/auth/verify-otp`. ✅ Done: chặn quá 3 lần OTP.
-- [ ] **UC-05 Đặt lại mật khẩu** — BR-14, BR-15
-  - Service: sau OTP hợp lệ, đặt mật khẩu mới (policy); xóa OTP. Controller `POST /api/v1/auth/reset-password`. ✅ Done: reset xong đăng nhập được.
-- [ ] **MFA cho HQ khi login** — BR-83, BR-16, BR-17
-  - Service: nếu `HQ_MFA_REQUIRED=true` và role ∈ {ceoviewer,businessadmin,ssadmin}: sau verify mật khẩu, phát "MFA challenge" (chưa phát JWT thật), gửi OTP email; chỉ phát JWT khi `submitOtp` đúng. Branch role bỏ qua.
-  - Controller: mở rộng `POST /api/v1/auth/login` (trả trạng thái `MFA_REQUIRED`) + `POST /api/v1/auth/login/mfa`.
-  - Test: HQ phải nhập OTP; branch role không cần. ✅ Done: HQ bắt buộc 2 lớp theo BR-83.
-- [ ] **`OtpExpiryScheduler`**: dọn OTP quá hạn (điền logic vào skeleton P0.5). ✅ Done: OTP hết hạn bị dọn.
+> **P1B DONE 2026-06-29** — OTP lưu in-memory (`com.khoga.auth.OtpStore`, ConcurrentHashMap, TTL 10' + khóa sau 3 lần sai); **không sống sót restart/đa node** → nâng cấp DB/Redis ở P4. 14 test mới (OtpStoreTest + AuthServiceTest mở rộng); tổng **175 test xanh**.
+
+- [x] **UC-03 Quên mật khẩu** — BR-16
+  - `AuthService.forgotPassword`: `findByEmail`; sinh OTP 6 số; lưu key `RESET:{userId}` + hạn 10'; gửi email (stub). `POST /api/v1/auth/forgot-password`. ✅ Done. Luôn trả 200 (chống dò email).
+- [x] **UC-04 Xác thực OTP** — BR-16, BR-17
+  - `AuthService.verifyOtp`: verify OTP + còn hạn; tối đa 3 lần sai → khóa (BR-17). `POST /api/v1/auth/verify-otp`. ✅ Done.
+- [x] **UC-05 Đặt lại mật khẩu** — BR-14, BR-15
+  - `AuthService.resetPassword`: sau OTP hợp lệ, đặt mật khẩu mới (policy `@StrongPassword` + khác cũ); consume OTP; clear lockout; audit. `POST /api/v1/auth/reset-password`. ✅ Done.
+- [x] **MFA cho HQ khi login** — BR-83, BR-16, BR-17
+  - `AuthService.login`: nếu `HQ_MFA_REQUIRED=true` (SystemConfig) và role ∈ {ceoviewer,businessadmin,ssadmin} (+ có email): sau verify mật khẩu, KHÔNG phát JWT — trả `LoginResponse{status=MFA_REQUIRED, mfaToken}` + gửi OTP email. `loginMfa` (`POST /api/v1/auth/login/mfa`) verify OTP → phát JWT. Branch role bỏ qua.
+  - `LoginResponse` mở rộng: `{status, token, role, mustChangePassword, mfaToken}` (factory `authenticated`/`mfaRequired`); JSON backward-compatible cho FE. ✅ Done.
+- [x] **`OtpExpiryScheduler`**: gọi `OtpStore.purgeExpired()` mỗi 5' (điền logic vào skeleton P0.5). ✅ Done.
 
 ---
 

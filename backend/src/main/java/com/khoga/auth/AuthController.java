@@ -2,8 +2,12 @@ package com.khoga.auth;
 
 import com.khoga.auth.dto.ChangePasswordRequest;
 import com.khoga.auth.dto.ForcePasswordChangeRequest;
+import com.khoga.auth.dto.ForgotPasswordRequest;
 import com.khoga.auth.dto.LoginRequest;
 import com.khoga.auth.dto.LoginResponse;
+import com.khoga.auth.dto.MfaLoginRequest;
+import com.khoga.auth.dto.ResetPasswordRequest;
+import com.khoga.auth.dto.VerifyOtpRequest;
 import com.khoga.common.dto.ApiResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -39,9 +43,44 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse response = authService.login(request);
+        if (LoginResponse.MFA_REQUIRED.equals(response.status())) {
+            // No token yet — the client must complete /login/mfa with the emailed OTP (BR-83).
+            return ResponseEntity.ok(ApiResponse.success(response, "Vui lòng nhập mã OTP đã gửi tới email"));
+        }
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, sessionCookie(response.token(), TOKEN_TTL))
                 .body(ApiResponse.success(response, "Đăng nhập thành công"));
+    }
+
+    /** BR-83 — complete an HQ login by submitting the emailed OTP. */
+    @PostMapping("/login/mfa")
+    public ResponseEntity<ApiResponse<LoginResponse>> loginMfa(@Valid @RequestBody MfaLoginRequest request) {
+        LoginResponse response = authService.loginMfa(request);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, sessionCookie(response.token(), TOKEN_TTL))
+                .body(ApiResponse.success(response, "Đăng nhập thành công"));
+    }
+
+    /** UC-03 — request a password-reset OTP. Always 200 (no email enumeration). */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.forgotPassword(request);
+        return ResponseEntity.ok(ApiResponse.success(null,
+                "Nếu email tồn tại, mã OTP đặt lại mật khẩu đã được gửi"));
+    }
+
+    /** UC-04 — verify a password-reset OTP. */
+    @PostMapping("/verify-otp")
+    public ResponseEntity<ApiResponse<Void>> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
+        authService.verifyOtp(request);
+        return ResponseEntity.ok(ApiResponse.success(null, "Mã OTP hợp lệ"));
+    }
+
+    /** UC-05 — set a new password after a valid OTP. */
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok(ApiResponse.success(null, "Đặt lại mật khẩu thành công"));
     }
 
     @PostMapping("/force-password-change")

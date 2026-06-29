@@ -3,18 +3,27 @@ package com.khoga.auth;
 import com.khoga.audit.AuditLogService;
 import com.khoga.auth.dto.ChangePasswordRequest;
 import com.khoga.auth.dto.ForcePasswordChangeRequest;
+import com.khoga.auth.dto.ForgotPasswordRequest;
 import com.khoga.auth.dto.LoginRequest;
 import com.khoga.auth.dto.LoginResponse;
+import com.khoga.auth.dto.MfaLoginRequest;
+import com.khoga.auth.dto.ResetPasswordRequest;
+import com.khoga.auth.dto.VerifyOtpRequest;
 import com.khoga.common.exception.AppException;
 import com.khoga.common.exception.ResourceNotFoundException;
 import com.khoga.common.model.User;
 import com.khoga.common.model.enums.ActionType;
+import com.khoga.common.model.enums.Role;
 import com.khoga.common.repository.UserRepository;
+import com.khoga.config.SystemConfigService;
+import com.khoga.integration.EmailService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.EnumSet;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -34,18 +43,27 @@ public class AuthService {
     static final int MAX_FAILED_ATTEMPTS = 5;
     /** BR-11: how long the lock lasts. */
     static final int LOCK_MINUTES = 15;
+    /** BR-83: roles that must clear a second factor at login when HQ_MFA_REQUIRED is on. */
+    private static final Set<Role> HQ_ROLES = EnumSet.of(Role.CEOVIEWER, Role.BUSINESSADMIN, Role.SSADMIN);
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
     private final AuditLogService auditLogService;
+    private final OtpStore otpStore;
+    private final EmailService emailService;
+    private final SystemConfigService systemConfig;
 
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder,
-                       JwtTokenProvider tokenProvider, AuditLogService auditLogService) {
+                       JwtTokenProvider tokenProvider, AuditLogService auditLogService,
+                       OtpStore otpStore, EmailService emailService, SystemConfigService systemConfig) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenProvider = tokenProvider;
         this.auditLogService = auditLogService;
+        this.otpStore = otpStore;
+        this.emailService = emailService;
+        this.systemConfig = systemConfig;
     }
 
     /** UC-01: verify credentials, enforce active/lock state (BR-10/BR-11), and issue a JWT. */
@@ -66,11 +84,71 @@ public class AuthService {
             throw new AppException("Tên đăng nhập hoặc mật khẩu không đúng");
         }
 
+        // Password is correct — clear the lockout counter.
         user.setFailedAttempts(0);
         user.setLockExpiryAt(null);
+
+        // BR-83: HQ roles need a second factor before a token is issued.
+        if (needsMfa(user)) {
+            userRepository.save(user);
+            return startMfaChallenge(user);
+        }
+
         user.setLastLoginAt(LocalDateTime.now());
         userRepository.save(user);
         return issueToken(user);
+    }
+
+    /**
+     * BR-83 step 2 — complete an HQ login by submitting the emailed OTP. On success issues the JWT;
+     * a wrong/expired/locked challenge throws (the OTP enforces the 3-try limit, BR-17).
+     */
+    @Transactional
+    public LoginResponse loginMfa(MfaLoginRequest request) {
+        requireOtp(otpStore.verify(request.mfaToken(), request.otp()));
+        UUID userId = otpStore.consume(request.mfaToken());
+        if (userId == null) {
+            throw new AppException("Phiên MFA không hợp lệ hoặc đã hết hạn");
+        }
+        User user = load(userId);
+        user.setLastLoginAt(LocalDateTime.now());
+        userRepository.save(user);
+        return issueToken(user);
+    }
+
+    /** UC-03: email an OTP to a registered, active account. Always silent about whether it matched. */
+    @Transactional(readOnly = true)
+    public void forgotPassword(ForgotPasswordRequest request) {
+        userRepository.findByEmail(request.email()).ifPresent(user -> {
+            if (!Boolean.FALSE.equals(user.getIsActive())) {
+                String code = otpStore.issue(resetKey(user.getId()), user.getId());
+                emailService.send(user.getEmail(), "Đặt lại mật khẩu Khoga",
+                        "Mã OTP đặt lại mật khẩu của bạn là: " + code + " (hết hạn sau 10 phút).");
+            }
+        });
+        // No signal about existence — prevents email enumeration (BR-16).
+    }
+
+    /** UC-04: validate a reset OTP without consuming it; throws on wrong/expired/locked (BR-17). */
+    public void verifyOtp(VerifyOtpRequest request) {
+        User user = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> new AppException("Mã OTP không đúng hoặc đã hết hạn"));
+        requireOtp(otpStore.verify(resetKey(user.getId()), request.otp()));
+    }
+
+    /** UC-05: set a new password after a valid OTP, then invalidate the OTP and clear any lockout. */
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        User user = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> new AppException("Mã OTP không đúng hoặc đã hết hạn"));
+        String key = resetKey(user.getId());
+        requireOtp(otpStore.verify(key, request.otp()));
+        applyNewPassword(user, request.newPassword());
+        user.setFailedAttempts(0);
+        user.setLockExpiryAt(null);
+        userRepository.save(user);
+        otpStore.consume(key);
+        auditLogService.record(ActionType.UPDATE, "User", null, "{\"event\":\"PASSWORD_RESET\"}", user.getId());
     }
 
     /** UC-06: only valid while {@code mustChangePassword} is set; clears the flag and re-issues a token. */
@@ -144,7 +222,36 @@ public class AuthService {
     private LoginResponse issueToken(User user) {
         UUID storeId = user.getStore() != null ? user.getStore().getId() : null;
         String token = tokenProvider.generateToken(user.getId(), user.getRole(), storeId);
-        return new LoginResponse(token, user.getRole(), Boolean.TRUE.equals(user.getMustChangePassword()));
+        return LoginResponse.authenticated(token, user.getRole(), Boolean.TRUE.equals(user.getMustChangePassword()));
+    }
+
+    /** BR-83: HQ role + global flag on + a deliverable email. No email → can't MFA, fall through to token. */
+    private boolean needsMfa(User user) {
+        return HQ_ROLES.contains(user.getRole())
+                && systemConfig.getGlobalBoolean("HQ_MFA_REQUIRED", true)
+                && user.getEmail() != null && !user.getEmail().isBlank();
+    }
+
+    private LoginResponse startMfaChallenge(User user) {
+        String mfaToken = UUID.randomUUID().toString();
+        String code = otpStore.issue(mfaToken, user.getId());
+        emailService.send(user.getEmail(), "Mã xác thực đăng nhập Khoga",
+                "Mã OTP đăng nhập của bạn là: " + code + " (hết hạn sau 10 phút).");
+        return LoginResponse.mfaRequired(mfaToken);
+    }
+
+    /** Maps a non-OK OTP result to the right business error (BR-16/BR-17). */
+    private void requireOtp(OtpStore.Result result) {
+        switch (result) {
+            case OK -> { /* valid */ }
+            case INVALID -> throw new AppException("Mã OTP không đúng");
+            case LOCKED -> throw new AppException("Đã nhập sai OTP quá số lần cho phép, vui lòng yêu cầu mã mới");
+            default -> throw new AppException("Mã OTP không đúng hoặc đã hết hạn"); // EXPIRED / NOT_FOUND
+        }
+    }
+
+    private static String resetKey(UUID userId) {
+        return "RESET:" + userId;
     }
 
     private User load(UUID userId) {

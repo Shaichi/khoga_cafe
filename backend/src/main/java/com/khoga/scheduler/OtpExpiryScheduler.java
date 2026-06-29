@@ -1,19 +1,29 @@
 package com.khoga.scheduler;
 
+import com.khoga.auth.OtpStore;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Cleans up expired one-time passwords (BR-16). Runs every 5 minutes. Real logic lands in P1B (Auth
- * hardening) once OTP storage exists.
+ * Sweeps expired one-time passwords from the in-memory {@link OtpStore} every 5 minutes (BR-16).
+ * Verification already rejects expired codes on read; this just bounds memory between accesses.
  */
 @Slf4j
 @Component
 public class OtpExpiryScheduler {
 
+    private final OtpStore otpStore;
+
+    public OtpExpiryScheduler(OtpStore otpStore) {
+        this.otpStore = otpStore;
+    }
+
     @Scheduled(fixedRate = 300_000L)
     public void purgeExpiredOtps() {
-        log.debug("[scheduler] OtpExpiry tick — no-op until P1B");
+        int removed = otpStore.purgeExpired();
+        if (removed > 0) {
+            log.debug("[scheduler] OtpExpiry — purged {} expired OTP(s)", removed);
+        }
     }
 }
