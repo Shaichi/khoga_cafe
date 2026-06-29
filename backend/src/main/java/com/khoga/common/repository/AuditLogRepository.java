@@ -31,4 +31,7 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
                                      @Param("from") LocalDateTime from,
                                      @Param("to") LocalDateTime to,
                                      Pageable pageable);
+
+    /** UC-78 — system events of one kind in a window (e.g. {@code "LoyaltyExpiry"} for expired points). */
+    List<AuditLog> findByEntityAffectedAndCreatedAtBetween(String entityAffected, LocalDateTime from, LocalDateTime to);
 }

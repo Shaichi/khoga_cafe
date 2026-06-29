@@ -123,6 +123,8 @@ public class DataSeeder implements CommandLineRunner {
         defaults.put("MAX_ACTIVE_BRANCHES", "5");               // BR-54
         defaults.put("HQ_MFA_REQUIRED", "true");                // BR-83
         defaults.put("CANCEL_REFUND_ALERT_THRESHOLD", "5");     // BR-79 / BR-94 (% of orders)
+        defaults.put("LOYALTY_EXPIRY_MONTHS", "12");            // BR-35 (P4 — point inactivity expiry)
+        defaults.put("CUSTOMER_PII_RETENTION_MONTHS", "24");    // BR-72 (P4 — PDPA anonymisation)
 
         Set<String> existing = systemConfigRepository.findAll().stream()
                 .filter(c -> GLOBAL_SCOPE.equals(c.getScope()))

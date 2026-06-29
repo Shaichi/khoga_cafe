@@ -1,13 +1,18 @@
 package com.khoga.report;
 
+import com.khoga.common.model.AuditLog;
+import com.khoga.common.repository.AuditLogRepository;
 import com.khoga.common.repository.CustomerRepository;
 import com.khoga.common.repository.OrderRepository;
+import com.khoga.customer.LoyaltyExpiryService;
 import com.khoga.report.dto.LoyaltyLiabilityReport;
 import com.khoga.report.dto.LoyaltyMovement;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.UUID;
 
 /**
@@ -16,24 +21,28 @@ import java.util.UUID;
  * {@code opening + issued − redeemed − expired = closing} for the period, with closing pinned to the
  * current outstanding balance and opening derived from it.
  *
- * <p>Expiry (BR-35, 12-month inactivity) is not yet enforced — that job lands in P4 — so
- * {@code expired} is reported as 0 with an explanatory note rather than a fabricated figure.
+ * <p>{@code expired} is sourced (chain-wide) from the {@code "LoyaltyExpiry"} audit rows written by
+ * {@link LoyaltyExpiryService} (BR-35), so the movement now reconciles to the real expiries.
  */
 @Service
 public class LoyaltyLiabilityService {
 
-    private static final String EXPIRY_NOTE =
-            "Hết hạn điểm (BR-35) chưa kích hoạt — sẽ bổ sung ở P4; tạm tính = 0.";
+    private static final Pattern POINTS = Pattern.compile("\"points\"\\s*:\\s*(\\d+)");
+    private static final String NOTE =
+            "Điểm hết hạn (BR-35) lấy từ nhật ký hết hạn toàn chuỗi; số dư đầu kỳ suy ra từ đối soát.";
 
     private final CustomerRepository customerRepository;
     private final OrderRepository orderRepository;
+    private final AuditLogRepository auditLogRepository;
     private final ReportScopeResolver scope;
 
     public LoyaltyLiabilityService(CustomerRepository customerRepository,
                                    OrderRepository orderRepository,
+                                   AuditLogRepository auditLogRepository,
                                    ReportScopeResolver scope) {
         this.customerRepository = customerRepository;
         this.orderRepository = orderRepository;
+        this.auditLogRepository = auditLogRepository;
         this.scope = scope;
     }
 
@@ -45,10 +54,23 @@ public class LoyaltyLiabilityService {
         long closing = customerRepository.sumOutstandingPoints();
         long issued = orderRepository.sumPointsEarned(branch, fromDt, toDt);
         long redeemed = orderRepository.sumPointsRedeemed(branch, fromDt, toDt);
-        long expired = 0L; // BR-35 deferred to P4
+        long expired = expiredInWindow(fromDt, toDt); // chain-wide (points are not branch-scoped)
         long opening = closing - issued + redeemed + expired;
 
         LoyaltyMovement movement = new LoyaltyMovement(opening, issued, redeemed, expired, closing);
-        return new LoyaltyLiabilityReport(from, to, branch, closing, movement, EXPIRY_NOTE);
+        return new LoyaltyLiabilityReport(from, to, branch, closing, movement, NOTE);
+    }
+
+    /** Sums the points expired (BR-35) in the window from the immutable expiry audit trail. */
+    private long expiredInWindow(LocalDateTime from, LocalDateTime to) {
+        long total = 0;
+        for (AuditLog a : auditLogRepository.findByEntityAffectedAndCreatedAtBetween(
+                LoyaltyExpiryService.AUDIT_ENTITY, from, to)) {
+            Matcher m = POINTS.matcher(a.getNewValueJson() == null ? "" : a.getNewValueJson());
+            if (m.find()) {
+                total += Long.parseLong(m.group(1));
+            }
+        }
+        return total;
     }
 }
