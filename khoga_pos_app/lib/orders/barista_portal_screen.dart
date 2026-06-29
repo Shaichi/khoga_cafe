@@ -1,23 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../api/api_client.dart';
 import '../api/models.dart';
 import '../api/order_api.dart';
+import '../auth/auth_controller.dart';
 import '../theme.dart';
 import 'order_labels.dart';
 
-/// Screen 57/58 — live barista queue. Shows active orders oldest-first and lets
-/// the barista advance each one through its lifecycle (UC-58). Stock warnings
-/// from recipe deduction (BR-89) surface in a snackbar.
-class BaristaQueueScreen extends StatefulWidget {
-  const BaristaQueueScreen({super.key});
+/// Screen 57/58 (landscape) — the Barista Portal. This is the role-home for a
+/// BARISTA: instead of the portrait staff Home + cash-register shift gate, the
+/// barista lands straight on the live queue, laid out as a wide multi-column
+/// board (Figma 736×414). Cards advance through the order lifecycle (UC-58) and
+/// recipe-deduction stock warnings (BR-89) surface in a snackbar.
+class BaristaPortalScreen extends StatefulWidget {
+  const BaristaPortalScreen({super.key});
 
   @override
-  State<BaristaQueueScreen> createState() => _BaristaQueueScreenState();
+  State<BaristaPortalScreen> createState() => _BaristaPortalScreenState();
 }
 
-class _BaristaQueueScreenState extends State<BaristaQueueScreen> {
+class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
   late final OrderApi _api;
   List<OrderSummary> _orders = const [];
   bool _loading = true;
@@ -27,8 +31,18 @@ class _BaristaQueueScreenState extends State<BaristaQueueScreen> {
   @override
   void initState() {
     super.initState();
+    // The barista station is a wall-mounted tablet — lock to landscape.
+    SystemChrome.setPreferredOrientations(
+      const [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight],
+    );
     _api = OrderApi(context.read<ApiClient>());
     _load();
+  }
+
+  @override
+  void dispose() {
+    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -53,10 +67,7 @@ class _BaristaQueueScreenState extends State<BaristaQueueScreen> {
       if (!mounted) return;
       if (res.stockWarnings.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: kDanger,
-            content: Text(res.stockWarnings.join('\n')),
-          ),
+          SnackBar(backgroundColor: kDanger, content: Text(res.stockWarnings.join('\n'))),
         );
       }
       await _load();
@@ -73,17 +84,24 @@ class _BaristaQueueScreenState extends State<BaristaQueueScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthController>();
     return Scaffold(
       appBar: AppBar(
         backgroundColor: kBrown,
         foregroundColor: Colors.white,
-        title: const Text('Hàng đợi pha chế'),
+        title: Text('Pha chế · ${auth.profile?.fullName ?? ''}'),
         actions: [
           IconButton(
-            key: const Key('queue-refresh'),
+            key: const Key('portal-refresh'),
             tooltip: 'Làm mới',
             icon: const Icon(Icons.refresh),
             onPressed: _load,
+          ),
+          IconButton(
+            key: const Key('portal-logout'),
+            tooltip: 'Đăng xuất',
+            icon: const Icon(Icons.logout),
+            onPressed: auth.logout,
           ),
         ],
       ),
@@ -95,13 +113,20 @@ class _BaristaQueueScreenState extends State<BaristaQueueScreen> {
     if (_loading) return const Center(child: Text('Đang tải…'));
     if (_error != null) return Center(child: Text(_error!, style: const TextStyle(color: kDanger)));
     if (_orders.isEmpty) {
-      return const Center(child: Text('Không có đơn đang chờ', key: Key('queue-empty'), style: TextStyle(color: kMuted)));
+      return const Center(
+        child: Text('Không có đơn đang chờ', key: Key('portal-empty'), style: TextStyle(color: kMuted, fontSize: 16)),
+      );
     }
-    return ListView.separated(
-      key: const Key('queue-list'),
+    return GridView.builder(
+      key: const Key('portal-grid'),
       padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 280,
+        mainAxisExtent: 168,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
       itemCount: _orders.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (_, i) => _card(_orders[i]),
     );
   }
@@ -117,27 +142,33 @@ class _BaristaQueueScreenState extends State<BaristaQueueScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(o.orderNumber, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kBrown)),
+                Expanded(
+                  child: Text(o.orderNumber,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: kBrown)),
+                ),
+                const SizedBox(width: 8),
                 StatusChip(o.status),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text('${o.itemCount} món · ${orderTypeLabel(o.orderType)}'
                 '${o.customerName != null ? ' · ${o.customerName}' : ''}',
                 style: const TextStyle(color: kMuted, fontSize: 13)),
-            if (next != null) ...[
-              const SizedBox(height: 12),
-              ElevatedButton(
-                key: Key('advance-${o.id}'),
-                onPressed: busy ? null : () => _advance(o, next.$1),
-                child: busy
-                    ? const SizedBox(
-                        height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : Text(next.$2.toUpperCase()),
+            const Spacer(),
+            if (next != null)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  key: Key('portal-advance-${o.id}'),
+                  onPressed: busy ? null : () => _advance(o, next.$1),
+                  child: busy
+                      ? const SizedBox(
+                          height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : Text(next.$2.toUpperCase()),
+                ),
               ),
-            ],
           ],
         ),
       ),

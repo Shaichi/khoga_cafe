@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'auth/auth_controller.dart';
+import 'orders/barista_portal_screen.dart';
 import 'pos/open_shift_screen.dart';
 import 'pos/shift_controller.dart';
 import 'screens/home_screen.dart';
@@ -24,14 +25,18 @@ class KhogaPosApp extends StatelessWidget {
   }
 }
 
-/// Shows the login screen until authenticated, then the shift gate.
+/// Shows the login screen until authenticated, then routes by role: a BARISTA
+/// goes straight to the landscape portal (no cash-register shift), everyone else
+/// passes through the shift gate to the staff/manager home.
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
-    return auth.isAuthenticated ? const ShiftGate() : const LoginScreen();
+    if (!auth.isAuthenticated) return const LoginScreen();
+    if (auth.profile?.role == 'BARISTA') return const BaristaPortalScreen();
+    return const ShiftGate();
   }
 }
 

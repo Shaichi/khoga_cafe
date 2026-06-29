@@ -80,8 +80,16 @@ MockClient authBackend({
   final p = profile ??
       <String, dynamic>{
         'id': 'u1',
-        'username': role == 'STORE_MANAGER' ? 'manager01' : 'cashier01',
-        'fullName': role == 'STORE_MANAGER' ? 'Trần Quản Lý' : 'Nguyễn Thu Ngân',
+        'username': switch (role) {
+          'STORE_MANAGER' => 'manager01',
+          'BARISTA' => 'barista01',
+          _ => 'cashier01',
+        },
+        'fullName': switch (role) {
+          'STORE_MANAGER' => 'Trần Quản Lý',
+          'BARISTA' => 'Lê Pha Chế',
+          _ => 'Nguyễn Thu Ngân',
+        },
         'role': role,
         'email': null,
         'phone': null,

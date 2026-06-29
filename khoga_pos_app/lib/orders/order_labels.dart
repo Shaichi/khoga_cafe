@@ -37,6 +37,17 @@ String orderTypeLabel(String s) => switch (s) {
       _ => s,
     };
 
+/// The next lifecycle state a barista can advance an order to, with its action
+/// label (UC-58), or null when the order is terminal. Shared by the portrait
+/// queue and the landscape barista portal.
+(String, String)? baristaNextStatus(String status) => switch (status) {
+      'PENDING' => ('PREPARING', 'Bắt đầu pha'),
+      'HOLD' => ('PREPARING', 'Tiếp tục pha'),
+      'PREPARING' => ('READY', 'Pha xong'),
+      'READY' => ('COMPLETED', 'Giao khách'),
+      _ => null,
+    };
+
 Color orderStatusColor(String s) => switch (s) {
       'COMPLETED' => const Color(0xFF1E8A4C),
       'CANCELLED' || 'ABANDONED' => kDanger,
