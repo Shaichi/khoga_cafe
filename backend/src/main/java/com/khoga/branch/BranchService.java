@@ -85,7 +85,7 @@ public class BranchService {
         }
         int max = systemConfigService.getGlobalInt("MAX_ACTIVE_BRANCHES", DEFAULT_MAX_ACTIVE_BRANCHES);
         if (storeRepository.countByIsActiveTrue() >= max) {
-            throw new AppException("Đã đạt số chi nhánh hoạt động tối đa (" + max + ")");   // BR-54
+            throw AppException.of("MSG16", max);   // BR-54 — max active branches reached
         }
         Store store = new Store();
         store.setName(request.name());

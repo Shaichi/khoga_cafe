@@ -297,10 +297,10 @@ public class CheckoutService {
             throw new AppException("Cần chọn khách hàng để đổi điểm");
         }
         if (req.redeemPoints() % 100 != 0) {
-            throw new AppException("Số điểm đổi phải là bội số của 100"); // BR-74 / MSG14
+            throw AppException.of("MSG14"); // BR-74 — redemption must be a multiple of 100
         }
         if (nz(customer.getPoints()) < req.redeemPoints()) {
-            throw new AppException("Số dư điểm không đủ"); // MSG11
+            throw AppException.of("MSG11"); // insufficient points balance
         }
     }
 

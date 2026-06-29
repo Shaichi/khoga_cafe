@@ -73,7 +73,7 @@ public class AuthService {
                 .orElseThrow(() -> new AppException("Tên đăng nhập hoặc mật khẩu không đúng"));
 
         if (Boolean.FALSE.equals(user.getIsActive())) {
-            throw new AppException("Tài khoản đã bị vô hiệu hóa");            // BR-10
+            throw AppException.of("MSG03");            // BR-10 — account suspended/deactivated
         }
         if (isLocked(user)) {
             throw new AppException("Tài khoản đang bị khóa, vui lòng thử lại sau");  // BR-11
@@ -252,13 +252,12 @@ public class AuthService {
         return LoginResponse.mfaRequired(mfaToken);
     }
 
-    /** Maps a non-OK OTP result to the right business error (BR-16/BR-17). */
+    /** Maps a non-OK OTP result to the right business error (BR-16/BR-17). MSG10 = wrong/expired OTP. */
     private void requireOtp(OtpStore.Result result) {
         switch (result) {
             case OK -> { /* valid */ }
-            case INVALID -> throw new AppException("Mã OTP không đúng");
             case LOCKED -> throw new AppException("Đã nhập sai OTP quá số lần cho phép, vui lòng yêu cầu mã mới");
-            default -> throw new AppException("Mã OTP không đúng hoặc đã hết hạn"); // EXPIRED / NOT_FOUND
+            default -> throw AppException.of("MSG10"); // INVALID / EXPIRED / NOT_FOUND
         }
     }
 

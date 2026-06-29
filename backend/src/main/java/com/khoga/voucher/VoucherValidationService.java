@@ -35,9 +35,9 @@ public class VoucherValidationService {
     @Transactional(readOnly = true)
     public BigDecimal validate(String code, BigDecimal orderSubtotal, int customerUsageCount) {
         Voucher voucher = voucherRepository.findByCode(code)
-                .orElseThrow(() -> new AppException("Mã giảm giá không tồn tại"));
+                .orElseThrow(() -> AppException.of("MSG09"));           // invalid / not found
         if (statusEngine.status(voucher) != VoucherStatus.ACTIVE) {
-            throw new AppException("Mã giảm giá không khả dụng");
+            throw AppException.of("MSG09");                              // expired / inactive
         }
         if (voucher.getMinOrderValue() != null && orderSubtotal.compareTo(voucher.getMinOrderValue()) < 0) {
             throw new AppException("Đơn hàng chưa đạt giá trị tối thiểu để dùng mã");

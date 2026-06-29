@@ -19,7 +19,8 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface StrongPassword {
 
-    String message() default "Mật khẩu phải tối thiểu 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt";
+    // {key} is resolved by Hibernate Validator from ValidationMessages[_xx].properties (i18n, P4).
+    String message() default "{khoga.password.strength}";
 
     Class<?>[] groups() default {};
 

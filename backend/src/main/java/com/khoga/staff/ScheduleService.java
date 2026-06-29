@@ -182,7 +182,7 @@ public class ScheduleService {
             LocalDateTime oStart = LocalDateTime.of(other.getShiftDate(), other.getShiftStartTime());
             LocalDateTime oEnd = LocalDateTime.of(other.getShiftDate(), other.getShiftEndTime());
             if (newStart.isBefore(oEnd) && oStart.isBefore(newEnd)) {
-                throw new AppException("Nhân viên đã có ca trùng giờ (BR-92)");
+                throw AppException.of("MSG12");   // BR-92 — employee shift conflict
             }
             long gap = oEnd.isBefore(newStart) || oEnd.isEqual(newStart)
                     ? Duration.between(oEnd, newStart).toMinutes()

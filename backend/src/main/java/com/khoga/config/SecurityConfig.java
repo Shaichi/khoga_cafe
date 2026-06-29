@@ -2,7 +2,9 @@ package com.khoga.config;
 
 import com.khoga.auth.JwtAuthenticationFilter;
 import com.khoga.common.dto.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -18,6 +20,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import java.io.IOException;
+import java.util.Locale;
 
 /**
  * Stateless, JWT-based security. The anonymous auth flows (login/forgot/verify/reset) + API docs +
@@ -32,9 +35,11 @@ import java.io.IOException;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final MessageSource messageSource;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, MessageSource messageSource) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.messageSource = messageSource;
     }
 
     @Bean
@@ -65,10 +70,12 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(eh -> eh
+                        // These run in the filter chain (before @ControllerAdvice), so localize here
+                        // directly from the request's Accept-Language. 401 = MSG04, 403 = MSG08.
                         .authenticationEntryPoint((request, response, ex) ->
-                                writeError(response, HttpServletResponse.SC_UNAUTHORIZED, "Yêu cầu xác thực"))
+                                writeError(response, HttpServletResponse.SC_UNAUTHORIZED, msg(request, "MSG04")))
                         .accessDeniedHandler((request, response, ex) ->
-                                writeError(response, HttpServletResponse.SC_FORBIDDEN, "Không đủ quyền truy cập")))
+                                writeError(response, HttpServletResponse.SC_FORBIDDEN, msg(request, "MSG08"))))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
@@ -79,6 +86,18 @@ public class SecurityConfig {
      * {@code com.fasterxml.jackson} mapper on the classpath comes transitively from jjwt — so there
      * is no autowirable mapper bean of that type. The payload is tiny and the message is escaped.
      */
+    /**
+     * Resolve a message code for an unauthenticated request. Vietnamese is the default; English is
+     * used only when {@code Accept-Language} explicitly asks for it. (We read the header directly
+     * rather than {@code LocaleContextHolder}, which Spring MVC has not populated this early.)
+     */
+    private String msg(HttpServletRequest request, String code) {
+        String acceptLanguage = request.getHeader("Accept-Language");
+        Locale locale = acceptLanguage != null && acceptLanguage.toLowerCase().startsWith("en")
+                ? Locale.ENGLISH : Locale.forLanguageTag("vi");
+        return messageSource.getMessage(code, null, code, locale);
+    }
+
     private void writeError(HttpServletResponse response, int status, String message) throws IOException {
         response.setStatus(status);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
