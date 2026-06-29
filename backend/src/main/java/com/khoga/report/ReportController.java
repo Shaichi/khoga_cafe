@@ -3,6 +3,7 @@ package com.khoga.report;
 import com.khoga.auth.SecurityUtil;
 import com.khoga.common.dto.ApiResponse;
 import com.khoga.common.dto.PageResponse;
+import com.khoga.common.exception.AppException;
 import com.khoga.report.dto.AnomalyReport;
 import com.khoga.report.dto.AuditChangeRow;
 import com.khoga.report.dto.CogsReport;
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
  * P3 Reports & BI (read-only). UC-28/29, UC-40/41, UC-76, UC-77, UC-78, UC-79, UC-81, UC-82, UC-83.
@@ -48,6 +50,8 @@ public class ReportController {
     private final ZReportService zReportService;
     private final AnomalyDetector anomalyDetector;
     private final ReportCsvWriter csv;
+    private final ReportXlsxWriter xlsx;
+    private final ReportPdfWriter pdf;
 
     public ReportController(RevenueReportService revenueReportService,
                             CogsReportService cogsReportService,
@@ -56,7 +60,9 @@ public class ReportController {
                             LabourEfficiencyService labourEfficiencyService,
                             ZReportService zReportService,
                             AnomalyDetector anomalyDetector,
-                            ReportCsvWriter csv) {
+                            ReportCsvWriter csv,
+                            ReportXlsxWriter xlsx,
+                            ReportPdfWriter pdf) {
         this.revenueReportService = revenueReportService;
         this.cogsReportService = cogsReportService;
         this.changeHistoryService = changeHistoryService;
@@ -65,6 +71,8 @@ public class ReportController {
         this.zReportService = zReportService;
         this.anomalyDetector = anomalyDetector;
         this.csv = csv;
+        this.xlsx = xlsx;
+        this.pdf = pdf;
     }
 
     // ----- UC-28/29 HQ consolidated revenue -----
@@ -84,10 +92,11 @@ public class ReportController {
     public ResponseEntity<byte[]> hqConsolidatedExport(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            @RequestParam(required = false) UUID branchId) {
-        byte[] body = csv.hqConsolidated(
-                revenueReportService.hqConsolidated(from, to, branchId, SecurityUtil.currentUserId()));
-        return file(body, "hq-consolidated.csv");
+            @RequestParam(required = false) UUID branchId,
+            @RequestParam(required = false, defaultValue = "csv") String format) {
+        HqConsolidatedReport r = revenueReportService.hqConsolidated(from, to, branchId, SecurityUtil.currentUserId());
+        return render(format, "hq-consolidated",
+                () -> csv.hqConsolidated(r), () -> xlsx.hqConsolidated(r), () -> pdf.hqConsolidated(r));
     }
 
     // ----- UC-40/41 store revenue -----
@@ -105,9 +114,11 @@ public class ReportController {
     @PreAuthorize("hasRole('STORE_MANAGER')")
     public ResponseEntity<byte[]> storeRevenueExport(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        byte[] body = csv.storeRevenue(revenueReportService.storeRevenue(from, to, SecurityUtil.currentUserId()));
-        return file(body, "store-revenue.csv");
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false, defaultValue = "csv") String format) {
+        StoreRevenueReport r = revenueReportService.storeRevenue(from, to, SecurityUtil.currentUserId());
+        return render(format, "store-revenue",
+                () -> csv.storeRevenue(r), () -> xlsx.storeRevenue(r), () -> pdf.storeRevenue(r));
     }
 
     // ----- UC-76 COGS / margin & shrinkage -----
@@ -201,15 +212,36 @@ public class ReportController {
     public ResponseEntity<byte[]> anomalyExport(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            @RequestParam(required = false) UUID branchId) {
+            @RequestParam(required = false) UUID branchId,
+            @RequestParam(required = false, defaultValue = "csv") String format) {
         AnomalyReport report = anomalyDetector.detect(from, to, branchId, SecurityUtil.currentUserId());
-        return file(csv.anomaly(report.cashiers(), report.thresholdPercent()), "cashier-anomaly.csv");
+        return render(format, "cashier-anomaly",
+                () -> csv.anomaly(report.cashiers(), report.thresholdPercent()),
+                () -> xlsx.anomaly(report.cashiers(), report.thresholdPercent()),
+                () -> pdf.anomaly(report.cashiers(), report.thresholdPercent()));
     }
 
-    private ResponseEntity<byte[]> file(byte[] body, String filename) {
+    private static final String XLSX_TYPE =
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+    /**
+     * Picks the writer/content-type/extension for {@code format} (csv|xlsx|pdf, default csv) and only
+     * builds the chosen one (suppliers defer generation). Unknown formats → 400 via {@link AppException}.
+     */
+    private ResponseEntity<byte[]> render(String format, String base,
+                                          Supplier<byte[]> csvFn, Supplier<byte[]> xlsxFn, Supplier<byte[]> pdfFn) {
+        return switch (format == null ? "csv" : format.toLowerCase()) {
+            case "csv" -> file(csvFn.get(), base + ".csv", "text/csv");
+            case "xlsx" -> file(xlsxFn.get(), base + ".xlsx", XLSX_TYPE);
+            case "pdf" -> file(pdfFn.get(), base + ".pdf", "application/pdf");
+            default -> throw new AppException("Định dạng xuất không hỗ trợ (chỉ csv, xlsx, pdf): " + format);
+        };
+    }
+
+    private ResponseEntity<byte[]> file(byte[] body, String filename, String contentType) {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
-                .contentType(MediaType.parseMediaType("text/csv"))
+                .contentType(MediaType.parseMediaType(contentType))
                 .body(body);
     }
 }
