@@ -16,6 +16,9 @@ public interface AttendanceLogRepository extends JpaRepository<AttendanceLog, UU
     /** UC-39/80 — attendance logs for one branch over a date window. */
     List<AttendanceLog> findByStoreIdAndShiftDateBetween(UUID storeId, LocalDate from, LocalDate to);
 
+    /** UC-79 — chain-wide attendance logs over a date window (worked-hours per branch). */
+    List<AttendanceLog> findByShiftDateBetween(LocalDate from, LocalDate to);
+
     /** UC-67 check-out — the open (not yet checked-out) pairing for an employee on a day. */
     Optional<AttendanceLog> findFirstByUserIdAndShiftDateAndCheckOutAtIsNull(UUID userId, LocalDate shiftDate);
 

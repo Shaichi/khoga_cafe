@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Repository
@@ -26,4 +27,22 @@ public interface StockTransactionRepository extends JpaRepository<StockTransacti
                                        @Param("from") LocalDateTime from,
                                        @Param("to") LocalDateTime to,
                                        Pageable pageable);
+
+    /**
+     * UC-76 shrinkage basis — total movement quantity per raw material per transaction type over a
+     * window, optionally branch-scoped (null = chain). The service folds these into theoretical
+     * (RECIPE_DEDUCTION + PHANTOM_USAGE) vs audited (AUDIT_ADJUSTMENT) usage.
+     */
+    @Query("select new com.khoga.report.dto.StockUsageAccum(rm.id, rm.name, rm.unit, rm.standardCost, "
+            + "t.transactionType, coalesce(sum(t.quantity), 0)) from StockTransaction t "
+            + "join t.stockItem si join si.rawMaterial rm "
+            + "where t.transactionType in (com.khoga.common.model.enums.TransactionType.RECIPE_DEDUCTION, "
+            + "com.khoga.common.model.enums.TransactionType.PHANTOM_USAGE, "
+            + "com.khoga.common.model.enums.TransactionType.AUDIT_ADJUSTMENT) "
+            + "and t.createdAt >= :from and t.createdAt < :to "
+            + "and (:storeId is null or si.store.id = :storeId) "
+            + "group by rm.id, rm.name, rm.unit, rm.standardCost, t.transactionType")
+    List<com.khoga.report.dto.StockUsageAccum> usageByMaterialAndType(@Param("storeId") UUID storeId,
+                                                                      @Param("from") LocalDateTime from,
+                                                                      @Param("to") LocalDateTime to);
 }

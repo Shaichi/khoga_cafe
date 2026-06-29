@@ -27,4 +27,7 @@ public interface MenuItemRepository extends JpaRepository<MenuItem, UUID> {
     Page<MenuItem> findByIsDeletedFalseAndCategoryId(UUID categoryId, Pageable pageable);
 
     Page<MenuItem> findByIsDeletedFalseAndNameContainingIgnoreCase(String name, Pageable pageable);
+
+    /** UC-76 margin report — every live menu item (price vs standard-cost COGS). */
+    List<MenuItem> findByIsDeletedFalseOrderByName();
 }

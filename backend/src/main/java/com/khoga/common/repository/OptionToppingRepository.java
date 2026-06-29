@@ -12,4 +12,7 @@ public interface OptionToppingRepository extends JpaRepository<OptionTopping, UU
 
     @org.springframework.data.jpa.repository.Query("SELECT m.optionTopping FROM MenuItemToppingMapping m WHERE m.menuItem.id = :menuItemId")
     List<OptionTopping> findByMenuItemId(@org.springframework.data.repository.query.Param("menuItemId") UUID menuItemId);
+
+    /** UC-76 margin report — active toppings (price vs standard-cost COGS). */
+    List<OptionTopping> findByIsActiveTrueOrderByName();
 }

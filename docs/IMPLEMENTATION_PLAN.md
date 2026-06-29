@@ -4,7 +4,7 @@
 
 Nền tảng (`com.khoga.common` = 23 entity + repository + `ApiResponse` + exception/`GlobalExceptionHandler`; `com.khoga.config` = JPA/CORS/OpenAPI/Security) đã có sẵn. Plan này ban đầu được viết khi repo *chỉ* có base framework; xem **Trạng thái hiện tại** bên dưới để biết phần đã build.
 
-> **Trạng thái hiện tại (cập nhật 2026-06-27):** **P0** (hạ tầng + Auth MVP), **P1** (master data) và **toàn bộ P2 Vận hành (2.1 Inventory / 2.2 POS / 2.3 Order / 2.4 Staff)** **đã hoàn thành + có test** — checkbox tương ứng đã `[x]`. Bộ test: **137 test xanh** (136 unit + 1 integration full-context trên SQL Server). Còn lại: **P1B** (Auth nâng cao), **P3** (báo cáo), **P4** (cứng hóa) — vẫn `[ ]`.
+> **Trạng thái hiện tại (cập nhật 2026-06-29):** **P0** (hạ tầng + Auth MVP), **P1** (master data), **toàn bộ P2 Vận hành (2.1 Inventory / 2.2 POS / 2.3 Order / 2.4 Staff)** và **toàn bộ P3 Báo cáo & BI (UC-28/29/40/41/76/77/78/79/81/82/83)** **đã hoàn thành + có test** — checkbox tương ứng đã `[x]`. Bộ test: **161 test xanh** (160 unit + 1 integration full-context trên SQL Server; P3 thêm 20 unit test trong `com.khoga.report`). Còn lại: **P1B** (Auth nâng cao), **P4** (cứng hóa) — vẫn `[ ]`. *Export P3 hiện là **CSV** (UC-29/41/82) như UC-80; **Excel/PDF** nhị phân hoãn sang P4 (cần thư viện).*
 
 Tài liệu thiết kế (`docs/sections/` = URD, `docs/rds_sections/` = RDS) đặc tả **83 use case (UC-01→83)**, **~95 business rule (BR)**, 22 bảng và các thuật toán phức tạp (pipeline checkout BR-70, trừ kho theo recipe UC-62/BR-89, đối soát ca, COGS/shrinkage, loyalty, anomaly...).
 
@@ -259,15 +259,15 @@ Quy ước bắt buộc (xem [CLAUDE.md](CLAUDE.md)) áp dụng cho MỌI task, 
 
 > Chỉ đọc (read-only query) trên dữ liệu các phase trước. Phụ thuộc: Order/OrderItem, StockTransaction, ShiftSession, AuditLog, Customer, AttendanceLog, RecipeItem/RawMaterial. Áp BR-44 scope: storemanager chỉ branch mình, ceoviewer toàn chuỗi.
 
-- [ ] **UC-28 Dashboard HQ hợp nhất / UC-29 Xuất** — BR-44 — doanh thu theo branch, top bán chạy, tỉ lệ hủy, avg transaction. `GET /api/v1/reports/hq-consolidated`, export Excel/PDF/CSV. ✅ Done: dashboard chuỗi + export.
-- [ ] **UC-40 Doanh thu cửa hàng / UC-41 Xuất** — BR-44 — sales theo phương thức cho branch của SM. `GET /api/v1/reports/store-revenue`. ✅ Done: báo cáo branch.
-- [ ] **UC-76 COGS/Margin & Shrinkage (`COGSCalculator`)** — BR-66 — margin=(price−Σ(recipeQty×standardCost))/price; shrinkage = (RECIPE_DEDUCTION+PHANTOM_USAGE) vs AUDIT_ADJUSTMENT × standardCost. `GET /api/v1/reports/cogs`. ✅ Done: margin + biến động hao hụt.
-- [ ] **UC-77 Lịch sử đổi giá/voucher** — BR-68 — đọc `AuditLog` (PRICE_UPDATE/VOUCHER_*) bất biến. `GET /api/v1/reports/price-history`. ✅ Done: trail bất biến read-only.
-- [ ] **UC-78 Loyalty Liability (`LoyaltyLiabilityService`)** — BR-75 — tổng điểm tồn (đơn vị điểm) + movement issued/redeemed/expired, đối soát Opening+Issued−Redeemed−Expired=Closing. `GET /api/v1/reports/loyalty-liability`. ✅ Done: đối soát điểm khớp.
-- [ ] **UC-79 Labour vs Revenue (`LabourEfficiencyService`)** — BR-76, BR-77 — giờ/1tr VND, VND/giờ (không quy lương). `GET /api/v1/reports/labour`. ✅ Done: KPI năng suất.
-- [ ] **UC-81 Z-Report ngày** — BR-78 — gộp mọi ca 1 branch 1 ngày: gross/net, voucher/point discount, VAT, refunds, tender (cash/card/VietQR), counters. `GET /api/v1/reports/z-report/{date}`. ✅ Done: Z-report đầy đủ khối.
-- [ ] **UC-82 Anomaly hủy/refund (`AnomalyDetector`)** — BR-79 — tỉ lệ hủy/refund theo cashier; flag vượt `CANCEL_REFUND_ALERT_THRESHOLD` (detective). `GET /api/v1/reports/anomaly`. ✅ Done: gắn cờ outlier.
-- [ ] **UC-83 Access Review** — BR-81 — đọc audit thay đổi tài khoản. `GET /api/v1/reports/access-review`. ✅ Done: review truy cập.
+- [x] **UC-28 Dashboard HQ hợp nhất / UC-29 Xuất** — BR-44 — doanh thu theo branch, top bán chạy, tỉ lệ hủy, avg transaction. `GET /api/v1/reports/hq-consolidated` (+`/export` CSV). ✅ Done: `RevenueReportService.hqConsolidated` (HQ role; optional branchId); best-sellers từ `OrderItemRepository.soldByMenuItem`. Excel/PDF → P4.
+- [x] **UC-40 Doanh thu cửa hàng / UC-41 Xuất** — BR-44 — sales theo phương thức cho branch của SM. `GET /api/v1/reports/store-revenue` (+`/export` CSV). ✅ Done: `RevenueReportService.storeRevenue` (SM own-branch); tender breakdown + discrepancy tổng từ closed shifts.
+- [x] **UC-76 COGS/Margin & Shrinkage (`CogsCalculator`)** — BR-66 — margin=(price−Σ(recipeQty×standardCost))/price; shrinkage = theoretical (RECIPE_DEDUCTION+PHANTOM_USAGE) vs AUDIT_ADJUSTMENT × standardCost, flag >5%. `GET /api/v1/reports/cogs`. ✅ Done: `CogsReportService` (HQ+SM) tái dùng `CogsCalculator`.
+- [x] **UC-77 Lịch sử đổi giá/voucher** — BR-68 — đọc `AuditLog` (entityAffected MenuItem/Voucher) bất biến, lọc type/actor. `GET /api/v1/reports/price-history`. ✅ Done: `ChangeHistoryService.priceVoucherHistory` (HQ, paged).
+- [x] **UC-78 Loyalty Liability (`LoyaltyLiabilityService`)** — BR-75 — tổng điểm tồn (đơn vị điểm) + movement issued/redeemed/expired, đối soát Opening+Issued−Redeemed−Expired=Closing. `GET /api/v1/reports/loyalty-liability`. ✅ Done. ⚠️ *expired=0* (BR-35 expiry hoãn P4 — có note trong response).
+- [x] **UC-79 Labour vs Revenue (`LabourEfficiencyService`)** — BR-76, BR-77 — giờ/1tr VND, VND/giờ (không quy lương). `GET /api/v1/reports/labour`. ✅ Done: worked-hours từ attendance pairings; chain total cho HQ.
+- [x] **UC-81 Z-Report ngày** — BR-78 — gộp mọi ca 1 branch 1 ngày: gross/net, voucher/point discount, VAT, refunds, tender (cash/card/VietQR), counters, banner provisional khi còn ca OPEN. `GET /api/v1/reports/z-report/{date}`. ✅ Done: `ZReportService`.
+- [x] **UC-82 Anomaly hủy/refund (`AnomalyDetector`)** — BR-79 — tỉ lệ hủy/refund theo cashier (orders/cancels/refunds/vouchers/comps); flag vượt `CANCEL_REFUND_ALERT_THRESHOLD` (detective). `GET /api/v1/reports/anomaly` (+`/export` CSV). ✅ Done: cashier = `order.shiftSession.user`.
+- [x] **UC-83 Access Review** — BR-81 — đọc audit thay đổi tài khoản (entityAffected User). `GET /api/v1/reports/access-review` (ceoviewer/ssadmin). ✅ Done: `ChangeHistoryService.accessReview`.
 
 ---
 

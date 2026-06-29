@@ -47,4 +47,113 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     BigDecimal sumSales(@Param("sessionId") UUID sessionId,
                         @Param("method") PaymentMethod method,
                         @Param("status") PaymentStatus status);
+
+    // ----- P3 reporting aggregates (read-only) -----
+
+    /** UC-28 per-branch revenue + completed-order count over a window (COMPLETED orders only). */
+    @Query("select new com.khoga.report.dto.BranchRevenueRow(o.store.id, o.store.name, "
+            + "coalesce(sum(o.total), 0), count(o)) from Order o "
+            + "where o.status = com.khoga.common.model.enums.OrderStatus.COMPLETED "
+            + "and o.createdAt >= :from and o.createdAt < :to "
+            + "group by o.store.id, o.store.name order by sum(o.total) desc")
+    List<com.khoga.report.dto.BranchRevenueRow> revenueByBranch(@Param("from") LocalDateTime from,
+                                                                @Param("to") LocalDateTime to);
+
+    /** UC-40 one branch's net revenue (sum total of COMPLETED orders) in a window. */
+    @Query("select coalesce(sum(o.total), 0) from Order o where o.store.id = :storeId "
+            + "and o.status = com.khoga.common.model.enums.OrderStatus.COMPLETED "
+            + "and o.createdAt >= :from and o.createdAt < :to")
+    BigDecimal sumStoreRevenue(@Param("storeId") UUID storeId,
+                               @Param("from") LocalDateTime from,
+                               @Param("to") LocalDateTime to);
+
+    /** UC-40 count of COMPLETED orders for one branch in a window. */
+    @Query("select count(o) from Order o where o.store.id = :storeId "
+            + "and o.status = com.khoga.common.model.enums.OrderStatus.COMPLETED "
+            + "and o.createdAt >= :from and o.createdAt < :to")
+    long countStoreCompleted(@Param("storeId") UUID storeId,
+                             @Param("from") LocalDateTime from,
+                             @Param("to") LocalDateTime to);
+
+    /** UC-40/81 sales collected by tender for one branch (COMPLETED + PAID) in a window. */
+    @Query("select coalesce(sum(o.total), 0) from Order o where o.store.id = :storeId "
+            + "and o.status = com.khoga.common.model.enums.OrderStatus.COMPLETED "
+            + "and o.paymentStatus = com.khoga.common.model.enums.PaymentStatus.PAID "
+            + "and o.paymentMethod = :method and o.createdAt >= :from and o.createdAt < :to")
+    BigDecimal sumStoreSalesByMethod(@Param("storeId") UUID storeId,
+                                     @Param("method") PaymentMethod method,
+                                     @Param("from") LocalDateTime from,
+                                     @Param("to") LocalDateTime to);
+
+    /** Count of orders in a status created in a window, optionally scoped to a branch (null = chain). */
+    @Query("select count(o) from Order o where o.status = :status "
+            + "and o.createdAt >= :from and o.createdAt < :to "
+            + "and (:storeId is null or o.store.id = :storeId)")
+    long countByStatusInRange(@Param("status") OrderStatus status,
+                              @Param("storeId") UUID storeId,
+                              @Param("from") LocalDateTime from,
+                              @Param("to") LocalDateTime to);
+
+    /** Count of all orders created in a window, optionally scoped to a branch (null = chain). */
+    @Query("select count(o) from Order o where o.createdAt >= :from and o.createdAt < :to "
+            + "and (:storeId is null or o.store.id = :storeId)")
+    long countCreatedInRange(@Param("storeId") UUID storeId,
+                             @Param("from") LocalDateTime from,
+                             @Param("to") LocalDateTime to);
+
+    /** UC-78 loyalty points issued (accrued) on PAID orders in a window (null branch = chain). */
+    @Query("select coalesce(sum(o.pointsEarned), 0) from Order o "
+            + "where o.paymentStatus = com.khoga.common.model.enums.PaymentStatus.PAID "
+            + "and o.createdAt >= :from and o.createdAt < :to "
+            + "and (:storeId is null or o.store.id = :storeId)")
+    long sumPointsEarned(@Param("storeId") UUID storeId,
+                         @Param("from") LocalDateTime from,
+                         @Param("to") LocalDateTime to);
+
+    /** UC-78 loyalty points redeemed on PAID orders in a window (null branch = chain). */
+    @Query("select coalesce(sum(o.pointsRedeemed), 0) from Order o "
+            + "where o.paymentStatus = com.khoga.common.model.enums.PaymentStatus.PAID "
+            + "and o.createdAt >= :from and o.createdAt < :to "
+            + "and (:storeId is null or o.store.id = :storeId)")
+    long sumPointsRedeemed(@Param("storeId") UUID storeId,
+                           @Param("from") LocalDateTime from,
+                           @Param("to") LocalDateTime to);
+
+    /** UC-79 net sales (sum of COMPLETED order totals) grouped by branch over a window. */
+    @Query("select new com.khoga.report.dto.BranchRevenueRow(o.store.id, o.store.name, "
+            + "coalesce(sum(o.total), 0), count(o)) from Order o "
+            + "where o.status = com.khoga.common.model.enums.OrderStatus.COMPLETED "
+            + "and o.createdAt >= :from and o.createdAt < :to "
+            + "and (:storeId is null or o.store.id = :storeId) "
+            + "group by o.store.id, o.store.name")
+    List<com.khoga.report.dto.BranchRevenueRow> netSalesByBranch(@Param("storeId") UUID storeId,
+                                                                 @Param("from") LocalDateTime from,
+                                                                 @Param("to") LocalDateTime to);
+
+    /** UC-81 summed money + redeemed points for one branch's COMPLETED orders in a window. */
+    @Query("select new com.khoga.report.dto.OrderTotalsAccum(coalesce(sum(o.subtotal), 0), "
+            + "coalesce(sum(o.discount), 0), coalesce(sum(o.taxAmount), 0), coalesce(sum(o.total), 0), "
+            + "coalesce(sum(o.pointsRedeemed), 0)) from Order o where o.store.id = :storeId "
+            + "and o.status = com.khoga.common.model.enums.OrderStatus.COMPLETED "
+            + "and o.createdAt >= :from and o.createdAt < :to")
+    com.khoga.report.dto.OrderTotalsAccum orderTotals(@Param("storeId") UUID storeId,
+                                                      @Param("from") LocalDateTime from,
+                                                      @Param("to") LocalDateTime to);
+
+    /** UC-82 orders handled per cashier (by the shift's operator) in a window (null branch = chain). */
+    @Query("select new com.khoga.report.dto.CashierCount(o.shiftSession.user.id, count(o)) from Order o "
+            + "where o.createdAt >= :from and o.createdAt < :to and o.shiftSession.user.id is not null "
+            + "and (:storeId is null or o.store.id = :storeId) group by o.shiftSession.user.id")
+    List<com.khoga.report.dto.CashierCount> ordersByCashier(@Param("storeId") UUID storeId,
+                                                            @Param("from") LocalDateTime from,
+                                                            @Param("to") LocalDateTime to);
+
+    /** UC-82 voucher applications per cashier in a window (orders with a voucher; null branch = chain). */
+    @Query("select new com.khoga.report.dto.CashierCount(o.shiftSession.user.id, count(o)) from Order o "
+            + "where o.voucher is not null and o.createdAt >= :from and o.createdAt < :to "
+            + "and o.shiftSession.user.id is not null "
+            + "and (:storeId is null or o.store.id = :storeId) group by o.shiftSession.user.id")
+    List<com.khoga.report.dto.CashierCount> vouchersByCashier(@Param("storeId") UUID storeId,
+                                                              @Param("from") LocalDateTime from,
+                                                              @Param("to") LocalDateTime to);
 }

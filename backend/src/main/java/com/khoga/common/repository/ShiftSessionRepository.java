@@ -5,6 +5,7 @@ import com.khoga.common.model.enums.ShiftStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -22,4 +23,7 @@ public interface ShiftSessionRepository extends JpaRepository<ShiftSession, UUID
     Optional<ShiftSession> findFirstByStoreIdAndStatus(UUID storeId, ShiftStatus status);
 
     List<ShiftSession> findByStatus(ShiftStatus status);
+
+    /** UC-40/81 — shifts at a branch that started within a window (Z-report day, discrepancy totals). */
+    List<ShiftSession> findByStoreIdAndStartTimeBetween(UUID storeId, LocalDateTime from, LocalDateTime to);
 }
