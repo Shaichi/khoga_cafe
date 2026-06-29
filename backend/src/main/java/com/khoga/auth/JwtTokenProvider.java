@@ -38,13 +38,14 @@ public class JwtTokenProvider {
         this.branchExpirationMillis = branchMinutes * 60_000L;
     }
 
-    public String generateToken(UUID userId, Role role, UUID storeId) {
+    public String generateToken(UUID userId, Role role, UUID storeId, int tokenVersion) {
         Instant now = Instant.now();
         long ttl = HQ_ROLES.contains(role) ? hqExpirationMillis : branchExpirationMillis;
         return Jwts.builder()
                 .subject(userId.toString())
                 .claim("role", role.name())
                 .claim("storeId", storeId != null ? storeId.toString() : null)
+                .claim("tv", tokenVersion)                     // BR-18 invalidation anchor
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusMillis(ttl)))
                 .signWith(key)
@@ -75,5 +76,11 @@ public class JwtTokenProvider {
     public UUID getStoreId(Claims claims) {
         String storeId = claims.get("storeId", String.class);
         return storeId != null ? UUID.fromString(storeId) : null;
+    }
+
+    /** BR-18: the token's invalidation version. Legacy tokens without the claim read as {@code 0}. */
+    public int getTokenVersion(Claims claims) {
+        Integer v = claims.get("tv", Integer.class);
+        return v != null ? v : 0;
     }
 }

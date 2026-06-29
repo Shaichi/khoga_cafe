@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -78,7 +79,7 @@ class AuthServiceTest {
         User u = activeUser("Secret@123");
         u.setFailedAttempts(3);
         when(userRepository.findByUsername("cashier1")).thenReturn(Optional.of(u));
-        when(tokenProvider.generateToken(any(), eq(com.khoga.common.model.enums.Role.CASHIER), any()))
+        when(tokenProvider.generateToken(any(), eq(com.khoga.common.model.enums.Role.CASHIER), any(), anyInt()))
                 .thenReturn("jwt-token");
 
         LoginResponse response = authService.login(new LoginRequest("cashier1", "Secret@123"));
@@ -154,15 +155,35 @@ class AuthServiceTest {
     }
 
     @Test
-    void changePassword_valid_updatesHashAndAudits() {
+    void changePassword_valid_updatesHashBumpsTokenVersionReissuesAndAudits() {
         User u = activeUser("Secret@123");
+        u.setTokenVersion(3);
         when(userRepository.findById(u.getId())).thenReturn(Optional.of(u));
+        when(tokenProvider.generateToken(any(), any(), any(), anyInt())).thenReturn("rotated-token");
 
-        authService.changePassword(u.getId(), new ChangePasswordRequest("Secret@123", "NewSecret@123"));
+        LoginResponse response =
+                authService.changePassword(u.getId(), new ChangePasswordRequest("Secret@123", "NewSecret@123"));
 
         assertTrue(encoder.matches("NewSecret@123", u.getPasswordHash()));
         assertNotNull(u.getPasswordLastChangedAt());
+        assertEquals(4, u.getTokenVersion());                 // BR-18: bumped, revoking old tokens
+        assertEquals("rotated-token", response.token());       // current session re-issued
+        // the re-issued token must carry the NEW version, not the old one
+        verify(tokenProvider).generateToken(eq(u.getId()), eq(u.getRole()), any(), eq(4));
         verify(auditLogService).record(eq(ActionType.UPDATE), eq("User"), any(), any(), eq(u.getId()));
+    }
+
+    @Test
+    void resetPassword_bumpsTokenVersion() {                   // BR-18
+        User u = hqUser("Secret@123");
+        u.setTokenVersion(1);
+        when(userRepository.findByEmail("ceo@khoga.com")).thenReturn(Optional.of(u));
+        when(otpStore.verify("RESET:" + u.getId(), "123456")).thenReturn(OtpStore.Result.OK);
+
+        authService.resetPassword(
+                new com.khoga.auth.dto.ResetPasswordRequest("ceo@khoga.com", "123456", "Brand@New9"));
+
+        assertEquals(2, u.getTokenVersion());
     }
 
     @Test
@@ -179,7 +200,7 @@ class AuthServiceTest {
         User u = activeUser("Secret@123");
         u.setMustChangePassword(true);
         when(userRepository.findById(u.getId())).thenReturn(Optional.of(u));
-        when(tokenProvider.generateToken(any(), any(), any())).thenReturn("fresh-token");
+        when(tokenProvider.generateToken(any(), any(), any(), anyInt())).thenReturn("fresh-token");
 
         LoginResponse response = authService.forcePasswordChange(u.getId(),
                 new ForcePasswordChangeRequest("NewSecret@123"));
@@ -280,7 +301,7 @@ class AuthServiceTest {
         when(userRepository.findByUsername("ceo")).thenReturn(Optional.of(u));
         when(systemConfig.getGlobalBoolean(eq("HQ_MFA_REQUIRED"), org.mockito.ArgumentMatchers.anyBoolean()))
                 .thenReturn(false);
-        when(tokenProvider.generateToken(any(), eq(com.khoga.common.model.enums.Role.CEOVIEWER), any()))
+        when(tokenProvider.generateToken(any(), eq(com.khoga.common.model.enums.Role.CEOVIEWER), any(), anyInt()))
                 .thenReturn("hq-token");
 
         LoginResponse response = authService.login(new LoginRequest("ceo", "Secret@123"));
@@ -295,7 +316,7 @@ class AuthServiceTest {
         when(otpStore.verify("mfa-1", "654321")).thenReturn(OtpStore.Result.OK);
         when(otpStore.consume("mfa-1")).thenReturn(u.getId());
         when(userRepository.findById(u.getId())).thenReturn(Optional.of(u));
-        when(tokenProvider.generateToken(any(), any(), any())).thenReturn("hq-token");
+        when(tokenProvider.generateToken(any(), any(), any(), anyInt())).thenReturn("hq-token");
 
         LoginResponse response = authService.loginMfa(new com.khoga.auth.dto.MfaLoginRequest("mfa-1", "654321"));
 

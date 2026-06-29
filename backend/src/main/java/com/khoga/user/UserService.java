@@ -137,8 +137,12 @@ public class UserService {
             throw new AppException("Không thể vô hiệu hóa tài khoản SSADMIN hoạt động cuối cùng"); // BR-23
         }
         user.setIsActive(active);
+        if (!active) {
+            // BR-18: revoke any tokens already in flight. JwtAuthenticationFilter rejects an
+            // inactive user, and bumping tokenVersion invalidates the issued tokens explicitly.
+            user.setTokenVersion((user.getTokenVersion() != null ? user.getTokenVersion() : 0) + 1);
+        }
         userRepository.save(user);
-        // BR-18 (revoke active tokens on deactivate) is deferred to P4 — tokens are stateless today.
         auditLogService.record(ActionType.UPDATE, "User", null,
                 "{\"id\":\"" + id + "\",\"active\":" + active + "}", actorId);
         return UserMapper.toResponse(user);

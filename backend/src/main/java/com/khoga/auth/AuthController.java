@@ -93,9 +93,14 @@ public class AuthController {
     }
 
     @PostMapping("/change-password")
-    public ResponseEntity<ApiResponse<Void>> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
-        authService.changePassword(SecurityUtil.currentUserId(), request);
-        return ResponseEntity.ok(ApiResponse.success(null, "Đổi mật khẩu thành công"));
+    public ResponseEntity<ApiResponse<LoginResponse>> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request) {
+        // BR-18: the change bumps tokenVersion (revoking other sessions); refresh this client's
+        // cookie with the freshly-issued token so the current session is not logged out.
+        LoginResponse response = authService.changePassword(SecurityUtil.currentUserId(), request);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, sessionCookie(response.token(), TOKEN_TTL))
+                .body(ApiResponse.success(response, "Đổi mật khẩu thành công"));
     }
 
     @PostMapping("/logout")

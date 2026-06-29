@@ -38,6 +38,13 @@ public class User extends BaseEntity {
     private Integer failedAttempts;
     private LocalDateTime lockExpiryAt;
     private LocalDateTime passwordLastChangedAt;
+    /**
+     * BR-18 session-invalidation anchor. Bumped on every password change (and on deactivation);
+     * the value is stamped into each issued JWT as the {@code tv} claim, so {@link
+     * com.khoga.auth.JwtAuthenticationFilter} rejects any token whose {@code tv} no longer matches.
+     * Nullable for legacy rows — a {@code null} is treated as {@code 0} everywhere it is compared.
+     */
+    private Integer tokenVersion;
     /** Attendance-PIN lockout (BR-93) — distinct from the login lockout above. */
     private Integer pinFailedAttempts;
     private LocalDateTime pinLockedUntil;

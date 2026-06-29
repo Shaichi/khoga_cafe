@@ -165,9 +165,14 @@ public class AuthService {
         return issueToken(user);
     }
 
-    /** UC-09: change password while logged in — verify the current one, apply policy, audit. */
+    /**
+     * UC-09: change password while logged in — verify the current one, apply policy, audit, and
+     * re-issue a token. Bumping {@code tokenVersion} (in {@link #applyNewPassword}) revokes every
+     * previously-issued token (BR-18); returning a fresh one keeps the *current* session alive while
+     * other devices are logged out.
+     */
     @Transactional
-    public void changePassword(UUID userId, ChangePasswordRequest request) {
+    public LoginResponse changePassword(UUID userId, ChangePasswordRequest request) {
         User user = load(userId);
         if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
             throw new AppException("Mật khẩu hiện tại không đúng");
@@ -175,6 +180,7 @@ public class AuthService {
         applyNewPassword(user, request.newPassword());
         userRepository.save(user);
         auditLogService.record(ActionType.UPDATE, "User", null, "{\"event\":\"PASSWORD_CHANGE\"}", userId);
+        return issueToken(user);
     }
 
     /**
@@ -217,12 +223,18 @@ public class AuthService {
         }
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setPasswordLastChangedAt(LocalDateTime.now());
+        user.setTokenVersion(tokenVersion(user) + 1);     // BR-18: revoke all tokens issued so far
     }
 
     private LoginResponse issueToken(User user) {
         UUID storeId = user.getStore() != null ? user.getStore().getId() : null;
-        String token = tokenProvider.generateToken(user.getId(), user.getRole(), storeId);
+        String token = tokenProvider.generateToken(user.getId(), user.getRole(), storeId, tokenVersion(user));
         return LoginResponse.authenticated(token, user.getRole(), Boolean.TRUE.equals(user.getMustChangePassword()));
+    }
+
+    /** BR-18 anchor, null-safe (legacy rows read as 0). */
+    private static int tokenVersion(User user) {
+        return user.getTokenVersion() != null ? user.getTokenVersion() : 0;
     }
 
     /** BR-83: HQ role + global flag on + a deliverable email. No email → can't MFA, fall through to token. */
