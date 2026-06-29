@@ -81,12 +81,6 @@ public class SecurityConfig {
     }
 
     /**
-     * Writes an {@link ApiResponse}-shaped error body by hand. We intentionally avoid an injected
-     * ObjectMapper: Spring Boot 4 ships Jackson 3 ({@code tools.jackson}), while the only
-     * {@code com.fasterxml.jackson} mapper on the classpath comes transitively from jjwt — so there
-     * is no autowirable mapper bean of that type. The payload is tiny and the message is escaped.
-     */
-    /**
      * Resolve a message code for an unauthenticated request. Vietnamese is the default; English is
      * used only when {@code Accept-Language} explicitly asks for it. (We read the header directly
      * rather than {@code LocaleContextHolder}, which Spring MVC has not populated this early.)
@@ -98,6 +92,12 @@ public class SecurityConfig {
         return messageSource.getMessage(code, null, code, locale);
     }
 
+    /**
+     * Writes an {@link ApiResponse}-shaped error body by hand. We intentionally avoid an injected
+     * ObjectMapper: Spring Boot 4 ships Jackson 3 ({@code tools.jackson}), while the only
+     * {@code com.fasterxml.jackson} mapper on the classpath comes transitively from jjwt — so there
+     * is no autowirable mapper bean of that type. The payload is tiny and the message is escaped.
+     */
     private void writeError(HttpServletResponse response, int status, String message) throws IOException {
         response.setStatus(status);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);

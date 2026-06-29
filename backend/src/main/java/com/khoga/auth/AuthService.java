@@ -184,8 +184,11 @@ public class AuthService {
     }
 
     /**
-     * UC-02: stateless logout. The client discards the token; we do NOT close any open POS shift
-     * (BR-60). Real server-side token invalidation (BR-18) is deferred to P4.
+     * UC-02: stateless logout (BR-13) — the client discards the token; we do NOT close any open POS
+     * shift (BR-60). Logout deliberately does NOT bump {@code tokenVersion}: BR-18 scopes server-side
+     * revocation to password-change and deactivation ("all other devices"), both implemented via
+     * {@code User.tokenVersion} + {@code JwtAuthenticationFilter}. A captured bearer token therefore
+     * survives a logout until its natural expiry — the intended stateless-logout behaviour.
      */
     public void logout(UUID userId) {
         // no-op by design

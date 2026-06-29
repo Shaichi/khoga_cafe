@@ -2,6 +2,8 @@ package com.khoga.common.exception;
 
 import com.khoga.common.dto.ApiResponse;
 import com.khoga.common.i18n.Messages;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -14,6 +16,8 @@ import java.util.Map;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     private final Messages messages;
 
@@ -64,7 +68,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
-        // Do not leak the raw exception detail to the client; log/observe it elsewhere.
+        // Log full detail server-side for diagnosis; return only a generic, localized message to the
+        // client (no internal detail leak).
+        log.error("Unhandled exception", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error(messages.get("error.unexpected")));
     }

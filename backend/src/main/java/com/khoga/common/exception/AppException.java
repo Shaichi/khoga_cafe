@@ -24,7 +24,7 @@ public class AppException extends RuntimeException {
         this.args = new Object[0];
     }
 
-    private AppException(String code, Object[] args, boolean coded) {
+    private AppException(String code, Object[] args) {
         super(code);   // fallback rendering = the code itself if no bundle entry exists
         this.code = code;
         this.args = args != null ? args : new Object[0];
@@ -32,7 +32,7 @@ public class AppException extends RuntimeException {
 
     /** i18n form: resolve {@code code} (with {@code args}) via MessageSource in the handler. */
     public static AppException of(String code, Object... args) {
-        return new AppException(code, args, true);
+        return new AppException(code, args);
     }
 
     /** Non-null only for the {@link #of} form. */

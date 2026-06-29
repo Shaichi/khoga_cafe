@@ -166,11 +166,17 @@ public class ReportPdfWriter {
     /** First available Unicode family (embedded, Identity-H) so Vietnamese renders; else Helvetica. */
     private static Font font(float size, int style) {
         for (String family : UNICODE_FAMILIES) {
-            if (FontFactory.isRegistered(family)) {
+            if (!FontFactory.isRegistered(family)) {
+                continue;
+            }
+            try {
                 Font f = FontFactory.getFont(family, BaseFont.IDENTITY_H, BaseFont.EMBEDDED, size, style);
                 if (f.getBaseFont() != null) {
                     return f;
                 }
+            } catch (RuntimeException ex) {
+                // OpenPDF throws (unchecked ExceptionConverter) for an unembeddable / .ttc /
+                // license-restricted family — skip it and try the next, then fall back to Helvetica.
             }
         }
         return FontFactory.getFont(FontFactory.HELVETICA, size, style);
