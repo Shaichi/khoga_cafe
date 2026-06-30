@@ -89,7 +89,7 @@ classDiagram
         +endTime: Time
         +posRegisterId: String
     }
-    note for StaffSchedule "posRegisterId is a String (e.g. \"REG-01\"): mandatory when role = CASHIER, optional for BARISTA / STORE_MANAGER."
+    note for StaffSchedule "posRegisterId is a String such as REG-01. Mandatory when role is CASHIER, optional for BARISTA or STORE_MANAGER."
     class AttendanceLog {
         <<entity>>
         +id: UUID
@@ -258,8 +258,8 @@ sequenceDiagram
     AttendCoord->>UserDB: findByStoreAndPin(storeId, pin)
     
     alt PIN invalid / Not unique / Locked
-        UserDB-->>AttendCoord: notFound / pinLockedUntil > now
-        Note over AttendCoord, UserDB: BR-93 — increment pinFailedAttempts; lock (set pinLockedUntil) after configurable failures
+        UserDB-->>AttendCoord: notFound or pinLocked
+        Note over AttendCoord, UserDB: BR-93 - increment pinFailedAttempts, lock (set pinLockedUntil) after configurable failures
         AttendCoord->>UserDB: incrementPinFailedAttempts(userId)
         AttendCoord-->>CheckInScreen: showAuthError(MSG02 / MSG03)
         CheckInScreen-->>employee: display error (remaining attempts / locked until)
@@ -272,7 +272,7 @@ sequenceDiagram
             Note over AttendCoord, AttendDB: Flag check-in for manager confirmation (BR-93 fallback)
             AttendCoord->>AttendDB: createPendingVerificationLog(employeeId, storeId, checkInAt, photoStatus=MISSING)
             AttendDB-->>AttendCoord: pendingLog
-            AttendCoord-->>CheckInScreen: showWarning("Check-in queued. Requires Store Manager photo verification.")
+            AttendCoord-->>CheckInScreen: showWarning(Check-in queued, requires SM photo verification)
             CheckInScreen-->>employee: displayWarning()
         else Photo Captured
             AttendCoord->>PhotoMgr: validatePhotoFormat(photoData)
@@ -283,8 +283,8 @@ sequenceDiagram
             AttendCoord->>ScheduleDB: findTodaySchedule(employeeId, storeId)
             ScheduleDB-->>AttendCoord: scheduleRecord (scheduledStart)
             
-            Note over AttendCoord, AttendDB: One row per pairing — check-in creates the row; check-out updates checkOutAt on the same row
-            Note over AttendCoord: Lateness & OT derived dynamically at reporting layer (BR-39/BR-91)
+            Note over AttendCoord, AttendDB: One row per pairing - check-in creates the row, check-out updates checkOutAt on the same row
+            Note over AttendCoord: Lateness and OT derived dynamically at reporting layer (BR-39/BR-91)
             AttendCoord->>AttendDB: createAttendanceLog(employeeId, checkInAt, scheduledStart, photoUrl, status)
             AttendDB-->>AttendCoord: attendanceRecord
             AttendCoord-->>CheckInScreen: showCheckInSuccess(status)

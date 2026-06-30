@@ -197,7 +197,7 @@ sequenceDiagram
         CatalogCoord->>RecipeDB: createRecipeItem(menuItemId, rawMaterialId, qty)
     end
     CatalogCoord->>AuditDB: writeAuditLog(CREATE, menu_items, null, baseMenuItem)
-    Note over CatalogCoord,AuditDB: BR-68 — CREATE on add; PRICE_UPDATE logged separately on selling-price change (UC-19)
+    Note over CatalogCoord,AuditDB: BR-68 - CREATE on add, PRICE_UPDATE logged separately on selling-price change (UC-19)
     CatalogCoord-->>AddForm: showSuccess()
     AddForm-->>bizadmin: displaySuccess()
 ```
