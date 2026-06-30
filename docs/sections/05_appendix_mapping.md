@@ -139,7 +139,7 @@ The table below lists the standardized messages.
 | 14 | MSG14 | In red / Toast message | Entering points value that is not a multiple of 100 | *Redemption points must be in multiples of 100.* |
 | 15 | MSG15 | Toast message | System Admin successfully creates a new branch | *Branch successfully created.* |
 | 16 | MSG16 | Dialog pop-up | System Admin attempts to add a branch when maximum configured capacity is reached | *Maximum branch capacity reached. Please deactivate an existing branch or increase the limit before adding a new one.* |
-| 17 | MSG17 | Dialog pop-up | Cashier attempts to log out with an active open shift | *You have an active shift session open. You must close your shift (UC-53) before logging out.* |
+| 17 | MSG17 | [RESERVED / DELETED] | *[Reserved for future use]* | *[Reserved for future use]* |
 
 
 ---

@@ -261,7 +261,7 @@ sequenceDiagram
         UserDB-->>AttendCoord: notFound or pinLocked
         Note over AttendCoord, UserDB: BR-93 - increment pinFailedAttempts, lock (set pinLockedUntil) after configurable failures
         AttendCoord->>UserDB: incrementPinFailedAttempts(userId)
-        AttendCoord-->>CheckInScreen: showAuthError(MSG02 / MSG03)
+        AttendCoord-->>CheckInScreen: showAuthError(ERR_INVALID_PIN / ERR_PIN_LOCKED)
         CheckInScreen-->>employee: display error (remaining attempts / locked until)
     else Employee identified
         UserDB-->>AttendCoord: employeeRecord

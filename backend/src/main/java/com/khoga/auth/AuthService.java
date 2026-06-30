@@ -70,7 +70,7 @@ public class AuthService {
     @Transactional
     public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByUsername(request.username())
-                .orElseThrow(() -> new AppException("Tên đăng nhập hoặc mật khẩu không đúng"));
+                .orElseThrow(() -> AppException.of("MSG02", MAX_FAILED_ATTEMPTS));
 
         if (Boolean.FALSE.equals(user.getIsActive())) {
             throw AppException.of("MSG03");            // BR-10 — account suspended/deactivated
@@ -81,7 +81,7 @@ public class AuthService {
         clearExpiredLock(user);
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             registerFailure(user);
-            throw new AppException("Tên đăng nhập hoặc mật khẩu không đúng");
+            throw AppException.of("MSG02", MAX_FAILED_ATTEMPTS - (user.getFailedAttempts() == null ? 0 : user.getFailedAttempts()));
         }
 
         // Password is correct — clear the lockout counter.
