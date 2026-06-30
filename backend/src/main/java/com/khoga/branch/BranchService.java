@@ -81,7 +81,7 @@ public class BranchService {
     @Transactional
     public BranchResponse create(CreateBranchRequest request, UUID actorId) {
         if (storeRepository.existsByNameIgnoreCase(request.name())) {
-            throw new AppException("Tên chi nhánh đã tồn tại");
+            throw AppException.of("err.012");
         }
         int max = systemConfigService.getGlobalInt("MAX_ACTIVE_BRANCHES", DEFAULT_MAX_ACTIVE_BRANCHES);
         if (storeRepository.countByIsActiveTrue() >= max) {
@@ -102,7 +102,7 @@ public class BranchService {
     public BranchResponse update(UUID id, UpdateBranchRequest request, UUID actorId) {
         Store store = load(id);
         if (storeRepository.existsByNameIgnoreCaseAndIdNot(request.name(), id)) {
-            throw new AppException("Tên chi nhánh đã tồn tại");
+            throw AppException.of("err.013");
         }
         store.setName(request.name());
         store.setAddress(request.address());
@@ -117,13 +117,13 @@ public class BranchService {
     public void deactivate(UUID id, UUID actorId) {
         Store store = load(id);
         if (Boolean.FALSE.equals(store.getIsActive())) {
-            throw new AppException("Chi nhánh đã bị vô hiệu hóa");
+            throw AppException.of("err.014");
         }
         if (shiftSessionRepository.existsByStoreIdAndStatus(id, ShiftStatus.OPEN)) {
-            throw new AppException("Không thể vô hiệu hóa: còn ca làm việc đang mở");        // BR-55
+            throw AppException.of("err.015");        // BR-55
         }
         if (orderRepository.existsByStoreIdAndStatusIn(id, NON_TERMINAL_ORDER_STATUSES)) {
-            throw new AppException("Không thể vô hiệu hóa: còn đơn hàng chưa hoàn tất");      // BR-55
+            throw AppException.of("err.016");      // BR-55
         }
         List<User> branchUsers = userRepository.findByStoreId(id);                            // BR-56
         branchUsers.forEach(user -> user.setIsActive(false));
@@ -139,7 +139,7 @@ public class BranchService {
     public BranchSettingsResponse getSettings(UUID id, UUID actorId) {
         load(id);
         User actor = userRepository.findById(actorId)
-                .orElseThrow(() -> new AppException("Yêu cầu xác thực"));
+                .orElseThrow(() -> AppException.of("err.017"));
         if (actor.getRole() == Role.STORE_MANAGER
                 && (actor.getStore() == null || !id.equals(actor.getStore().getId()))) {
             throw new AccessDeniedException("Chỉ được xem cấu hình chi nhánh của mình");
@@ -154,7 +154,7 @@ public class BranchService {
     public BranchResponse updateSettings(UUID id, BranchSettingsRequest request, UUID actorId) {
         Store store = load(id);
         User actor = userRepository.findById(actorId)
-                .orElseThrow(() -> new AppException("Yêu cầu xác thực"));
+                .orElseThrow(() -> AppException.of("err.018"));
         if (actor.getRole() == Role.STORE_MANAGER
                 && (actor.getStore() == null || !id.equals(actor.getStore().getId()))) {
             throw new AccessDeniedException("Chỉ được cấu hình chi nhánh của mình");

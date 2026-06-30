@@ -18,7 +18,7 @@ public final class SecurityUtil {
     public static UUID currentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof UUID userId)) {
-            throw new AppException("Yêu cầu xác thực");
+            throw AppException.of("err.011");
         }
         return userId;
     }

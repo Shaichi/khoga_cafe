@@ -70,18 +70,18 @@ public class AuthService {
     @Transactional
     public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByUsername(request.username())
-                .orElseThrow(() -> new AppException("Tên đăng nhập hoặc mật khẩu không đúng"));
+                .orElseThrow(() -> AppException.of("err.001"));
 
         if (Boolean.FALSE.equals(user.getIsActive())) {
             throw AppException.of("MSG03");            // BR-10 — account suspended/deactivated
         }
         if (isLocked(user)) {
-            throw new AppException("Tài khoản đang bị khóa, vui lòng thử lại sau");  // BR-11
+            throw AppException.of("err.002");  // BR-11
         }
         clearExpiredLock(user);
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             registerFailure(user);
-            throw new AppException("Tên đăng nhập hoặc mật khẩu không đúng");
+            throw AppException.of("err.003");
         }
 
         // Password is correct — clear the lockout counter.
@@ -108,7 +108,7 @@ public class AuthService {
         requireOtp(otpStore.verify(request.mfaToken(), request.otp()));
         UUID userId = otpStore.consume(request.mfaToken());
         if (userId == null) {
-            throw new AppException("Phiên MFA không hợp lệ hoặc đã hết hạn");
+            throw AppException.of("err.004");
         }
         User user = load(userId);
         user.setLastLoginAt(LocalDateTime.now());
@@ -132,7 +132,7 @@ public class AuthService {
     /** UC-04: validate a reset OTP without consuming it; throws on wrong/expired/locked (BR-17). */
     public void verifyOtp(VerifyOtpRequest request) {
         User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new AppException("Mã OTP không đúng hoặc đã hết hạn"));
+                .orElseThrow(() -> AppException.of("err.005"));
         requireOtp(otpStore.verify(resetKey(user.getId()), request.otp()));
     }
 
@@ -140,7 +140,7 @@ public class AuthService {
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
         User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new AppException("Mã OTP không đúng hoặc đã hết hạn"));
+                .orElseThrow(() -> AppException.of("err.006"));
         String key = resetKey(user.getId());
         requireOtp(otpStore.verify(key, request.otp()));
         applyNewPassword(user, request.newPassword());
@@ -156,7 +156,7 @@ public class AuthService {
     public LoginResponse forcePasswordChange(UUID userId, ForcePasswordChangeRequest request) {
         User user = load(userId);
         if (!Boolean.TRUE.equals(user.getMustChangePassword())) {
-            throw new AppException("Tài khoản không ở trạng thái bắt buộc đổi mật khẩu");
+            throw AppException.of("err.007");
         }
         applyNewPassword(user, request.newPassword());
         user.setMustChangePassword(false);
@@ -175,7 +175,7 @@ public class AuthService {
     public LoginResponse changePassword(UUID userId, ChangePasswordRequest request) {
         User user = load(userId);
         if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
-            throw new AppException("Mật khẩu hiện tại không đúng");
+            throw AppException.of("err.008");
         }
         applyNewPassword(user, request.newPassword());
         userRepository.save(user);
@@ -222,7 +222,7 @@ public class AuthService {
     /** BR-14 is enforced by {@link StrongPassword} on the DTO; BR-15: new must differ from current. */
     private void applyNewPassword(User user, String newPassword) {
         if (user.getPasswordHash() != null && passwordEncoder.matches(newPassword, user.getPasswordHash())) {
-            throw new AppException("Mật khẩu mới phải khác mật khẩu hiện tại");   // BR-15
+            throw AppException.of("err.009");   // BR-15
         }
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setPasswordLastChangedAt(LocalDateTime.now());
@@ -259,7 +259,7 @@ public class AuthService {
     private void requireOtp(OtpStore.Result result) {
         switch (result) {
             case OK -> { /* valid */ }
-            case LOCKED -> throw new AppException("Đã nhập sai OTP quá số lần cho phép, vui lòng yêu cầu mã mới");
+            case LOCKED -> throw AppException.of("err.010");
             default -> throw AppException.of("MSG10"); // INVALID / EXPIRED / NOT_FOUND
         }
     }

@@ -106,7 +106,7 @@ public class UserService {
     public UserResponse update(UUID id, UpdateUserRequest request, UUID actorId) {
         User user = load(id);
         if (id.equals(actorId) && request.role() != null && request.role() != user.getRole()) {
-            throw new AppException("Không thể tự thay đổi vai trò của chính mình");   // BR-82
+            throw AppException.of("err.081");   // BR-82
         }
         if (request.role() != null) {
             user.setRole(request.role());
@@ -130,11 +130,11 @@ public class UserService {
     public UserResponse setActive(UUID id, boolean active, UUID actorId) {
         User user = load(id);
         if (!active && id.equals(actorId)) {
-            throw new AppException("Không thể tự vô hiệu hóa tài khoản của mình");      // BR-82
+            throw AppException.of("err.082");      // BR-82
         }
         if (!active && user.getRole() == Role.SSADMIN && Boolean.TRUE.equals(user.getIsActive())
                 && userRepository.countByRoleAndIsActiveTrue(Role.SSADMIN) <= 1) {
-            throw new AppException("Không thể vô hiệu hóa tài khoản SSADMIN hoạt động cuối cùng"); // BR-23
+            throw AppException.of("err.083"); // BR-23
         }
         user.setIsActive(active);
         if (!active) {

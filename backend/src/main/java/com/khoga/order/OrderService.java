@@ -177,7 +177,7 @@ public class OrderService {
         User actor = currentUser(actorId);
         Order order = loadForStore(orderId, actor.getStore());
         if (order.getStatus() != OrderStatus.PENDING) {
-            throw new AppException("Chỉ có thể hủy đơn ở trạng thái PENDING (BR-05)");
+            throw AppException.of("err.035");
         }
 
         OrderCancellation cancellation = new OrderCancellation();
@@ -216,12 +216,12 @@ public class OrderService {
 
     private RefundResponse doRefund(Order order, RefundRequest req, User actor, User sm, Store store) {
         if (order.getPaymentStatus() != PaymentStatus.PAID) {
-            throw new AppException("Đơn chưa thanh toán, không thể hoàn tiền");
+            throw AppException.of("err.036");
         }
         BigDecimal total = nzb(order.getTotal());
         BigDecimal amount = req.amount() == null ? total : req.amount();
         if (amount.signum() <= 0 || amount.compareTo(total) > 0) {
-            throw new AppException("Số tiền hoàn không hợp lệ (0 < số tiền ≤ tổng đơn)");
+            throw AppException.of("err.037");
         }
 
         // BR-09: a cash refund comes out of the currently-open drawer; card/VietQR refunds go back via the gateway.
@@ -344,14 +344,14 @@ public class OrderService {
 
     private User authorizeStoreManager(UUID storeId, String pin) {
         if (!StringUtils.hasText(pin)) {
-            throw new AppException("Cần PIN quản lý cửa hàng để duyệt");
+            throw AppException.of("err.038");
         }
         return userRepository.findByStoreId(storeId).stream()
                 .filter(u -> u.getRole() == Role.STORE_MANAGER)
                 .filter(u -> Boolean.TRUE.equals(u.getIsActive()))
                 .filter(u -> pin.equals(u.getAttendancePin()))
                 .findFirst()
-                .orElseThrow(() -> new AppException("PIN quản lý không hợp lệ hoặc không có quyền duyệt"));
+                .orElseThrow(() -> AppException.of("err.039"));
     }
 
     private OrderSummaryResponse toSummary(Order order) {
@@ -362,16 +362,16 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn"));
         if (order.getStore() == null || !order.getStore().getId().equals(store.getId())) {
-            throw new AppException("Đơn không thuộc chi nhánh của bạn"); // BR-59 scope
+            throw AppException.of("err.040"); // BR-59 scope
         }
         return order;
     }
 
     private User currentUser(UUID actorId) {
         User user = userRepository.findById(actorId)
-                .orElseThrow(() -> new AppException("Yêu cầu xác thực"));
+                .orElseThrow(() -> AppException.of("err.041"));
         if (user.getStore() == null) {
-            throw new AppException("Tài khoản không gắn với chi nhánh nào");
+            throw AppException.of("err.042");
         }
         return user;
     }

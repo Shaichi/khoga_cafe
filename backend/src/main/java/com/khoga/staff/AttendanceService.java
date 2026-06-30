@@ -71,7 +71,7 @@ public class AttendanceService {
         User employee = resolveByPin(store.getId(), req.pin());
         LocalDate today = LocalDate.now();
         if (attendanceLogRepository.existsByUserIdAndShiftDateAndCheckOutAtIsNull(employee.getId(), today)) {
-            throw new AppException("Nhân viên đang trong ca, chưa check-out");
+            throw AppException.of("err.061");
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -109,7 +109,7 @@ public class AttendanceService {
         LocalDate today = LocalDate.now();
         AttendanceLog logRow = attendanceLogRepository
                 .findFirstByUserIdAndShiftDateAndCheckOutAtIsNull(employee.getId(), today)
-                .orElseThrow(() -> new AppException("Không tìm thấy ca check-in đang mở"));
+                .orElseThrow(() -> AppException.of("err.062"));
         logRow.setCheckOutAt(LocalDateTime.now());
         AttendanceLog saved = attendanceLogRepository.save(logRow);
         clearPinLock(employee);
@@ -123,10 +123,10 @@ public class AttendanceService {
         AttendanceLog logRow = attendanceLogRepository.findById(logId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bản chấm công"));
         if (logRow.getStore() == null || !logRow.getStore().getId().equals(store.getId())) {
-            throw new AppException("Bản chấm công không thuộc chi nhánh của bạn"); // BR-59
+            throw AppException.of("err.063"); // BR-59
         }
         if (!Boolean.TRUE.equals(logRow.getPendingVerification())) {
-            throw new AppException("Bản chấm công này không chờ xác nhận");
+            throw AppException.of("err.064");
         }
         logRow.setPendingVerification(false);
         if (req != null && StringUtils.hasText(req.photoUrl())) {
@@ -181,7 +181,7 @@ public class AttendanceService {
     @Transactional(readOnly = true)
     public byte[] exportWorkedHours(LocalDate from, LocalDate to, String format, UUID actorId) {
         if (format != null && !format.isBlank() && !format.equalsIgnoreCase("csv")) {
-            throw new AppException("Chỉ hỗ trợ xuất CSV ở giai đoạn này; PDF sẽ có ở P3");
+            throw AppException.of("err.065");
         }
         List<AttendanceReportRow> rows = getReport(from, to, actorId);
         StringBuilder sb = new StringBuilder();
@@ -227,9 +227,9 @@ public class AttendanceService {
                 .filter(u -> Boolean.TRUE.equals(u.getIsActive()))
                 .filter(u -> pin.equals(u.getAttendancePin()))
                 .findFirst()
-                .orElseThrow(() -> new AppException("PIN không hợp lệ")); // BR-93 (PIN identifies the employee)
+                .orElseThrow(() -> AppException.of("err.066")); // BR-93 (PIN identifies the employee)
         if (employee.getPinLockedUntil() != null && employee.getPinLockedUntil().isAfter(now)) {
-            throw new AppException("PIN đang bị tạm khóa, thử lại sau"); // BR-93 lockout
+            throw AppException.of("err.067"); // BR-93 lockout
         }
         return employee;
     }
@@ -272,9 +272,9 @@ public class AttendanceService {
 
     private User currentUser(UUID actorId) {
         User user = userRepository.findById(actorId)
-                .orElseThrow(() -> new AppException("Yêu cầu xác thực"));
+                .orElseThrow(() -> AppException.of("err.068"));
         if (user.getStore() == null) {
-            throw new AppException("Tài khoản không gắn với chi nhánh nào");
+            throw AppException.of("err.069");
         }
         return user;
     }

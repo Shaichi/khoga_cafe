@@ -120,7 +120,7 @@ public class CheckoutService {
     public CheckoutResponse submitOrder(CheckoutRequest req, UUID actorId) {
         currentUser(actorId);
         ShiftSession shift = shiftSessionRepository.findFirstByUserIdAndStatus(actorId, ShiftStatus.OPEN)
-                .orElseThrow(() -> new AppException("Bạn cần mở ca trước khi bán hàng")); // UC-44 precondition
+                .orElseThrow(() -> AppException.of("err.043")); // UC-44 precondition
         Customer customer = req.customerId() == null ? null
                 : customerRepository.findById(req.customerId())
                     .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy khách hàng"));
@@ -157,7 +157,7 @@ public class CheckoutService {
         return switch (req.paymentMethod()) {
             case CASH -> {
                 if (req.cashReceived() == null || req.cashReceived().compareTo(saved.getTotal()) < 0) {
-                    throw new AppException("Tiền khách đưa không đủ");
+                    throw AppException.of("err.044");
                 }
                 finalizePaid(saved, actorId);
                 yield response(saved, b, req.cashReceived().subtract(saved.getTotal()), null);
@@ -170,7 +170,7 @@ public class CheckoutService {
                 VietQrPayment qr = vietQrClient.generateQr(saved.getId(), saved.getTotal()); // idempotency = orderId (BR-84)
                 yield response(saved, b, null, qr);
             }
-            default -> throw new AppException("Phương thức thanh toán không hỗ trợ");
+            default -> throw AppException.of("err.045");
         };
     }
 
@@ -279,7 +279,7 @@ public class CheckoutService {
             return null;
         }
         return voucherRepository.findByCode(code)
-                .orElseThrow(() -> new AppException("Mã giảm giá không tồn tại"));
+                .orElseThrow(() -> AppException.of("err.046"));
     }
 
     private BigDecimal voucherDiscount(String code, BigDecimal gross) {
@@ -294,7 +294,7 @@ public class CheckoutService {
             return;
         }
         if (customer == null) {
-            throw new AppException("Cần chọn khách hàng để đổi điểm");
+            throw AppException.of("err.047");
         }
         if (req.redeemPoints() % 100 != 0) {
             throw AppException.of("MSG14"); // BR-74 — redemption must be a multiple of 100
@@ -334,7 +334,7 @@ public class CheckoutService {
 
     private User currentUser(UUID actorId) {
         return userRepository.findById(actorId)
-                .orElseThrow(() -> new AppException("Yêu cầu xác thực"));
+                .orElseThrow(() -> AppException.of("err.048"));
     }
 
     private static int nz(Integer v) {

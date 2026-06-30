@@ -78,10 +78,10 @@ public class StockService {
         RawMaterial material = rawMaterialRepository.findById(req.rawMaterialId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy nguyên liệu"));
         if (Boolean.FALSE.equals(material.getIsActive())) {
-            throw new AppException("Nguyên liệu đã ngừng sử dụng");
+            throw AppException.of("err.029");
         }
         if (stockItemRepository.existsByStoreIdAndRawMaterialId(store.getId(), material.getId())) {
-            throw new AppException("Nguyên liệu này đã có trong kho chi nhánh");
+            throw AppException.of("err.030");
         }
         StockItem item = new StockItem();
         item.setStore(store);
@@ -131,7 +131,7 @@ public class StockService {
             BigDecimal after = line.actualQuantity();
             BigDecimal adjustment = after.subtract(before);
             if (adjustment.signum() != 0 && !StringUtils.hasText(line.note())) {
-                throw new AppException("Bắt buộc nhập lý do khi có chênh lệch kiểm kê (BR-32)");
+                throw AppException.of("err.031");
             }
             item.setCurrentQuantity(after);
             stockItemRepository.save(item);
@@ -176,16 +176,16 @@ public class StockService {
         StockItem item = stockItemRepository.findById(stockItemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy mục tồn kho"));
         if (item.getStore() == null || !item.getStore().getId().equals(store.getId())) {
-            throw new AppException("Mục tồn kho không thuộc chi nhánh của bạn"); // BR-59
+            throw AppException.of("err.032"); // BR-59
         }
         return item;
     }
 
     private User currentUser(UUID actorId) {
         User user = userRepository.findById(actorId)
-                .orElseThrow(() -> new AppException("Yêu cầu xác thực"));
+                .orElseThrow(() -> AppException.of("err.033"));
         if (user.getStore() == null) {
-            throw new AppException("Tài khoản không gắn với chi nhánh nào");
+            throw AppException.of("err.034");
         }
         return user;
     }

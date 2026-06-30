@@ -61,7 +61,7 @@ public class RawMaterialService {
     @Transactional
     public RawMaterialResponse create(CreateRawMaterialRequest request, UUID actorId) {
         if (rawMaterialRepository.existsByCodeIgnoreCase(request.code())) {
-            throw new AppException("Mã nguyên liệu đã tồn tại");
+            throw AppException.of("err.025");
         }
         RawMaterial material = new RawMaterial();
         material.setCode(request.code());
@@ -82,7 +82,7 @@ public class RawMaterialService {
         RawMaterial material = load(id);
         boolean unitChanged = material.getUnit() == null || !material.getUnit().equalsIgnoreCase(request.unit());
         if (unitChanged && isUnitLocked(id)) {
-            throw new AppException("Không thể đổi đơn vị: nguyên liệu đã phát sinh tồn kho hoặc công thức"); // BR-64
+            throw AppException.of("err.026"); // BR-64
         }
         material.setName(request.name());
         material.setUnit(request.unit());

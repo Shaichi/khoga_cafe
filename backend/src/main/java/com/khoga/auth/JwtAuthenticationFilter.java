@@ -40,10 +40,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider tokenProvider;
     private final UserRepository userRepository;
+    private final UserActivityTracker userActivityTracker;
 
-    public JwtAuthenticationFilter(JwtTokenProvider tokenProvider, UserRepository userRepository) {
+    public JwtAuthenticationFilter(JwtTokenProvider tokenProvider, UserRepository userRepository, UserActivityTracker userActivityTracker) {
         this.tokenProvider = tokenProvider;
         this.userRepository = userRepository;
+        this.userActivityTracker = userActivityTracker;
     }
 
     @Override
@@ -61,6 +63,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         userId, null, List.of(authority));
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+                
+                // Track activity for session timeout
+                userActivityTracker.recordActivity(userId);
             }
             // Otherwise leave the context unauthenticated so SecurityConfig's entry point returns 401.
         }

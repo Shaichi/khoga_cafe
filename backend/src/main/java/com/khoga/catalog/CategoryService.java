@@ -44,7 +44,7 @@ public class CategoryService {
     @Transactional
     public CategoryResponse create(CategoryRequest request, UUID actorId) {
         if (categoryRepository.existsByNameIgnoreCase(request.name())) {
-            throw new AppException("Tên danh mục đã tồn tại");
+            throw AppException.of("err.019");
         }
         Category category = new Category();
         category.setName(request.name());
@@ -60,7 +60,7 @@ public class CategoryService {
     public CategoryResponse update(UUID id, CategoryRequest request, UUID actorId) {
         Category category = load(id);
         if (categoryRepository.existsByNameIgnoreCaseAndIdNot(request.name(), id)) {
-            throw new AppException("Tên danh mục đã tồn tại");
+            throw AppException.of("err.020");
         }
         category.setName(request.name());
         category.setDescription(request.description());
@@ -74,7 +74,7 @@ public class CategoryService {
     public void archive(UUID id, UUID actorId) {
         Category category = load(id);
         if (menuItemRepository.countByCategoryIdAndIsActiveTrueAndIsDeletedFalse(id) > 0) {
-            throw new AppException("Không thể xóa danh mục còn món đang hoạt động");   // BR-31
+            throw AppException.of("err.021");   // BR-31
         }
         List<MenuItem> items = menuItemRepository.findByCategoryId(id);                  // BR-62
         items.forEach(item -> item.setCategory(null));

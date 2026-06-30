@@ -49,11 +49,11 @@ public class ReportScopeResolver {
         }
         // Store Manager (or any branch role) — locked to own branch.
         if (actor.getStore() == null) {
-            throw new AppException("Tài khoản chưa gắn với chi nhánh");
+            throw AppException.of("err.057");
         }
         UUID own = actor.getStore().getId();
         if (requestedBranchId != null && !requestedBranchId.equals(own)) {
-            throw new AppException("Bạn chỉ được xem báo cáo của chi nhánh mình (BR-44)");
+            throw AppException.of("err.058");
         }
         return own;
     }
@@ -62,7 +62,7 @@ public class ReportScopeResolver {
     public UUID requireOwnBranch(UUID actorId) {
         User actor = requireUser(actorId);
         if (actor.getStore() == null) {
-            throw new AppException("Tài khoản chưa gắn với chi nhánh");
+            throw AppException.of("err.059");
         }
         return actor.getStore().getId();
     }

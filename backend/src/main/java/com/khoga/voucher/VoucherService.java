@@ -53,7 +53,7 @@ public class VoucherService {
     @Transactional
     public VoucherResponse create(CreateVoucherRequest request, UUID actorId) {
         if (voucherRepository.existsByCodeIgnoreCase(request.code())) {
-            throw new AppException("Mã voucher đã tồn tại");
+            throw AppException.of("err.084");
         }
         validateDateRange(request.startDate(), request.endDate());
         validateDiscountShape(request.discountType(), request.discountValue(), request.maxDiscountAmount());
@@ -108,17 +108,17 @@ public class VoucherService {
 
     private void validateDateRange(LocalDateTime start, LocalDateTime end) {
         if (start != null && end != null && !start.isBefore(end)) {
-            throw new AppException("Ngày bắt đầu phải trước ngày kết thúc");
+            throw AppException.of("err.085");
         }
     }
 
     private void validateDiscountShape(DiscountType type, BigDecimal value, BigDecimal maxDiscountAmount) {
         if (type == DiscountType.PERCENTAGE) {
             if (maxDiscountAmount == null) {
-                throw new AppException("Voucher giảm theo phần trăm phải có mức giảm tối đa");   // BR-42
+                throw AppException.of("err.086");   // BR-42
             }
             if (value != null && (value.compareTo(BigDecimal.ONE) < 0 || value.compareTo(BigDecimal.valueOf(100)) > 0)) {
-                throw new AppException("Phần trăm giảm phải từ 1 đến 100");
+                throw AppException.of("err.087");
             }
         }
     }

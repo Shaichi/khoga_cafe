@@ -48,4 +48,5 @@ public class User extends BaseEntity {
     /** Attendance-PIN lockout (BR-93) — distinct from the login lockout above. */
     private Integer pinFailedAttempts;
     private LocalDateTime pinLockedUntil;
+    private LocalDateTime lastActiveAt;
 }

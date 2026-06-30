@@ -86,10 +86,10 @@ public class ScheduleService {
         User employee = userRepository.findById(req.employeeId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy nhân viên"));
         if (Boolean.FALSE.equals(employee.getIsActive())) {
-            throw new AppException("Nhân viên đã bị vô hiệu hóa");
+            throw AppException.of("err.070");
         }
         if (employee.getRole() == Role.CASHIER && !StringUtils.hasText(req.posRegisterId())) {
-            throw new AppException("Thu ngân bắt buộc có posRegisterId"); // A46
+            throw AppException.of("err.071"); // A46
         }
         validateConstraints(employee, store, req.shiftDate(), req.shiftStartTime(), req.shiftEndTime(),
                 null, req.overrideReason());
@@ -121,7 +121,7 @@ public class ScheduleService {
         User manager = currentUser(actorId);
         StaffSchedule schedule = loadForStore(id, manager.getStore());
         if (schedule.getShiftDate().isBefore(LocalDate.now())) {
-            throw new AppException("Không thể sửa lịch trong quá khứ (BR-36)");
+            throw AppException.of("err.072");
         }
         validateConstraints(schedule.getUser(), manager.getStore(), schedule.getShiftDate(),
                 req.shiftStartTime(), req.shiftEndTime(), schedule.getId(), req.overrideReason());
@@ -157,7 +157,7 @@ public class ScheduleService {
         long maxDaily = config.getGlobalInt("STAFF_MAX_DAILY_HOURS", 12) * 60L;
         long dailyExisting = sumMinutes(scheduleRepository.findByUserIdAndShiftDate(employee.getId(), date), excludeId);
         if (dailyExisting + shiftMinutes > maxDaily) {
-            throw new AppException("Vượt số giờ tối đa trong ngày (BR-92)");
+            throw AppException.of("err.073");
         }
 
         // BR-92 hard: per-week total hours
@@ -167,7 +167,7 @@ public class ScheduleService {
         long weeklyExisting = sumMinutes(
                 scheduleRepository.findByUserIdAndShiftDateBetween(employee.getId(), weekStart, weekEnd), excludeId);
         if (weeklyExisting + shiftMinutes > maxWeekly) {
-            throw new AppException("Vượt số giờ tối đa trong tuần (BR-92)");
+            throw AppException.of("err.074");
         }
 
         // BR-92 hard: conflict (overlap) + minimum rest between shifts
@@ -188,7 +188,7 @@ public class ScheduleService {
                     ? Duration.between(oEnd, newStart).toMinutes()
                     : Duration.between(newEnd, oStart).toMinutes();
             if (gap < minRestMinutes) {
-                throw new AppException("Không đủ thời gian nghỉ tối thiểu giữa các ca (BR-92)");
+                throw AppException.of("err.075");
             }
         }
 
@@ -196,7 +196,7 @@ public class ScheduleService {
         long budget = config.getGlobalInt("STORE_DAILY_LABOUR_BUDGET_HOURS", 40) * 60L;
         long storeExisting = sumMinutes(scheduleRepository.findByStoreIdAndShiftDate(store.getId(), date), excludeId);
         if (storeExisting + shiftMinutes > budget && !StringUtils.hasText(overrideReason)) {
-            throw new AppException("Vượt ngân sách giờ công của ngày — cần nhập lý do override (BR-92)");
+            throw AppException.of("err.076");
         }
         if (storeExisting + shiftMinutes > budget) {
             auditLogService.record(ActionType.UPDATE, "LabourBudgetOverride", null,
@@ -237,7 +237,7 @@ public class ScheduleService {
     private static long shiftMinutes(LocalTime start, LocalTime end) {
         long minutes = Duration.between(start, end).toMinutes();
         if (minutes <= 0) {
-            throw new AppException("Giờ kết thúc phải sau giờ bắt đầu");
+            throw AppException.of("err.077");
         }
         return minutes;
     }
@@ -246,16 +246,16 @@ public class ScheduleService {
         StaffSchedule schedule = scheduleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy lịch làm việc"));
         if (schedule.getStore() == null || !schedule.getStore().getId().equals(store.getId())) {
-            throw new AppException("Lịch không thuộc chi nhánh của bạn"); // BR-59
+            throw AppException.of("err.078"); // BR-59
         }
         return schedule;
     }
 
     private User currentUser(UUID actorId) {
         User user = userRepository.findById(actorId)
-                .orElseThrow(() -> new AppException("Yêu cầu xác thực"));
+                .orElseThrow(() -> AppException.of("err.079"));
         if (user.getStore() == null) {
-            throw new AppException("Tài khoản không gắn với chi nhánh nào");
+            throw AppException.of("err.080");
         }
         return user;
     }

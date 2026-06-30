@@ -97,7 +97,7 @@ public class MenuItemService {
     @Transactional
     public MenuItemDetailResponse create(CreateMenuItemRequest request, UUID actorId) {
         if (StringUtils.hasText(request.barcode()) && menuItemRepository.existsByBarcode(request.barcode())) {
-            throw new AppException("Mã vạch đã tồn tại");
+            throw AppException.of("err.022");
         }
         MenuItem item = new MenuItem();
         item.setName(request.name());
@@ -120,7 +120,7 @@ public class MenuItemService {
     public MenuItemDetailResponse update(UUID id, UpdateMenuItemRequest request, UUID actorId) {
         MenuItem item = load(id);
         if (StringUtils.hasText(request.barcode()) && menuItemRepository.existsByBarcodeAndIdNot(request.barcode(), id)) {
-            throw new AppException("Mã vạch đã tồn tại");
+            throw AppException.of("err.023");
         }
         BigDecimal oldPrice = item.getPrice();
         boolean nameChanged = !request.name().equals(item.getName());
@@ -157,7 +157,7 @@ public class MenuItemService {
     public void toggleAvailability(UUID menuItemId, AvailabilityRequest request, UUID actorId) {
         MenuItem item = load(menuItemId);
         User actor = userRepository.findById(actorId)
-                .orElseThrow(() -> new AppException("Yêu cầu xác thực"));
+                .orElseThrow(() -> AppException.of("err.024"));
         if (actor.getRole() == Role.STORE_MANAGER
                 && (actor.getStore() == null || !request.storeId().equals(actor.getStore().getId()))) {
             throw new AccessDeniedException("Chỉ được điều chỉnh chi nhánh của mình");

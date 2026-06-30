@@ -1,29 +1,33 @@
 package com.khoga.scheduler;
 
-import com.khoga.auth.OtpStore;
+import com.khoga.common.repository.OtpRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 /**
- * Sweeps expired one-time passwords from the in-memory {@link OtpStore} every 5 minutes (BR-16).
- * Verification already rejects expired codes on read; this just bounds memory between accesses.
+ * Sweeps expired one-time passwords from the database every 5 minutes (BR-16).
+ * Verification already rejects expired codes on read; this just bounds database size.
  */
 @Slf4j
 @Component
 public class OtpExpiryScheduler {
 
-    private final OtpStore otpStore;
+    private final OtpRepository otpRepository;
 
-    public OtpExpiryScheduler(OtpStore otpStore) {
-        this.otpStore = otpStore;
+    public OtpExpiryScheduler(OtpRepository otpRepository) {
+        this.otpRepository = otpRepository;
     }
 
     @Scheduled(fixedRate = 300_000L)
+    @Transactional
     public void purgeExpiredOtps() {
-        int removed = otpStore.purgeExpired();
+        int removed = otpRepository.deleteExpired(LocalDateTime.now());
         if (removed > 0) {
-            log.debug("[scheduler] OtpExpiry — purged {} expired OTP(s)", removed);
+            log.debug("[scheduler] OtpExpiry — purged {} expired OTP(s) from DB", removed);
         }
     }
 }

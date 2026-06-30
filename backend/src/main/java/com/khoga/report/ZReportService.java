@@ -53,7 +53,7 @@ public class ZReportService {
     public DailyZReport dailyZReport(LocalDate businessDay, UUID branchFilter, UUID actorId) {
         UUID storeId = scope.resolveBranch(actorId, branchFilter);
         if (storeId == null) {
-            throw new AppException("Z-report cần chọn một chi nhánh cụ thể");
+            throw AppException.of("err.060");
         }
         LocalDateTime fromDt = businessDay.atStartOfDay();
         LocalDateTime toDt = businessDay.plusDays(1).atStartOfDay();

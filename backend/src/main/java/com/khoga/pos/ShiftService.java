@@ -64,11 +64,11 @@ public class ShiftService {
         User user = currentUser(actorId);
         Store store = user.getStore();
         if (req.startingCash().signum() < 0) {
-            throw new AppException("Tiền đầu ca không được âm"); // BR-33
+            throw AppException.of("err.050"); // BR-33
         }
         if (shiftSessionRepository.existsByStoreIdAndPosRegisterIdAndStatus(
                 store.getId(), req.posRegisterId(), ShiftStatus.OPEN)) {
-            throw new AppException("Register này đã có ca đang mở"); // BR-92
+            throw AppException.of("err.051"); // BR-92
         }
         ShiftSession session = new ShiftSession();
         session.setStore(store);
@@ -93,10 +93,10 @@ public class ShiftService {
         ShiftSession session = shiftSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ca"));
         if (session.getStatus() != ShiftStatus.OPEN) {
-            throw new AppException("Ca đã đóng");
+            throw AppException.of("err.052");
         }
         if (session.getStore() == null || !session.getStore().getId().equals(user.getStore().getId())) {
-            throw new AppException("Ca không thuộc chi nhánh của bạn");
+            throw AppException.of("err.053");
         }
         return reconcileAndClose(session, closingCash);
     }
@@ -128,7 +128,7 @@ public class ShiftService {
         }
         // BR-03: cannot close over orders still in progress
         if (orderRepository.existsByShiftSessionIdAndStatusIn(session.getId(), BLOCKING)) {
-            throw new AppException("Còn đơn chưa hoàn tất (PENDING/PREPARING/HOLD) — không thể đóng ca"); // BR-03
+            throw AppException.of("err.054"); // BR-03
         }
 
         BigDecimal opening = nz(session.getStartingCash());
@@ -179,9 +179,9 @@ public class ShiftService {
 
     private User currentUser(UUID actorId) {
         User user = userRepository.findById(actorId)
-                .orElseThrow(() -> new AppException("Yêu cầu xác thực"));
+                .orElseThrow(() -> AppException.of("err.055"));
         if (user.getStore() == null) {
-            throw new AppException("Tài khoản không gắn với chi nhánh nào");
+            throw AppException.of("err.056");
         }
         return user;
     }

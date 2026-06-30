@@ -63,7 +63,7 @@ public class CustomerService {
     @Transactional
     public CustomerResponse create(CreateCustomerRequest request, UUID actorId) {
         if (customerRepository.existsByPhone(request.phone())) {
-            throw new AppException("Số điện thoại đã tồn tại");
+            throw AppException.of("err.027");
         }
         Customer customer = new Customer();
         customer.setPhone(request.phone());
@@ -104,7 +104,7 @@ public class CustomerService {
         int current = customer.getPoints() == null ? 0 : customer.getPoints();
         int updated = current + request.delta();
         if (updated < 0) {
-            throw new AppException("Số điểm sau điều chỉnh không được âm");
+            throw AppException.of("err.028");
         }
         customer.setPoints(updated);
         customerRepository.save(customer);

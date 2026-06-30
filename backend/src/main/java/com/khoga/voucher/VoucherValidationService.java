@@ -40,11 +40,11 @@ public class VoucherValidationService {
             throw AppException.of("MSG09");                              // expired / inactive
         }
         if (voucher.getMinOrderValue() != null && orderSubtotal.compareTo(voucher.getMinOrderValue()) < 0) {
-            throw new AppException("Đơn hàng chưa đạt giá trị tối thiểu để dùng mã");
+            throw AppException.of("err.088");
         }
         if (voucher.getUsageLimitPerCustomer() != null
                 && customerUsageCount >= voucher.getUsageLimitPerCustomer()) {
-            throw new AppException("Bạn đã dùng hết lượt cho mã này");
+            throw AppException.of("err.089");
         }
         return computeDiscount(voucher, orderSubtotal);
     }
