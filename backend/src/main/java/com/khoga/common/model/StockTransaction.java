@@ -8,7 +8,10 @@ import java.math.BigDecimal;
 import com.khoga.common.model.enums.*;
 
 @Entity
-@Table(name = "stocktransactions")
+@Table(name = "stocktransactions", indexes = {
+        // P4 perf — UC-61 stock ledger lookups by item over time.
+        @Index(name = "idx_stocktx_item_created", columnList = "stock_item_id, created_at")
+})
 @Getter
 @Setter
 @NoArgsConstructor

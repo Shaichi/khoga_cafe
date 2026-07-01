@@ -158,14 +158,19 @@
 
 ---
 
-## SPRINT 6 — P4 còn tồn (từ IMPLEMENTATION_PLAN)
+## SPRINT 6 — P4 còn tồn (từ IMPLEMENTATION_PLAN) — 🟡 **PHẦN LỚN DONE 2026-07-02**
 
-- **Integration thật**: `SmtpEmailService`, VietQR thật + verify HMAC production, `PrinterService` ESC/POS — toggle qua profile (stub giữ cho test).
-- **OTP store bền** (DB/Redis) thay in-memory — đa node/sống sót restart.
-- **Hiệu năng & toàn vẹn**: index cho query report/lookup; rà `@Transactional` cho checkout/refund/trừ kho (atomic); làm tròn tiền VND; timezone UTC↔branch-local.
-- **Auto-logout idle ≥30'** (silent token refresh).
-- **i18n**: gắn mã MSG cho ~170 literal còn lại (seam đã sẵn).
-- **Test E2E + tải**: login→checkout→prepare→complete; refund/cancel; load NFR (100 TPS, 2000 đơn/ngày/branch).
+- ✅ **Integration thật**: `RealEmailService` (JavaMailSender/SMTP), `RealVietQrClient` (API thật + `verifyWebhookSignature` HMAC, S3.1), `RealPrinterService` — đã có (`com.khoga.integration`).
+- ✅ **OTP store bền**: DB-backed `OtpStore` + `OtpRepository`/`OtpEntity` + `OtpExpiryScheduler` (sống sót restart, đa node). *(Redis là tùy chọn tương lai, chưa cần.)*
+- 🟡 **Hiệu năng & toàn vẹn**:
+  - ✅ **index report/lookup**: thêm `@Index` cho `orders` (store+created, status+created, shift), `auditlogs` (entity+created, user+created), `stocktransactions` (item+created) — integration boot tạo index OK.
+  - ✅ **`@Transactional` atomic**: checkout (`CheckoutService.submitOrder`/`handleQrCallback`), refund (`OrderService.refund`), trừ kho (`RecipeDeductionEngine.deductForOrder`) đều đã `@Transactional`.
+  - ⏳ **làm tròn VND / timezone**: chưa có yêu cầu/BR cụ thể; VND đã whole do giá nguyên + engine scale-0. Defer tới khi có spec rõ.
+- ✅ **Auto-logout idle ≥30'**: `SessionTimeoutScheduler` (flush 1'/sweep 5', ngưỡng 30' → bump `tokenVersion`).
+- ⏳ **i18n**: exception i18n đã có; còn ~literal rải rác — mechanical, defer.
+- ❌ **Test E2E + tải**: cần hạ tầng (Boot 4 MockMvc/Testcontainers/gatling), ngoài phạm vi unit-TDD — defer.
+
+> **Kết luận:** phần P4 khả thi theo unit-TDD đã xong; còn lại là hạng mục hạ tầng (E2E/load), hoặc underspecified (VND rounding/timezone/i18n sweep) — chờ spec hoặc quyết định trước khi làm.
 
 ---
 

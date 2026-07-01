@@ -8,7 +8,11 @@ import java.math.BigDecimal;
 import com.khoga.common.model.enums.*;
 
 @Entity
-@Table(name = "auditlogs")
+@Table(name = "auditlogs", indexes = {
+        // P4 perf — UC-77/83 change-history filters by entity + time, and by actor + time.
+        @Index(name = "idx_audit_entity_created", columnList = "entity_affected, created_at"),
+        @Index(name = "idx_audit_user_created", columnList = "user_id, created_at")
+})
 @Getter
 @Setter
 @NoArgsConstructor

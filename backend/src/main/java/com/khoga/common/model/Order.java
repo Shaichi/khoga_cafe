@@ -8,7 +8,12 @@ import java.math.BigDecimal;
 import com.khoga.common.model.enums.*;
 
 @Entity
-@Table(name = "orders")
+@Table(name = "orders", indexes = {
+        // P4 perf — revenue/report + queue lookups over (branch, time) and (status, time).
+        @Index(name = "idx_orders_store_created", columnList = "store_id, created_at"),
+        @Index(name = "idx_orders_status_created", columnList = "status, created_at"),
+        @Index(name = "idx_orders_shift", columnList = "shift_session_id")
+})
 @Getter
 @Setter
 @NoArgsConstructor
