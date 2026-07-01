@@ -30,11 +30,36 @@ void main() {
       expect(cart.isEmpty, isTrue);
     });
 
-    test('clear empties the cart', () {
+    test('clear empties the cart and resets member/voucher/points', () {
       final cart = CartController()..add(_item('m1', 30000));
+      cart.attachCustomer(CustomerLite(id: 'c1', fullName: 'A', points: 500));
+      cart.applyVoucher('giam10');
+      cart.setRedeemPoints(200);
       cart.clear();
       expect(cart.isEmpty, isTrue);
       expect(cart.subtotal, 0);
+      expect(cart.customer, isNull);
+      expect(cart.voucherCode, isNull);
+      expect(cart.redeemPoints, 0);
+    });
+
+    test('applyVoucher trims + upper-cases; clearVoucher removes it', () {
+      final cart = CartController();
+      cart.applyVoucher('  giam10 ');
+      expect(cart.voucherCode, 'GIAM10');
+      cart.clearVoucher();
+      expect(cart.voucherCode, isNull);
+    });
+
+    test('redeemPoints is clamped to the member balance and needs a member', () {
+      final cart = CartController();
+      cart.setRedeemPoints(300);
+      expect(cart.redeemPoints, 0); // no member → nothing to redeem
+      cart.attachCustomer(CustomerLite(id: 'c1', fullName: 'A', points: 250));
+      cart.setRedeemPoints(300);
+      expect(cart.redeemPoints, 250); // clamped to balance
+      cart.clearCustomer();
+      expect(cart.redeemPoints, 0); // removing the member drops redemption
     });
   });
 }

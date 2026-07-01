@@ -447,6 +447,23 @@ class StockAuditResult {
       );
 }
 
+/// Mirrors com.khoga.customer.dto.CustomerResponse (subset used by the POS member lookup).
+class CustomerLite {
+  final String id;
+  final String fullName;
+  final String? phone;
+  final int points;
+
+  CustomerLite({required this.id, required this.fullName, this.phone, this.points = 0});
+
+  factory CustomerLite.fromJson(Map<String, dynamic> j) => CustomerLite(
+        id: j['id'] as String,
+        fullName: j['fullName'] as String? ?? '',
+        phone: j['phone'] as String?,
+        points: (j['points'] as int?) ?? 0,
+      );
+}
+
 /// Mirrors com.khoga.catalog.dto.CategoryResponse (subset).
 class Category {
   final String id;

@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../api/api_client.dart';
 import '../api/checkout_api.dart';
@@ -61,8 +64,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
     super.dispose();
   }
 
-  CheckoutRequestData _request({num? cashReceived}) =>
-      CheckoutRequestData(lines: _cart.lines, paymentMethod: _method, cashReceived: cashReceived);
+  CheckoutRequestData _request({num? cashReceived}) => CheckoutRequestData(
+        lines: _cart.lines,
+        paymentMethod: _method,
+        cashReceived: cashReceived,
+        customerId: _cart.customer?.id,
+        voucherCode: _cart.voucherCode,
+        redeemPoints: _cart.redeemPoints,
+      );
 
   Future<void> _loadPreview() async {
     setState(() {
@@ -280,6 +289,33 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
+  /// Renders the VietQR code the customer scans. The gateway may return either a
+  /// ready-made image (base64 `data:image` URL → shown directly) or the raw
+  /// EMVCo payload string (→ rendered into a scannable QR with qr_flutter).
+  Widget _qrWidget(String? content) {
+    if (content == null || content.isEmpty) {
+      return const Icon(Icons.qr_code_2, color: kBrown, size: 96);
+    }
+    if (content.startsWith('data:image')) {
+      final comma = content.indexOf(',');
+      if (comma != -1) {
+        try {
+          return Image.memory(base64Decode(content.substring(comma + 1)),
+              key: const Key('vietqr-image'), width: 220, height: 220, gaplessPlayback: true);
+        } catch (_) {
+          // malformed data URL — fall through to QR generation
+        }
+      }
+    }
+    return QrImageView(
+      key: const Key('vietqr-image'),
+      data: content,
+      version: QrVersions.auto,
+      size: 220,
+      backgroundColor: Colors.white,
+    );
+  }
+
   Widget _qrAwaiting(CheckoutResult r) {
     return Center(
       key: const Key('qr-awaiting'),
@@ -288,7 +324,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.qr_code_2, color: kBrown, size: 96),
+            _qrWidget(r.qrContent),
             const SizedBox(height: 12),
             Text(r.orderNumber, key: const Key('order-number'), style: const TextStyle(fontSize: 16, color: kMuted)),
             const SizedBox(height: 6),

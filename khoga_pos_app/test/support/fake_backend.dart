@@ -25,16 +25,23 @@ num _grossOf(List<dynamic> items) => items.fold<num>(0, (sum, it) {
       return sum + price * (m['quantity'] as num);
     });
 
-Map<String, dynamic> _breakdown(num gross) => {
-      'grossSubtotal': gross,
-      'voucherDiscount': 0,
-      'pointsRedeemed': 0,
-      'pointDiscount': 0,
-      'finalTaxableSubtotal': gross,
-      'taxAmount': (gross * 10 / 110).round(),
-      'netTotalPayable': gross,
-      'pointsEarned': (gross / 1000).floor(),
-    };
+/// Test voucher table: only GIAM10 is valid (10.000 off), mirroring a fixed-amount voucher.
+num _voucherDiscount(String? code) => code == 'GIAM10' ? 10000 : 0;
+
+Map<String, dynamic> _breakdown(num gross, {num voucherDiscount = 0, int pointsRedeemed = 0}) {
+  final pointDiscount = pointsRedeemed * 100; // valuePerPoint = 100
+  final net = (gross - voucherDiscount - pointDiscount).clamp(0, gross);
+  return {
+    'grossSubtotal': gross,
+    'voucherDiscount': voucherDiscount,
+    'pointsRedeemed': pointsRedeemed,
+    'pointDiscount': pointDiscount,
+    'finalTaxableSubtotal': net,
+    'taxAmount': (net * 10 / 110).round(),
+    'netTotalPayable': net,
+    'pointsEarned': (net / 1000).floor(),
+  };
+}
 
 Map<String, dynamic> _page(List<Map<String, dynamic>> content) => {
       'content': content,
@@ -359,6 +366,19 @@ MockClient authBackend({
       }
       return apiOk(_page(filtered));
     }
+    if (path.endsWith('/customers')) {
+      final search = (req.url.queryParameters['search'] ?? '').toLowerCase();
+      final all = [
+        {'id': 'cust-1', 'phone': '0900000001', 'fullName': 'Nguyễn Hội Viên', 'email': null, 'points': 500, 'isActive': true},
+        {'id': 'cust-2', 'phone': '0987654321', 'fullName': 'Trần Khách Quen', 'email': null, 'points': 120, 'isActive': true},
+      ];
+      final filtered = search.isEmpty
+          ? all
+          : all.where((c) =>
+              (c['fullName'] as String).toLowerCase().contains(search) ||
+              (c['phone'] as String).contains(search)).toList();
+      return apiOk(_page(filtered));
+    }
     if (path.endsWith('/categories')) {
       return apiOk(_page([
         {'id': 'c1', 'name': 'Cà phê'},
@@ -377,21 +397,31 @@ MockClient authBackend({
     }
     if (path.endsWith('/checkout/preview')) {
       final body = jsonDecode(req.body) as Map<String, dynamic>;
-      return apiOk(_breakdown(_grossOf(body['items'] as List)));
+      return apiOk(_breakdown(
+        _grossOf(body['items'] as List),
+        voucherDiscount: _voucherDiscount(body['voucherCode'] as String?),
+        pointsRedeemed: (body['redeemPoints'] as num?)?.toInt() ?? 0,
+      ));
     }
     if (path.endsWith('/checkout')) {
       final body = jsonDecode(req.body) as Map<String, dynamic>;
       final gross = _grossOf(body['items'] as List);
       final method = body['paymentMethod'] as String;
       final cash = (body['cashReceived'] as num?) ?? 0;
+      final breakdown = _breakdown(
+        gross,
+        voucherDiscount: _voucherDiscount(body['voucherCode'] as String?),
+        pointsRedeemed: (body['redeemPoints'] as num?)?.toInt() ?? 0,
+      );
+      final net = breakdown['netTotalPayable'] as num;
       return apiOk({
         'orderId': 'o1',
         'orderNumber': 'ORD-001',
         'status': 'PENDING',
         'paymentStatus': method == 'VIETQR' ? 'AWAITING_PAYMENT' : 'PAID',
         'paymentMethod': method,
-        'breakdown': _breakdown(gross),
-        'changeDue': method == 'CASH' ? (cash - gross) : 0,
+        'breakdown': breakdown,
+        'changeDue': method == 'CASH' ? (cash - net) : 0,
         'qrContent': method == 'VIETQR' ? 'vietqr://order/o1' : null,
         'qrReference': method == 'VIETQR' ? 'REF-1' : null,
       }, message: 'Tạo đơn thành công', status: 201);

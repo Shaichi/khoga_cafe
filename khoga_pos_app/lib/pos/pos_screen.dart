@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../api/api_client.dart';
+import '../api/customer_api.dart';
 import '../api/menu_api.dart';
 import '../api/models.dart';
 import '../auth/auth_controller.dart';
@@ -22,6 +23,7 @@ class PosScreen extends StatefulWidget {
 
 class _PosScreenState extends State<PosScreen> {
   late final MenuApi _menuApi;
+  late final CustomerApi _customerApi;
   final _searchCtrl = TextEditingController();
 
   List<Category> _categories = [];
@@ -35,6 +37,7 @@ class _PosScreenState extends State<PosScreen> {
   void initState() {
     super.initState();
     _menuApi = MenuApi(context.read<ApiClient>());
+    _customerApi = CustomerApi(context.read<ApiClient>());
     _load();
   }
 
@@ -206,15 +209,24 @@ class _PosScreenState extends State<PosScreen> {
           const Divider(),
           _totalRow('Tổng tiền hàng (Tạm tính)', '${formatVnd(cart.subtotal)} đ', key: const Key('cart-subtotal')),
           _totalRow('Tổng cộng cần trả (Net)', '${formatVnd(cart.subtotal)} đ', bold: true),
+          _appliedSection(cart),
           const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
-                child: OutlinedButton(onPressed: cart.isEmpty ? null : () {}, child: const Text('HỘI VIÊN')),
+                child: OutlinedButton(
+                  key: const Key('member-button'),
+                  onPressed: cart.isEmpty ? null : _openMemberSheet,
+                  child: Text(cart.customer == null ? 'HỘI VIÊN' : 'ĐỔI HV'),
+                ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: OutlinedButton(onPressed: cart.isEmpty ? null : () {}, child: const Text('KHUYẾN MÃI')),
+                child: OutlinedButton(
+                  key: const Key('voucher-button'),
+                  onPressed: cart.isEmpty ? null : _openVoucherDialog,
+                  child: Text(cart.voucherCode == null ? 'KHUYẾN MÃI' : 'ĐỔI MÃ'),
+                ),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -233,6 +245,174 @@ class _PosScreenState extends State<PosScreen> {
         ],
       ),
     );
+  }
+
+  /// Shows the attached member (with an optional points-to-redeem field) and the
+  /// applied voucher code, each removable. Hidden when nothing is applied.
+  Widget _appliedSection(CartController cart) {
+    final member = cart.customer;
+    final voucher = cart.voucherCode;
+    if (member == null && voucher == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (member != null)
+            Row(
+              key: const Key('member-chip'),
+              children: [
+                const Icon(Icons.card_membership, size: 18, color: kBrown),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text('${member.fullName} · ${formatVnd(member.points)}đ',
+                      style: const TextStyle(fontWeight: FontWeight.w600, color: kBrown)),
+                ),
+                if (member.points > 0)
+                  SizedBox(
+                    width: 96,
+                    child: TextField(
+                      key: const Key('redeem-points'),
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Đổi điểm', isDense: true),
+                      onChanged: (v) => cart.setRedeemPoints(int.tryParse(v.trim()) ?? 0),
+                    ),
+                  ),
+                IconButton(
+                  key: const Key('member-remove'),
+                  icon: const Icon(Icons.close, size: 18),
+                  onPressed: cart.clearCustomer,
+                ),
+              ],
+            ),
+          if (voucher != null)
+            Row(
+              key: const Key('voucher-chip'),
+              children: [
+                const Icon(Icons.local_offer, size: 18, color: kBrown),
+                const SizedBox(width: 6),
+                Expanded(child: Text('Mã: $voucher', style: const TextStyle(fontWeight: FontWeight.w600, color: kBrown))),
+                IconButton(
+                  key: const Key('voucher-remove'),
+                  icon: const Icon(Icons.close, size: 18),
+                  onPressed: cart.clearVoucher,
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// UC-48: look up a member by name/phone and attach them to the order.
+  Future<void> _openMemberSheet() async {
+    final cart = context.read<CartController>();
+    final picked = await showModalBottomSheet<CustomerLite>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        String query = '';
+        List<CustomerLite> results = [];
+        String? error;
+        bool loading = false;
+        return StatefulBuilder(
+          builder: (ctx, setSheet) {
+            Future<void> run(String q) async {
+              query = q;
+              if (q.trim().isEmpty) {
+                setSheet(() {
+                  results = [];
+                  error = null;
+                });
+                return;
+              }
+              setSheet(() => loading = true);
+              try {
+                final r = await _customerApi.search(q.trim());
+                setSheet(() {
+                  results = r;
+                  error = null;
+                });
+              } catch (e) {
+                setSheet(() => error = e is ApiException ? e.message : 'Không tìm được khách hàng');
+              } finally {
+                setSheet(() => loading = false);
+              }
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 16, right: 16, top: 16,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Tìm hội viên', style: TextStyle(fontWeight: FontWeight.bold, color: kBrown)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    key: const Key('member-search'),
+                    autofocus: true,
+                    decoration: const InputDecoration(hintText: 'Tên hoặc số điện thoại…', prefixIcon: Icon(Icons.search)),
+                    onChanged: run,
+                  ),
+                  const SizedBox(height: 8),
+                  if (loading) const Padding(padding: EdgeInsets.all(8), child: Text('Đang tìm…')),
+                  if (error != null) Text(error!, style: const TextStyle(color: kDanger)),
+                  if (!loading && error == null && query.trim().isNotEmpty && results.isEmpty)
+                    const Padding(padding: EdgeInsets.all(8), child: Text('Không tìm thấy hội viên')),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 260),
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        for (final c in results)
+                          ListTile(
+                            key: Key('member-result-${c.id}'),
+                            title: Text(c.fullName),
+                            subtitle: Text('${c.phone ?? '—'} · ${formatVnd(c.points)} điểm'),
+                            onTap: () => Navigator.of(ctx).pop(c),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+    if (picked != null) cart.attachCustomer(picked);
+  }
+
+  /// UC-48: enter a promo code to apply at checkout.
+  Future<void> _openVoucherDialog() async {
+    final cart = context.read<CartController>();
+    final ctrl = TextEditingController(text: cart.voucherCode ?? '');
+    final code = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Áp dụng khuyến mãi'),
+        content: TextField(
+          key: const Key('voucher-input'),
+          controller: ctrl,
+          autofocus: true,
+          textCapitalization: TextCapitalization.characters,
+          decoration: const InputDecoration(hintText: 'Nhập mã khuyến mãi'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Hủy')),
+          ElevatedButton(
+            key: const Key('voucher-apply'),
+            onPressed: () => Navigator.of(ctx).pop(ctrl.text),
+            child: const Text('Áp dụng'),
+          ),
+        ],
+      ),
+    );
+    if (code != null && code.trim().isNotEmpty) cart.applyVoucher(code);
   }
 
   Widget _cartLine(CartController cart, CartLine l) => Padding(

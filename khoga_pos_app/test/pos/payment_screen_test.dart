@@ -61,6 +61,56 @@ void main() {
     expect(find.byKey(const Key('order-number')), findsNothing);
   });
 
+  testWidgets('member + voucher + points reduce the previewed net total (BR-70)', (tester) async {
+    final client = ApiClient(client: authBackend(), baseUrl: 'http://test/api/v1')..setToken('jwt-1');
+    final cart = CartController()..add(MenuItem(id: 'm1', name: 'Espresso', price: 30000));
+    cart.attachCustomer(CustomerLite(id: 'cust-1', fullName: 'Hội Viên', points: 500));
+    cart.applyVoucher('GIAM10');   // -10.000
+    cart.setRedeemPoints(100);      // -10.000 (100 × 100)
+
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        Provider<ApiClient>.value(value: client),
+        ChangeNotifierProvider<CartController>.value(value: cart),
+      ],
+      child: const MaterialApp(home: PaymentScreen()),
+    ));
+    await tester.pumpAndSettle();
+
+    // 30.000 − 10.000 voucher − 10.000 points = 10.000 net.
+    expect(find.text('10.000 VND'), findsWidgets);
+  });
+
+  testWidgets('VietQR awaiting screen renders a scannable QR from qrContent', (tester) async {
+    final client = ApiClient(client: authBackend(), baseUrl: 'http://test/api/v1')..setToken('jwt-1');
+    final cart = CartController()..add(MenuItem(id: 'm1', name: 'Espresso', price: 30000));
+
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        Provider<ApiClient>.value(value: client),
+        ChangeNotifierProvider<CartController>.value(value: cart),
+      ],
+      child: const MaterialApp(home: PaymentScreen(pollInterval: Duration(milliseconds: 20))),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('method-VIETQR')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('confirm-payment')));
+    await tester.pump();
+    await tester.pump();
+
+    // Awaiting: the actual QR renders (not the placeholder icon).
+    expect(find.byKey(const Key('qr-awaiting')), findsOneWidget);
+    expect(find.byKey(const Key('vietqr-image')), findsOneWidget);
+
+    // Let the poll flip to PAID so no timer is left pending at teardown.
+    await tester.pump(const Duration(milliseconds: 25));
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const Key('qr-awaiting')), findsNothing);
+  });
+
   testWidgets('VietQR creates the order, shows the QR, then polls to a PAID success (38)',
       (tester) async {
     final client = ApiClient(client: authBackend(), baseUrl: 'http://test/api/v1')..setToken('jwt-1');
