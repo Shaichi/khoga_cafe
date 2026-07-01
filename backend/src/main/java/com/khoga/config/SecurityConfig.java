@@ -53,7 +53,11 @@ public class SecurityConfig {
                                 "/",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
-                                "/swagger-ui.html"
+                                "/swagger-ui.html",
+                                // Health/info probes for load balancers + Docker healthcheck.
+                                "/actuator/health",
+                                "/actuator/health/**",
+                                "/actuator/info"
                         ).permitAll()
                         // Only the truly anonymous auth flows are public. Authenticated auth
                         // operations (logout, change-password, force-password-change) and the

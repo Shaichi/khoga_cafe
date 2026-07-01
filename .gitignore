@@ -36,6 +36,11 @@ build/
 .jdk-21/
 jdk-21.zip
 
+### Secrets / local env (never commit real .env; .env.example is the template) ###
+.env
+.env.*
+!.env.example
+
 ### Node/React (khoga_web_admin) ###
 node_modules/
 .env.local

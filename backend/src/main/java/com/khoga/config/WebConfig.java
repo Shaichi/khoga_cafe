@@ -1,5 +1,6 @@
 package com.khoga.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.LocaleResolver;
@@ -12,10 +13,16 @@ import java.util.Locale;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
+
+    /** Allowed FE origins (comma-separated), externalised so production can set CORS_ALLOWED_ORIGINS. */
+    @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:8081}")
+    private String allowedOrigins;
+
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        String[] origins = allowedOrigins.split("\\s*,\\s*");
         registry.addMapping("/**")
-                .allowedOrigins("http://localhost:5173", "http://localhost:8081")
+                .allowedOrigins(origins)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowCredentials(true);
     }

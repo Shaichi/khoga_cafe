@@ -34,6 +34,10 @@ public class AuthController {
     private static final String TOKEN_COOKIE = "khoga_token";
     private static final Duration TOKEN_TTL = Duration.ofDays(7);
 
+    /** Secure flag for the session cookie — false for local HTTP dev, true behind HTTPS (prod). */
+    @org.springframework.beans.factory.annotation.Value("${app.cookie.secure:false}")
+    private boolean secureCookie;
+
     private final AuthService authService;
 
     public AuthController(AuthService authService) {
@@ -112,13 +116,13 @@ public class AuthController {
     }
 
     /**
-     * Builds the {@code Set-Cookie} value for the session token. {@code secure(false)} is for local
-     * HTTP dev only — flip to {@code true} behind HTTPS in production (P4 hardening).
+     * Builds the {@code Set-Cookie} value for the session token. The {@code Secure} flag is driven by
+     * {@code app.cookie.secure} — false for local HTTP dev, true behind HTTPS in production.
      */
-    private static String sessionCookie(String token, Duration maxAge) {
+    private String sessionCookie(String token, Duration maxAge) {
         return ResponseCookie.from(TOKEN_COOKIE, token)
                 .httpOnly(true)
-                .secure(false)
+                .secure(secureCookie)
                 .sameSite("Lax")
                 .path("/")
                 .maxAge(maxAge)

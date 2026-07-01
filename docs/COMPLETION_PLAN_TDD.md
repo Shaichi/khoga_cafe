@@ -172,6 +172,15 @@
 
 > **Kết luận:** phần P4 khả thi theo unit-TDD đã xong; còn lại là hạng mục hạ tầng (E2E/load), hoặc underspecified (VND rounding/timezone/i18n sweep) — chờ spec hoặc quyết định trước khi làm.
 
+### S6-deploy — P0 hạ tầng triển khai — ✅ **DONE 2026-07-02**
+- **Externalize secrets**: `application.properties` chuyển hết giá trị nhạy cảm sang `${ENV:default}` (DB/JWT/mail/VietQR/CORS/cookie); `.env.example` + `.env` đã gitignore.
+- **Prod profile**: `application-prod.properties` (thymeleaf cache, cookie Secure mặc định, tắt open-in-view/show-sql, chỉ expose health/info). Cookie Secure + CORS origins giờ đọc từ property (`AuthController`, `WebConfig`).
+- **Actuator**: thêm `spring-boot-starter-actuator`; `/actuator/health|info` permitAll trong `SecurityConfig` (cho LB + Docker healthcheck).
+- **Docker**: `backend/Dockerfile` (multi-stage maven→JRE, non-root), `khoga_web_admin/Dockerfile` (+`nginx.conf` SPA + proxy `/api`→backend), `docker-compose.yml` (sqlserver + db-init tạo DB + backend prod + web) + `.dockerignore` mỗi service + `DEPLOYMENT.md`. *(Chưa chạy `docker build` — máy dev không có Docker; file viết theo chuẩn.)*
+- **Web-admin ESLint**: sửa flat-config (đăng ký plugin dạng object) → `npm run lint` xanh (0 error), `npm run build` xanh.
+
+Còn lại (không chặn deploy đầu): Flyway migration, HTTPS/TLS ở reverse proxy, CI build/push image + chạy integration test, ký release Android.
+
 ---
 
 ## Thứ tự đề xuất
