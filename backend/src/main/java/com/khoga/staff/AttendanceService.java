@@ -51,17 +51,19 @@ public class AttendanceService {
     private final SystemConfigService config;
     private final AttendanceMetricsCalculator metricsCalculator;
     private final AuditLogService auditLogService;
+    private final PinAttemptGuard pinAttemptGuard;
 
     public AttendanceService(AttendanceLogRepository attendanceLogRepository,
                              StaffScheduleRepository scheduleRepository, UserRepository userRepository,
                              SystemConfigService config, AttendanceMetricsCalculator metricsCalculator,
-                             AuditLogService auditLogService) {
+                             AuditLogService auditLogService, PinAttemptGuard pinAttemptGuard) {
         this.attendanceLogRepository = attendanceLogRepository;
         this.scheduleRepository = scheduleRepository;
         this.userRepository = userRepository;
         this.config = config;
         this.metricsCalculator = metricsCalculator;
         this.auditLogService = auditLogService;
+        this.pinAttemptGuard = pinAttemptGuard;
     }
 
     /** UC-67 check-in (BR-53/BR-93). Photoless check-ins are queued for SM verification. */
@@ -221,16 +223,32 @@ public class AttendanceService {
 
     // ---- helpers ------------------------------------------------------------
 
+    /**
+     * BR-93: identify the employee by their branch-unique PIN. A wrong (no-match) PIN is charged to
+     * the terminal's failure streak ({@link PinAttemptGuard}); once the configured threshold is hit
+     * the whole terminal is locked for a cooldown, stopping PIN brute-forcing. A correct PIN clears
+     * the streak. A per-user {@code pinLockedUntil} lock is still honoured.
+     */
     private User resolveByPin(UUID storeId, String pin) {
+        if (pinAttemptGuard.isLocked(storeId)) {
+            throw AppException.of("err.067"); // BR-93 — terminal locked out
+        }
         LocalDateTime now = LocalDateTime.now();
         User employee = userRepository.findByStoreId(storeId).stream()
                 .filter(u -> Boolean.TRUE.equals(u.getIsActive()))
                 .filter(u -> pin.equals(u.getAttendancePin()))
                 .findFirst()
-                .orElseThrow(() -> AppException.of("err.066")); // BR-93 (PIN identifies the employee)
-        if (employee.getPinLockedUntil() != null && employee.getPinLockedUntil().isAfter(now)) {
-            throw AppException.of("err.067"); // BR-93 lockout
+                .orElse(null);
+        if (employee == null) {
+            int maxAttempts = config.getGlobalInt("ATTENDANCE_PIN_MAX_ATTEMPTS", 5);
+            int lockMinutes = config.getGlobalInt("ATTENDANCE_PIN_LOCK_MINUTES", 15);
+            pinAttemptGuard.recordFailure(storeId, maxAttempts, lockMinutes); // BR-93
+            throw AppException.of("err.066"); // PIN did not identify any employee
         }
+        if (employee.getPinLockedUntil() != null && employee.getPinLockedUntil().isAfter(now)) {
+            throw AppException.of("err.067"); // BR-93 per-user lockout
+        }
+        pinAttemptGuard.reset(storeId); // successful identify clears the terminal's failure streak
         return employee;
     }
 

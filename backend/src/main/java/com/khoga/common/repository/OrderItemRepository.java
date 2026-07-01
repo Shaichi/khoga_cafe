@@ -33,4 +33,18 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, UUID> {
                                                             @Param("from") LocalDateTime from,
                                                             @Param("to") LocalDateTime to,
                                                             Pageable pageable);
+
+    /**
+     * UC-76 per-menu-item sales aggregate (units + gross revenue) over COMPLETED orders in a window,
+     * optional branch scope (null = chain-wide). The COGS basis for the margin report (BR-66).
+     */
+    @Query("select new com.khoga.report.dto.SoldItemAggregate(oi.menuItem.id, oi.menuItem.name, "
+            + "coalesce(sum(oi.quantity), 0), coalesce(sum(oi.quantity * oi.unitPrice), 0)) from OrderItem oi "
+            + "where oi.order.status = com.khoga.common.model.enums.OrderStatus.COMPLETED "
+            + "and oi.order.createdAt >= :from and oi.order.createdAt < :to "
+            + "and (:storeId is null or oi.order.store.id = :storeId) "
+            + "group by oi.menuItem.id, oi.menuItem.name")
+    List<com.khoga.report.dto.SoldItemAggregate> soldAggregateByMenuItem(@Param("storeId") UUID storeId,
+                                                                         @Param("from") LocalDateTime from,
+                                                                         @Param("to") LocalDateTime to);
 }

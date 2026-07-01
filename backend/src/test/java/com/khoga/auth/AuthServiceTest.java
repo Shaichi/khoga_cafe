@@ -311,24 +311,101 @@ class AuthServiceTest {
     }
 
     @Test
-    void loginMfa_validOtp_issuesToken() {
+    void loginMfa_validOtp_issuesTokenAndResetsFailures() {
         User u = hqUser("Secret@123");
-        when(otpStore.verify("mfa-1", "654321")).thenReturn(OtpStore.Result.OK);
-        when(otpStore.consume("mfa-1")).thenReturn(u.getId());
+        u.setFailedAttempts(2);   // accumulated during the MFA phase
+        when(otpStore.userIdFor("mfa-1")).thenReturn(u.getId());
         when(userRepository.findById(u.getId())).thenReturn(Optional.of(u));
+        when(otpStore.verify("mfa-1", "654321")).thenReturn(OtpStore.Result.OK);
         when(tokenProvider.generateToken(any(), any(), any(), anyInt())).thenReturn("hq-token");
 
         LoginResponse response = authService.loginMfa(new com.khoga.auth.dto.MfaLoginRequest("mfa-1", "654321"));
 
         assertEquals("hq-token", response.token());
+        assertEquals(0, u.getFailedAttempts());
+        assertNull(u.getLockExpiryAt());
         assertNotNull(u.getLastLoginAt());
+        verify(otpStore).consume("mfa-1");
     }
 
     @Test
-    void loginMfa_wrongOtp_throws() {
+    void loginMfa_unknownChallenge_throws() {
+        when(otpStore.userIdFor("mfa-x")).thenReturn(null);
+
+        assertThrows(AppException.class, () ->
+                authService.loginMfa(new com.khoga.auth.dto.MfaLoginRequest("mfa-x", "000000")));
+    }
+
+    @Test
+    void loginMfa_wrongOtp_chargesFailureToAccountAndThrows() {
+        User u = hqUser("Secret@123");
+        u.setFailedAttempts(0);
+        when(otpStore.userIdFor("mfa-1")).thenReturn(u.getId());
+        when(userRepository.findById(u.getId())).thenReturn(Optional.of(u));
         when(otpStore.verify("mfa-1", "000000")).thenReturn(OtpStore.Result.INVALID);
 
         assertThrows(AppException.class, () ->
                 authService.loginMfa(new com.khoga.auth.dto.MfaLoginRequest("mfa-1", "000000")));
+
+        assertEquals(1, u.getFailedAttempts());                 // BR-17: MFA miss counts against the account
+        verify(otpStore, org.mockito.Mockito.never()).consume("mfa-1");
+    }
+
+    @Test
+    void loginMfa_exhaustedChallenge_locksAccount() {
+        User u = hqUser("Secret@123");
+        u.setFailedAttempts(0);
+        when(otpStore.userIdFor("mfa-1")).thenReturn(u.getId());
+        when(userRepository.findById(u.getId())).thenReturn(Optional.of(u));
+        when(otpStore.verify("mfa-1", "000000")).thenReturn(OtpStore.Result.LOCKED);
+
+        assertThrows(AppException.class, () ->
+                authService.loginMfa(new com.khoga.auth.dto.MfaLoginRequest("mfa-1", "000000")));
+
+        assertNotNull(u.getLockExpiryAt());                     // BR-17: 3 wrong OTPs lock the account
+        assertTrue(u.getLockExpiryAt().isAfter(LocalDateTime.now()));
+    }
+
+    @Test
+    void loginMfa_fifthConsecutiveFailure_locksAccount() {
+        User u = hqUser("Secret@123");
+        u.setFailedAttempts(4);
+        when(otpStore.userIdFor("mfa-1")).thenReturn(u.getId());
+        when(userRepository.findById(u.getId())).thenReturn(Optional.of(u));
+        when(otpStore.verify("mfa-1", "000000")).thenReturn(OtpStore.Result.INVALID);
+
+        assertThrows(AppException.class, () ->
+                authService.loginMfa(new com.khoga.auth.dto.MfaLoginRequest("mfa-1", "000000")));
+
+        assertEquals(5, u.getFailedAttempts());
+        assertNotNull(u.getLockExpiryAt());
+    }
+
+    @Test
+    void loginMfa_lockedAccount_isRejectedWithoutVerifyingOtp() {
+        User u = hqUser("Secret@123");
+        u.setLockExpiryAt(LocalDateTime.now().plusMinutes(10));
+        when(otpStore.userIdFor("mfa-1")).thenReturn(u.getId());
+        when(userRepository.findById(u.getId())).thenReturn(Optional.of(u));
+
+        assertThrows(AppException.class, () ->
+                authService.loginMfa(new com.khoga.auth.dto.MfaLoginRequest("mfa-1", "654321")));
+
+        verify(otpStore, org.mockito.Mockito.never()).verify(any(), any());
+    }
+
+    @Test
+    void login_hqCorrectPassword_keepsFailedAttemptsForMfaPhase() {
+        User u = hqUser("Secret@123");
+        u.setFailedAttempts(2);
+        when(userRepository.findByUsername("ceo")).thenReturn(Optional.of(u));
+        when(systemConfig.getGlobalBoolean(eq("HQ_MFA_REQUIRED"), org.mockito.ArgumentMatchers.anyBoolean()))
+                .thenReturn(true);
+        when(otpStore.issue(any(), eq(u.getId()))).thenReturn("654321");
+
+        LoginResponse response = authService.login(new LoginRequest("ceo", "Secret@123"));
+
+        assertEquals(LoginResponse.MFA_REQUIRED, response.status());
+        assertEquals(2, u.getFailedAttempts());   // NOT reset until the OTP clears
     }
 }

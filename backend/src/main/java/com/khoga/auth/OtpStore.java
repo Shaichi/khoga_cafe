@@ -73,4 +73,9 @@ public class OtpStore {
         otpRepository.deleteById(key);
         return e.getUserId();
     }
+
+    /** Owner of a challenge without consuming it — lets the MFA flow charge a failure to the account (BR-17). */
+    public UUID userIdFor(String key) {
+        return otpRepository.findById(key).map(OtpEntity::getUserId).orElse(null);
+    }
 }

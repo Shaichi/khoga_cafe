@@ -1,15 +1,13 @@
 package com.khoga.report;
 
-import com.khoga.common.model.MenuItem;
-import com.khoga.common.model.OptionTopping;
 import com.khoga.common.model.enums.TransactionType;
-import com.khoga.common.repository.MenuItemRepository;
-import com.khoga.common.repository.OptionToppingRepository;
+import com.khoga.common.repository.OrderItemRepository;
 import com.khoga.common.repository.StockTransactionRepository;
 import com.khoga.inventory.CogsCalculator;
 import com.khoga.report.dto.CogsReport;
-import com.khoga.report.dto.MarginRow;
+import com.khoga.report.dto.ItemMarginRow;
 import com.khoga.report.dto.ShrinkageRow;
+import com.khoga.report.dto.SoldItemAggregate;
 import com.khoga.report.dto.StockUsageAccum;
 import org.springframework.stereotype.Service;
 
@@ -24,9 +22,11 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * UC-76 COGS / margin & ingredient-shrinkage report (BR-66). Margin per item reuses the standard-cost
- * {@link CogsCalculator}; shrinkage folds branch stock movements into theoretical (recipe deductions +
- * phantom usage) vs audited (physical-count adjustments) consumption, valued at standard cost.
+ * UC-76 COGS / margin & ingredient-shrinkage report (BR-66). Revenue, COGS and margin are computed
+ * over goods actually sold — COMPLETED order items in the [from, to] window — with COGS =
+ * soldQuantity × standard unit cost ({@link CogsCalculator}); {@code items} is the per-menu-item
+ * breakdown. Shrinkage folds branch stock movements into theoretical (recipe deductions + phantom
+ * usage) vs audited (physical-count adjustments) consumption, valued at standard cost.
  */
 @Service
 public class CogsReportService {
@@ -34,19 +34,16 @@ public class CogsReportService {
     /** Flag a material when its loss exceeds this fraction of theoretical consumption. */
     private static final BigDecimal FLAG_RATIO = new BigDecimal("0.05");
 
-    private final MenuItemRepository menuItemRepository;
-    private final OptionToppingRepository optionToppingRepository;
+    private final OrderItemRepository orderItemRepository;
     private final StockTransactionRepository stockTransactionRepository;
     private final CogsCalculator cogsCalculator;
     private final ReportScopeResolver scope;
 
-    public CogsReportService(MenuItemRepository menuItemRepository,
-                             OptionToppingRepository optionToppingRepository,
+    public CogsReportService(OrderItemRepository orderItemRepository,
                              StockTransactionRepository stockTransactionRepository,
                              CogsCalculator cogsCalculator,
                              ReportScopeResolver scope) {
-        this.menuItemRepository = menuItemRepository;
-        this.optionToppingRepository = optionToppingRepository;
+        this.orderItemRepository = orderItemRepository;
         this.stockTransactionRepository = stockTransactionRepository;
         this.cogsCalculator = cogsCalculator;
         this.scope = scope;
@@ -54,30 +51,34 @@ public class CogsReportService {
 
     public CogsReport cogsReport(LocalDate from, LocalDate to, UUID branchFilter, UUID actorId) {
         UUID branch = scope.resolveBranch(actorId, branchFilter);
-        List<MarginRow> margins = margins();
-        List<ShrinkageRow> shrinkage = shrinkage(branch, from.atStartOfDay(), to.plusDays(1).atStartOfDay());
-        return new CogsReport(from, to, branch, margins, shrinkage);
+        LocalDateTime fromDt = from.atStartOfDay();
+        LocalDateTime toDt = to.plusDays(1).atStartOfDay();
+
+        List<ItemMarginRow> items = new ArrayList<>();
+        BigDecimal totalRevenue = BigDecimal.ZERO;
+        BigDecimal totalCogs = BigDecimal.ZERO;
+        for (SoldItemAggregate a : orderItemRepository.soldAggregateByMenuItem(branch, fromDt, toDt)) {
+            BigDecimal revenue = nz(a.revenue());
+            BigDecimal cogs = cogsCalculator.menuItemUnitCost(a.menuItemId())
+                    .multiply(BigDecimal.valueOf(a.quantity()));
+            BigDecimal margin = revenue.subtract(cogs);
+            items.add(new ItemMarginRow(a.menuItemId(), a.name(), a.quantity(), revenue, cogs,
+                    margin, percent(margin, revenue)));
+            totalRevenue = totalRevenue.add(revenue);
+            totalCogs = totalCogs.add(cogs);
+        }
+
+        BigDecimal totalMargin = totalRevenue.subtract(totalCogs);
+        List<ShrinkageRow> shrinkage = shrinkage(branch, fromDt, toDt);
+        return new CogsReport(from, to, branch, totalRevenue, totalCogs,
+                percent(totalMargin, totalRevenue), items, shrinkage);
     }
 
-    private List<MarginRow> margins() {
-        List<MarginRow> rows = new ArrayList<>();
-        for (MenuItem mi : menuItemRepository.findByIsDeletedFalseOrderByName()) {
-            rows.add(marginRow(mi.getId(), mi.getName(), "ITEM", nz(mi.getPrice()),
-                    cogsCalculator.menuItemUnitCost(mi.getId())));
-        }
-        for (OptionTopping t : optionToppingRepository.findByIsActiveTrueOrderByName()) {
-            rows.add(marginRow(t.getId(), t.getName(), "TOPPING", nz(t.getPrice()),
-                    cogsCalculator.toppingUnitCost(t.getId())));
-        }
-        return rows;
-    }
-
-    private MarginRow marginRow(UUID id, String name, String kind, BigDecimal price, BigDecimal cogs) {
-        BigDecimal margin = price.subtract(cogs);
-        BigDecimal marginPercent = price.signum() == 0
+    /** margin as a whole-percent of revenue; 0 when there is no revenue. */
+    private static BigDecimal percent(BigDecimal part, BigDecimal whole) {
+        return whole.signum() == 0
                 ? BigDecimal.ZERO
-                : margin.multiply(BigDecimal.valueOf(100)).divide(price, 0, RoundingMode.HALF_UP);
-        return new MarginRow(id, name, kind, price, cogs, margin, marginPercent);
+                : part.multiply(BigDecimal.valueOf(100)).divide(whole, 0, RoundingMode.HALF_UP);
     }
 
     private List<ShrinkageRow> shrinkage(UUID branch, LocalDateTime fromDt, LocalDateTime toDt) {

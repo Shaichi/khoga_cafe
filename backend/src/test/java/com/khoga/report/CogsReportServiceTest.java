@@ -1,15 +1,13 @@
 package com.khoga.report;
 
-import com.khoga.common.model.MenuItem;
-import com.khoga.common.model.OptionTopping;
 import com.khoga.common.model.enums.TransactionType;
-import com.khoga.common.repository.MenuItemRepository;
-import com.khoga.common.repository.OptionToppingRepository;
+import com.khoga.common.repository.OrderItemRepository;
 import com.khoga.common.repository.StockTransactionRepository;
 import com.khoga.inventory.CogsCalculator;
 import com.khoga.report.dto.CogsReport;
-import com.khoga.report.dto.MarginRow;
+import com.khoga.report.dto.ItemMarginRow;
 import com.khoga.report.dto.ShrinkageRow;
+import com.khoga.report.dto.SoldItemAggregate;
 import com.khoga.report.dto.StockUsageAccum;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,12 +27,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 
-/** UC-76: per-item standard-cost margin (BR-66) + ingredient shrinkage (theoretical vs audited). */
+/** UC-76: period COGS/margin over sold order items (BR-66) + ingredient shrinkage (theoretical vs audited). */
 @ExtendWith(MockitoExtension.class)
 class CogsReportServiceTest {
 
-    @Mock private MenuItemRepository menuItemRepository;
-    @Mock private OptionToppingRepository optionToppingRepository;
+    @Mock private OrderItemRepository orderItemRepository;
     @Mock private StockTransactionRepository stockTransactionRepository;
     @Mock private CogsCalculator cogsCalculator;
     @Mock private ReportScopeResolver scope;
@@ -45,29 +42,47 @@ class CogsReportServiceTest {
     private final LocalDate to = LocalDate.of(2026, 5, 31);
 
     @Test
-    void margin_isPriceMinusStandardCogs() {
+    void margin_isRevenueMinusPeriodCogs_overSoldItems() {
+        UUID espresso = UUID.randomUUID();
         when(scope.resolveBranch(actor, null)).thenReturn(null);
-        MenuItem espresso = new MenuItem();
-        espresso.setId(UUID.randomUUID());
-        espresso.setName("Espresso");
-        espresso.setPrice(new BigDecimal("30000"));
-        when(menuItemRepository.findByIsDeletedFalseOrderByName()).thenReturn(List.of(espresso));
-        when(optionToppingRepository.findByIsActiveTrueOrderByName()).thenReturn(List.of());
-        when(cogsCalculator.menuItemUnitCost(espresso.getId())).thenReturn(new BigDecimal("8500"));
+        when(orderItemRepository.soldAggregateByMenuItem(isNull(), any(), any())).thenReturn(List.of(
+                // 10 sold, revenue 300,000 (actual line prices)
+                new SoldItemAggregate(espresso, "Espresso", 10L, new BigDecimal("300000"))));
+        when(cogsCalculator.menuItemUnitCost(espresso)).thenReturn(new BigDecimal("8500"));
         when(stockTransactionRepository.usageByMaterialAndType(isNull(), any(), any())).thenReturn(List.of());
 
         CogsReport r = service.cogsReport(from, to, null, actor);
 
-        MarginRow row = r.margins().get(0);
-        assertEquals(new BigDecimal("21500"), row.margin());
-        assertEquals(new BigDecimal("72"), row.marginPercent()); // 21500/30000 = 71.6% → 72
+        ItemMarginRow row = r.items().get(0);
+        assertEquals(10L, row.soldQuantity());
+        assertEquals(0, new BigDecimal("85000").compareTo(row.cogs()));        // 10 × 8500
+        assertEquals(0, new BigDecimal("300000").compareTo(row.revenue()));
+        assertEquals(0, new BigDecimal("215000").compareTo(row.margin()));
+        assertEquals(0, new BigDecimal("72").compareTo(row.marginPercent()));  // 215000/300000 → 72
+        // period totals mirror the single sold item
+        assertEquals(0, new BigDecimal("300000").compareTo(r.totalRevenue()));
+        assertEquals(0, new BigDecimal("85000").compareTo(r.totalCogs()));
+        assertEquals(0, new BigDecimal("72").compareTo(r.totalMarginPercent()));
+    }
+
+    @Test
+    void noSales_yieldZeroTotalsAndEmptyItems() {
+        when(scope.resolveBranch(actor, null)).thenReturn(null);
+        when(orderItemRepository.soldAggregateByMenuItem(isNull(), any(), any())).thenReturn(List.of());
+        when(stockTransactionRepository.usageByMaterialAndType(isNull(), any(), any())).thenReturn(List.of());
+
+        CogsReport r = service.cogsReport(from, to, null, actor);
+
+        assertTrue(r.items().isEmpty());
+        assertEquals(0, BigDecimal.ZERO.compareTo(r.totalRevenue()));
+        assertEquals(0, BigDecimal.ZERO.compareTo(r.totalCogs()));
+        assertEquals(0, BigDecimal.ZERO.compareTo(r.totalMarginPercent()));
     }
 
     @Test
     void shrinkage_foldsTheoreticalVsAuditAndFlagsAbnormal() {
         when(scope.resolveBranch(actor, null)).thenReturn(null);
-        when(menuItemRepository.findByIsDeletedFalseOrderByName()).thenReturn(List.of());
-        when(optionToppingRepository.findByIsActiveTrueOrderByName()).thenReturn(List.of());
+        when(orderItemRepository.soldAggregateByMenuItem(isNull(), any(), any())).thenReturn(List.of());
 
         UUID milk = UUID.randomUUID();
         UUID beans = UUID.randomUUID();

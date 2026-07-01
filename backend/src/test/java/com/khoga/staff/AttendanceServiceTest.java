@@ -32,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -48,6 +49,7 @@ class AttendanceServiceTest {
     @Mock private SystemConfigService config;
     @Mock private AttendanceMetricsCalculator metricsCalculator;
     @Mock private AuditLogService auditLogService;
+    @Mock private PinAttemptGuard pinAttemptGuard;
     @InjectMocks private AttendanceService service;
 
     private final UUID actorId = UUID.randomUUID();
@@ -103,6 +105,29 @@ class AttendanceServiceTest {
         assertEquals(AttendanceStatus.PRESENT, res.status());
         assertTrue(res.photoCaptured());
         assertFalse(res.pendingVerification());
+        verify(pinAttemptGuard).reset(storeId);   // BR-93 — a valid PIN clears the terminal streak
+    }
+
+    @Test
+    void checkIn_terminalLocked_throws_BR93() {
+        when(userRepository.findById(actorId)).thenReturn(Optional.of(operator()));
+        when(pinAttemptGuard.isLocked(storeId)).thenReturn(true);
+
+        assertThrows(AppException.class, () -> service.checkIn(new CheckInRequest("1234", "p"), actorId));
+
+        verify(attendanceLogRepository, never()).save(any());
+        verify(userRepository, never()).findByStoreId(any());   // rejected before identify
+    }
+
+    @Test
+    void checkIn_wrongPin_recordsTerminalFailure_BR93() {
+        when(userRepository.findById(actorId)).thenReturn(Optional.of(operator()));
+        when(userRepository.findByStoreId(storeId)).thenReturn(List.of(employee("9999")));
+
+        assertThrows(AppException.class, () -> service.checkIn(new CheckInRequest("0000", "p"), actorId));
+
+        verify(pinAttemptGuard).recordFailure(eq(storeId), anyInt(), anyInt());
+        verify(attendanceLogRepository, never()).save(any());
     }
 
     @Test

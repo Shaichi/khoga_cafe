@@ -125,6 +125,8 @@ public class DataSeeder implements CommandLineRunner {
         defaults.put("CANCEL_REFUND_ALERT_THRESHOLD", "5");     // BR-79 / BR-94 (% of orders)
         defaults.put("LOYALTY_EXPIRY_MONTHS", "12");            // BR-35 (P4 — point inactivity expiry)
         defaults.put("CUSTOMER_PII_RETENTION_MONTHS", "24");    // BR-72 (P4 — PDPA anonymisation)
+        defaults.put("ATTENDANCE_PIN_MAX_ATTEMPTS", "5");       // BR-93 (terminal PIN lockout threshold)
+        defaults.put("ATTENDANCE_PIN_LOCK_MINUTES", "15");      // BR-93 (terminal PIN lockout cooldown)
 
         Set<String> existing = systemConfigRepository.findAll().stream()
                 .filter(c -> GLOBAL_SCOPE.equals(c.getScope()))

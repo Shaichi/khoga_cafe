@@ -66,8 +66,14 @@ public class AuthService {
         this.systemConfig = systemConfig;
     }
 
-    /** UC-01: verify credentials, enforce active/lock state (BR-10/BR-11), and issue a JWT. */
-    @Transactional
+    /**
+     * UC-01: verify credentials, enforce active/lock state (BR-10/BR-11), and issue a JWT.
+     *
+     * <p>{@code noRollbackFor = AppException} is essential: on a wrong password we increment the
+     * failure counter and then throw — without this the rejecting exception would roll the increment
+     * back and BR-11 lockout could never accumulate across requests.
+     */
+    @Transactional(noRollbackFor = AppException.class)
     public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByUsername(request.username())
                 .orElseThrow(() -> AppException.of("err.001"));
@@ -84,33 +90,50 @@ public class AuthService {
             throw AppException.of("err.003");
         }
 
-        // Password is correct — clear the lockout counter.
-        user.setFailedAttempts(0);
-        user.setLockExpiryAt(null);
-
-        // BR-83: HQ roles need a second factor before a token is issued.
+        // BR-83: HQ roles need a second factor before a token is issued. The failure counter is NOT
+        // cleared yet — it keeps accumulating through the MFA step so wrong OTPs count toward BR-11.
         if (needsMfa(user)) {
             userRepository.save(user);
             return startMfaChallenge(user);
         }
 
-        user.setLastLoginAt(LocalDateTime.now());
-        userRepository.save(user);
-        return issueToken(user);
+        return completeLogin(user);
     }
 
     /**
-     * BR-83 step 2 — complete an HQ login by submitting the emailed OTP. On success issues the JWT;
-     * a wrong/expired/locked challenge throws (the OTP enforces the 3-try limit, BR-17).
+     * BR-83 step 2 — complete an HQ login by submitting the emailed OTP. A wrong/expired/locked OTP is
+     * charged to the <em>account</em> lockout counter (BR-17): each miss counts like a wrong password,
+     * and an exhausted challenge (3 wrong tries) locks the account outright. {@code noRollbackFor}
+     * keeps that increment from being undone by the rejecting exception.
      */
-    @Transactional
+    @Transactional(noRollbackFor = AppException.class)
     public LoginResponse loginMfa(MfaLoginRequest request) {
-        requireOtp(otpStore.verify(request.mfaToken(), request.otp()));
-        UUID userId = otpStore.consume(request.mfaToken());
+        UUID userId = otpStore.userIdFor(request.mfaToken());
         if (userId == null) {
-            throw AppException.of("err.004");
+            throw AppException.of("err.004");   // no such challenge (never issued or already consumed)
         }
         User user = load(userId);
+        if (isLocked(user)) {
+            throw AppException.of("err.002");   // BR-11/BR-17 — account already locked
+        }
+        clearExpiredLock(user);
+
+        OtpStore.Result result = otpStore.verify(request.mfaToken(), request.otp());
+        if (result != OtpStore.Result.OK) {
+            registerFailure(user);                              // BR-11: charge the miss to the account
+            if (result == OtpStore.Result.LOCKED) {
+                lockAccount(user);                             // BR-17: 3 wrong OTPs → lock the account
+            }
+            requireOtp(result);                                // throws MSG10 / err.010
+        }
+        otpStore.consume(request.mfaToken());
+        return completeLogin(user);
+    }
+
+    /** Fully-authenticated path shared by password-only and MFA logins: clear lockout, stamp login, issue JWT. */
+    private LoginResponse completeLogin(User user) {
+        user.setFailedAttempts(0);
+        user.setLockExpiryAt(null);
         user.setLastLoginAt(LocalDateTime.now());
         userRepository.save(user);
         return issueToken(user);
@@ -214,8 +237,15 @@ public class AuthService {
         int attempts = (user.getFailedAttempts() == null ? 0 : user.getFailedAttempts()) + 1;
         user.setFailedAttempts(attempts);
         if (attempts >= MAX_FAILED_ATTEMPTS) {
-            user.setLockExpiryAt(LocalDateTime.now().plusMinutes(LOCK_MINUTES));
+            lockAccount(user);
+            return;
         }
+        userRepository.save(user);
+    }
+
+    /** BR-11/BR-17: start a fresh {@link #LOCK_MINUTES} lockout window and persist it. */
+    private void lockAccount(User user) {
+        user.setLockExpiryAt(LocalDateTime.now().plusMinutes(LOCK_MINUTES));
         userRepository.save(user);
     }
 

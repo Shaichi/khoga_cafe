@@ -74,6 +74,43 @@ class UserServiceTest {
     }
 
     @Test
+    void create_skipsRetiredEmployeeNumber() {
+        when(userRepository.count()).thenReturn(2L);                          // candidate starts at EMP-003
+        when(userRepository.existsByEmployeeId("EMP-003")).thenReturn(true);  // retired/taken → skip
+        when(userRepository.existsByEmployeeId("EMP-004")).thenReturn(false);
+        when(userRepository.existsByUsername(anyString())).thenReturn(false);
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        UserResponse response = service.create(
+                new CreateUserRequest("Phạm Dũng", Role.CASHIER, "dung@khoga.com", "0900000003", null),
+                UUID.randomUUID());
+
+        assertEquals("EMP-004", response.employeeId());   // no reuse of the retired EMP-003
+    }
+
+    @Test
+    void create_duplicateEmail_throws() {
+        when(userRepository.existsByEmail("dup@khoga.com")).thenReturn(true);
+
+        assertThrows(AppException.class, () -> service.create(
+                new CreateUserRequest("Trần Bình", Role.CASHIER, "dup@khoga.com", "0900000001", null),
+                UUID.randomUUID()));
+
+        verify(userRepository, org.mockito.Mockito.never()).save(any(User.class));
+    }
+
+    @Test
+    void create_duplicatePhone_throws() {
+        when(userRepository.existsByPhone("0900000002")).thenReturn(true);
+
+        assertThrows(AppException.class, () -> service.create(
+                new CreateUserRequest("Lê Cường", Role.CASHIER, "cuong@khoga.com", "0900000002", null),
+                UUID.randomUUID()));
+
+        verify(userRepository, org.mockito.Mockito.never()).save(any(User.class));
+    }
+
+    @Test
     void update_selfRoleChange_throws() {
         UUID actor = UUID.randomUUID();
         User self = userOf(actor, Role.CASHIER);

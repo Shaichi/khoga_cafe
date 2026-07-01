@@ -20,6 +20,16 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     boolean existsByUsername(String username);
 
+    boolean existsByEmployeeId(String employeeId);
+
+    boolean existsByEmail(String email);
+
+    boolean existsByEmailAndIdNot(String email, UUID id);
+
+    boolean existsByPhone(String phone);
+
+    boolean existsByPhoneAndIdNot(String phone, UUID id);
+
     List<User> findByStoreId(UUID storeId);
 
     long countByRoleAndIsActiveTrue(Role role);

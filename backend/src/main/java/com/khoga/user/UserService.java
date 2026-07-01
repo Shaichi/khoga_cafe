@@ -75,7 +75,8 @@ public class UserService {
 
     @Transactional
     public UserResponse create(CreateUserRequest request, UUID actorId) {
-        long sequence = userRepository.count() + 1;
+        requireUniqueContact(request.email(), request.phone(), null);
+        long sequence = nextEmployeeSequence();
         String employeeId = String.format("EMP-%03d", sequence);
         String username = allocateUsername(request.fullName(), sequence);
         String temporaryPassword = TemporaryPasswordGenerator.generate();
@@ -108,6 +109,7 @@ public class UserService {
         if (id.equals(actorId) && request.role() != null && request.role() != user.getRole()) {
             throw AppException.of("err.081");   // BR-82
         }
+        requireUniqueContact(request.email(), request.phone(), id);
         if (request.role() != null) {
             user.setRole(request.role());
         }
@@ -146,6 +148,42 @@ public class UserService {
         auditLogService.record(ActionType.UPDATE, "User", null,
                 "{\"id\":\"" + id + "\",\"active\":" + active + "}", actorId);
         return UserMapper.toResponse(user);
+    }
+
+    /**
+     * Email and phone must be unique across accounts. {@code excludeId} skips the row being updated so a
+     * user keeping their own contact details is not flagged against themselves.
+     */
+    private void requireUniqueContact(String email, String phone, UUID excludeId) {
+        if (StringUtils.hasText(email)) {
+            boolean taken = excludeId == null
+                    ? userRepository.existsByEmail(email)
+                    : userRepository.existsByEmailAndIdNot(email, excludeId);
+            if (taken) {
+                throw AppException.of("err.090");
+            }
+        }
+        if (StringUtils.hasText(phone)) {
+            boolean taken = excludeId == null
+                    ? userRepository.existsByPhone(phone)
+                    : userRepository.existsByPhoneAndIdNot(phone, excludeId);
+            if (taken) {
+                throw AppException.of("err.091");
+            }
+        }
+    }
+
+    /**
+     * BR-57: the next free employee number. Seeds the candidate from the row count then skips any
+     * {@code EMP-xxx} already taken, so a retired/deleted number is never re-issued as a duplicate
+     * (the old {@code count()+1} silently collided once any account had been removed).
+     */
+    private long nextEmployeeSequence() {
+        long candidate = userRepository.count() + 1;
+        while (userRepository.existsByEmployeeId(String.format("EMP-%03d", candidate))) {
+            candidate++;
+        }
+        return candidate;
     }
 
     private String allocateUsername(String fullName, long sequence) {
