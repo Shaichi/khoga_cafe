@@ -11,8 +11,10 @@ import com.khoga.common.repository.OrderRepository;
 import com.khoga.common.repository.ShiftSessionRepository;
 import com.khoga.report.dto.BestSellerRow;
 import com.khoga.report.dto.BranchRevenueRow;
+import com.khoga.report.dto.DailyRevenueRow;
 import com.khoga.report.dto.HqConsolidatedReport;
 import com.khoga.report.dto.PaymentBreakdown;
+import com.khoga.report.dto.RevenueTrendPoint;
 import com.khoga.report.dto.StoreRevenueReport;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -21,7 +23,11 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.time.temporal.IsoFields;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -52,8 +58,12 @@ public class RevenueReportService {
         this.scope = scope;
     }
 
-    /** UC-28: chain-wide totals + per-branch comparison + best sellers (HQ role; optional branch filter). */
-    public HqConsolidatedReport hqConsolidated(LocalDate from, LocalDate to, UUID branchFilter, UUID actorId) {
+    /**
+     * UC-28/29: chain-wide totals + per-branch comparison + best sellers + a revenue trend time-series
+     * bucketed by {@code granularity} (daily/weekly/monthly). HQ role; optional branch filter.
+     */
+    public HqConsolidatedReport hqConsolidated(LocalDate from, LocalDate to, UUID branchFilter,
+                                               String granularity, UUID actorId) {
         UUID branch = scope.resolveBranch(actorId, branchFilter); // null = all branches
         LocalDateTime fromDt = from.atStartOfDay();
         LocalDateTime toDt = to.plusDays(1).atStartOfDay();
@@ -82,13 +92,50 @@ public class RevenueReportService {
         List<BestSellerRow> bestSellers =
                 orderItemRepository.soldByMenuItem(branch, fromDt, toDt, PageRequest.of(0, BEST_SELLER_LIMIT));
 
+        List<RevenueTrendPoint> trend =
+                buildTrend(orderRepository.revenueByDay(branch, fromDt, toDt), granularity);
+
         return new HqConsolidatedReport(from, to, totalRevenue, totalOrders, avg,
-                cancellationRate, branches, bestSellers);
+                cancellationRate, branches, bestSellers, trend);
     }
 
-    /** UC-40: one branch's net revenue, completed orders, drawer discrepancy + tender breakdown. */
-    public StoreRevenueReport storeRevenue(LocalDate from, LocalDate to, UUID actorId) {
-        UUID storeId = scope.requireOwnBranch(actorId);
+    /**
+     * Buckets per-day revenue rows into the requested granularity. Rows arrive ordered by day, so a
+     * {@link LinkedHashMap} keeps the output chronological. Unknown/blank granularity falls back to daily.
+     */
+    private List<RevenueTrendPoint> buildTrend(List<DailyRevenueRow> daily, String granularity) {
+        String g = granularity == null ? "daily" : granularity.trim().toLowerCase();
+        Map<String, RevenueTrendPoint> buckets = new LinkedHashMap<>();
+        for (DailyRevenueRow row : daily) {
+            LocalDate date = LocalDate.of(row.year(), row.month(), row.day());
+            String period = switch (g) {
+                case "weekly" -> String.format("%d-W%02d",
+                        date.get(IsoFields.WEEK_BASED_YEAR), date.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR));
+                case "monthly" -> YearMonth.from(date).toString();
+                default -> date.toString();
+            };
+            RevenueTrendPoint prev = buckets.get(period);
+            BigDecimal revenue = row.revenue() == null ? BigDecimal.ZERO : row.revenue();
+            if (prev == null) {
+                buckets.put(period, new RevenueTrendPoint(period, revenue, row.orders()));
+            } else {
+                buckets.put(period, new RevenueTrendPoint(period,
+                        prev.revenue().add(revenue), prev.orders() + row.orders()));
+            }
+        }
+        return List.copyOf(buckets.values());
+    }
+
+    /**
+     * UC-40/41: one branch's net revenue, completed orders, drawer discrepancy + tender breakdown.
+     * A Store Manager is locked to their own branch; an HQ role may target any branch via
+     * {@code requestedStoreId}, which is then required (a store report needs a concrete branch, BR-44).
+     */
+    public StoreRevenueReport storeRevenue(LocalDate from, LocalDate to, UUID requestedStoreId, UUID actorId) {
+        UUID storeId = scope.resolveBranch(actorId, requestedStoreId);
+        if (storeId == null) {
+            throw com.khoga.common.exception.AppException.of("err.092");
+        }
         LocalDateTime fromDt = from.atStartOfDay();
         LocalDateTime toDt = to.plusDays(1).atStartOfDay();
 

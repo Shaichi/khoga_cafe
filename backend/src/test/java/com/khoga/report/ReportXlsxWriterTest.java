@@ -35,7 +35,8 @@ class ReportXlsxWriterTest {
                 LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 31),
                 new BigDecimal("1000000"), 120L, new BigDecimal("8333.33"), new BigDecimal("2.5"),
                 List.of(new BranchRevenueRow(UUID.randomUUID(), "Chi nhánh Quận 1", new BigDecimal("600000"), 70L)),
-                List.of(new BestSellerRow(UUID.randomUUID(), "Cà phê sữa", 200L)));
+                List.of(new BestSellerRow(UUID.randomUUID(), "Cà phê sữa", 200L)),
+                List.of());
 
         byte[] bytes = writer.hqConsolidated(r);
 

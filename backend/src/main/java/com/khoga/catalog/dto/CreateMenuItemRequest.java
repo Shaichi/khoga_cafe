@@ -16,5 +16,6 @@ public record CreateMenuItemRequest(
         UUID categoryId,
         String barcode,
         String imageUrl,
-        @Valid List<RecipeLineRequest> recipe) {
+        @Valid List<RecipeLineRequest> recipe,
+        @Valid List<MenuItemVariantRequest> variants) {
 }

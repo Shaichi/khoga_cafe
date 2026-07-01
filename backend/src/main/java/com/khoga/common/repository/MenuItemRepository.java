@@ -28,6 +28,13 @@ public interface MenuItemRepository extends JpaRepository<MenuItem, UUID> {
 
     Page<MenuItem> findByIsDeletedFalseAndNameContainingIgnoreCase(String name, Pageable pageable);
 
+    // UC-15 store-context list: chain-inactive items are hidden entirely (BR-25), so only active rows.
+    Page<MenuItem> findByIsDeletedFalseAndIsActiveTrue(Pageable pageable);
+
+    Page<MenuItem> findByIsDeletedFalseAndIsActiveTrueAndCategoryId(UUID categoryId, Pageable pageable);
+
+    Page<MenuItem> findByIsDeletedFalseAndIsActiveTrueAndNameContainingIgnoreCase(String name, Pageable pageable);
+
     /** UC-76 margin report — every live menu item (price vs standard-cost COGS). */
     List<MenuItem> findByIsDeletedFalseOrderByName();
 }

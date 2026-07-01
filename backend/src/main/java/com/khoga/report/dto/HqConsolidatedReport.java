@@ -6,7 +6,8 @@ import java.util.List;
 
 /**
  * UC-28 consolidated chain dashboard: totals + per-branch comparison + best sellers + cancellation
- * rate over a date range (COMPLETED orders only).
+ * rate over a date range (COMPLETED orders only), plus a revenue {@code trend} time-series bucketed
+ * by the requested granularity (daily/weekly/monthly, UC-29).
  */
 public record HqConsolidatedReport(
         LocalDate from,
@@ -16,5 +17,6 @@ public record HqConsolidatedReport(
         BigDecimal avgTransactionValue,
         BigDecimal cancellationRate,
         List<BranchRevenueRow> branches,
-        List<BestSellerRow> bestSellers) {
+        List<BestSellerRow> bestSellers,
+        List<RevenueTrendPoint> trend) {
 }

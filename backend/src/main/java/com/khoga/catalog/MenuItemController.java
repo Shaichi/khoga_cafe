@@ -46,10 +46,11 @@ public class MenuItemController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<MenuItemResponse>>> list(
+            @RequestParam(required = false) UUID storeId,
             @RequestParam(required = false) UUID categoryId,
             @RequestParam(required = false) String search,
             @PageableDefault(size = 20) Pageable pageable) {
-        Page<MenuItemResponse> page = menuItemService.list(categoryId, search, pageable);
+        Page<MenuItemResponse> page = menuItemService.list(storeId, categoryId, search, pageable);
         return ResponseEntity.ok(ApiResponse.success(PageResponse.of(page)));
     }
 

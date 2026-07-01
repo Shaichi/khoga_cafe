@@ -82,9 +82,10 @@ public class ReportController {
     public ResponseEntity<ApiResponse<HqConsolidatedReport>> hqConsolidated(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            @RequestParam(required = false) UUID branchId) {
+            @RequestParam(required = false) UUID branchId,
+            @RequestParam(required = false, defaultValue = "daily") String granularity) {
         return ResponseEntity.ok(ApiResponse.success(
-                revenueReportService.hqConsolidated(from, to, branchId, SecurityUtil.currentUserId())));
+                revenueReportService.hqConsolidated(from, to, branchId, granularity, SecurityUtil.currentUserId())));
     }
 
     @GetMapping("/hq-consolidated/export")
@@ -93,30 +94,34 @@ public class ReportController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false) UUID branchId,
+            @RequestParam(required = false, defaultValue = "daily") String granularity,
             @RequestParam(required = false, defaultValue = "csv") String format) {
-        HqConsolidatedReport r = revenueReportService.hqConsolidated(from, to, branchId, SecurityUtil.currentUserId());
+        HqConsolidatedReport r =
+                revenueReportService.hqConsolidated(from, to, branchId, granularity, SecurityUtil.currentUserId());
         return render(format, "hq-consolidated",
                 () -> csv.hqConsolidated(r), () -> xlsx.hqConsolidated(r), () -> pdf.hqConsolidated(r));
     }
 
-    // ----- UC-40/41 store revenue -----
+    // ----- UC-40/41 store revenue (Store Manager: own branch; HQ: any branch via storeId, BR-44) -----
 
     @GetMapping("/store-revenue")
-    @PreAuthorize("hasRole('STORE_MANAGER')")
+    @PreAuthorize(HQ_OR_SM)
     public ResponseEntity<ApiResponse<StoreRevenueReport>> storeRevenue(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) UUID storeId) {
         return ResponseEntity.ok(ApiResponse.success(
-                revenueReportService.storeRevenue(from, to, SecurityUtil.currentUserId())));
+                revenueReportService.storeRevenue(from, to, storeId, SecurityUtil.currentUserId())));
     }
 
     @GetMapping("/store-revenue/export")
-    @PreAuthorize("hasRole('STORE_MANAGER')")
+    @PreAuthorize(HQ_OR_SM)
     public ResponseEntity<byte[]> storeRevenueExport(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) UUID storeId,
             @RequestParam(required = false, defaultValue = "csv") String format) {
-        StoreRevenueReport r = revenueReportService.storeRevenue(from, to, SecurityUtil.currentUserId());
+        StoreRevenueReport r = revenueReportService.storeRevenue(from, to, storeId, SecurityUtil.currentUserId());
         return render(format, "store-revenue",
                 () -> csv.storeRevenue(r), () -> xlsx.storeRevenue(r), () -> pdf.storeRevenue(r));
     }

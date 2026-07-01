@@ -51,7 +51,13 @@
 
 ---
 
-## SPRINT 2 — Feature còn thiếu vs RDS
+## SPRINT 2 — Feature còn thiếu vs RDS — ✅ **DONE 2026-07-01** (224 test xanh, gồm integration)
+
+> Đã hoàn thành S2.1–S2.4 theo TDD. Ghi chú bổ sung khi làm:
+> - **S2.1** thêm DTO `MenuItemVariantRequest(sizeName, sku, price)` + field `variants` trong `CreateMenuItemRequest`; `MenuItemService.createVariants()` sinh mỗi variant là 1 `MenuItem` con (`parentItemId`=base.id), kế thừa name/category/description/imageUrl của base, tự sinh abbreviation riêng (name+size).
+> - **S2.2** `list(storeId, categoryId, search, pageable)`: khi có `storeId` → dùng query `…IsActiveTrue…` (ẩn món inactive toàn chuỗi) + join `BranchMenuStatus.findByStoreIdAndMenuItemIdIn`; thêm cờ `available` vào `MenuItemResponse` (mặc định available nếu chưa có row branch). Không storeId → available = isActive.
+> - **S2.3** `storeRevenue` đổi sang `resolveBranch` + nhận `storeId` optional, nới `@PreAuthorize` sang HQ_OR_SM; HQ không chọn branch → `err.092`. HQ consolidated thêm `granularity` (daily/weekly/monthly) → `trend` time-series; JPQL `OrderRepository.revenueByDay` dùng `year()/month()/day()` (tránh `cast`, đã pass context-boot integration), grouping theo kỳ ở Java (`IsoFields` cho weekly).
+> - **S2.4** thêm `menuItemIds` vào `ToppingRequest`; `addTopping` tạo **1** `OptionTopping` rồi map tới (path item ∪ menuItemIds) — không nhân bản topping (BR-29).
 
 ### S2.1 — Size variant Menu (S/M/L qua `parentItemId`) · Catalog *(HIGH)*
 - **RED** `MenuItemServiceTest`: tạo item kèm list variant → sinh N item con `parentItemId=base`, mỗi con có `sizeName`/`sku`/`price`.

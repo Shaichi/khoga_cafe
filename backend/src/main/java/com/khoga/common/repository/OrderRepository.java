@@ -59,6 +59,19 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     List<com.khoga.report.dto.BranchRevenueRow> revenueByBranch(@Param("from") LocalDateTime from,
                                                                 @Param("to") LocalDateTime to);
 
+    /** UC-28/29 per-day revenue + order count (COMPLETED orders) for the consolidated trend (null branch = chain). */
+    @Query("select new com.khoga.report.dto.DailyRevenueRow("
+            + "year(o.createdAt), month(o.createdAt), day(o.createdAt), "
+            + "coalesce(sum(o.total), 0), count(o)) from Order o "
+            + "where o.status = com.khoga.common.model.enums.OrderStatus.COMPLETED "
+            + "and o.createdAt >= :from and o.createdAt < :to "
+            + "and (:storeId is null or o.store.id = :storeId) "
+            + "group by year(o.createdAt), month(o.createdAt), day(o.createdAt) "
+            + "order by year(o.createdAt), month(o.createdAt), day(o.createdAt)")
+    List<com.khoga.report.dto.DailyRevenueRow> revenueByDay(@Param("storeId") UUID storeId,
+                                                            @Param("from") LocalDateTime from,
+                                                            @Param("to") LocalDateTime to);
+
     /** UC-40 one branch's net revenue (sum total of COMPLETED orders) in a window. */
     @Query("select coalesce(sum(o.total), 0) from Order o where o.store.id = :storeId "
             + "and o.status = com.khoga.common.model.enums.OrderStatus.COMPLETED "

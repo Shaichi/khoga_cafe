@@ -25,13 +25,20 @@ final class CatalogMapper {
         return new CategoryResponse(c.getId(), c.getName(), c.getDescription(), Boolean.TRUE.equals(c.getIsActive()));
     }
 
+    /** No store context (catalog browsing): availability collapses to the chain-level active flag. */
     static MenuItemResponse toMenuItemResponse(MenuItem m) {
+        return toMenuItemResponse(m, Boolean.TRUE.equals(m.getIsActive()));
+    }
+
+    /** Store context (UC-15/BR-25): {@code available} is chain-active AND branch-available. */
+    static MenuItemResponse toMenuItemResponse(MenuItem m, boolean available) {
         return new MenuItemResponse(
                 m.getId(), m.getName(), m.getPrice(),
                 m.getCategory() != null ? m.getCategory().getId() : null,
                 m.getCategory() != null ? m.getCategory().getName() : null,
                 m.getAbbreviation(), m.getBarcode(),
-                Boolean.TRUE.equals(m.getIsActive()), Boolean.TRUE.equals(m.getIsDeleted()));
+                Boolean.TRUE.equals(m.getIsActive()), Boolean.TRUE.equals(m.getIsDeleted()),
+                available);
     }
 
     static MenuItemDetailResponse toMenuItemDetail(MenuItem m, List<RecipeLineResponse> recipe,

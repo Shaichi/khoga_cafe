@@ -10,10 +10,13 @@ import com.khoga.common.model.enums.ShiftStatus;
 import com.khoga.common.repository.OrderItemRepository;
 import com.khoga.common.repository.OrderRefundRepository;
 import com.khoga.common.repository.OrderRepository;
+import com.khoga.common.exception.AppException;
 import com.khoga.common.repository.ShiftSessionRepository;
 import com.khoga.report.dto.BestSellerRow;
 import com.khoga.report.dto.BranchRevenueRow;
+import com.khoga.report.dto.DailyRevenueRow;
 import com.khoga.report.dto.HqConsolidatedReport;
+import com.khoga.report.dto.RevenueTrendPoint;
 import com.khoga.report.dto.StoreRevenueReport;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,6 +31,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -60,8 +64,9 @@ class RevenueReportServiceTest {
         when(orderRepository.countCreatedInRange(isNull(), any(), any())).thenReturn(12500L);
         when(orderItemRepository.soldByMenuItem(isNull(), any(), any(), any()))
                 .thenReturn(List.of(new BestSellerRow(UUID.randomUUID(), "Peach Tea", 3400)));
+        when(orderRepository.revenueByDay(isNull(), any(), any())).thenReturn(List.of());
 
-        HqConsolidatedReport r = service.hqConsolidated(from, to, null, actor);
+        HqConsolidatedReport r = service.hqConsolidated(from, to, null, "daily", actor);
 
         assertEquals(new BigDecimal("450000000"), r.totalRevenue());
         assertEquals(12500L, r.totalOrders());
@@ -80,8 +85,9 @@ class RevenueReportServiceTest {
         when(orderRepository.countByStatusInRange(eq(OrderStatus.CANCELLED), eq(storeA), any(), any())).thenReturn(0L);
         when(orderRepository.countCreatedInRange(eq(storeA), any(), any())).thenReturn(6800L);
         when(orderItemRepository.soldByMenuItem(eq(storeA), any(), any(), any())).thenReturn(List.of());
+        when(orderRepository.revenueByDay(eq(storeA), any(), any())).thenReturn(List.of());
 
-        HqConsolidatedReport r = service.hqConsolidated(from, to, storeA, actor);
+        HqConsolidatedReport r = service.hqConsolidated(from, to, storeA, "daily", actor);
 
         assertEquals(1, r.branches().size());
         assertEquals(new BigDecimal("250000000"), r.totalRevenue());
@@ -89,8 +95,52 @@ class RevenueReportServiceTest {
     }
 
     @Test
+    void hqConsolidated_bucketsRevenueTrendByGranularity() {
+        when(scope.resolveBranch(actor, null)).thenReturn(null);
+        when(orderRepository.revenueByBranch(any(), any())).thenReturn(List.of());
+        when(orderRepository.countByStatusInRange(eq(OrderStatus.CANCELLED), isNull(), any(), any())).thenReturn(0L);
+        when(orderRepository.countCreatedInRange(isNull(), any(), any())).thenReturn(0L);
+        when(orderItemRepository.soldByMenuItem(isNull(), any(), any(), any())).thenReturn(List.of());
+        // Two days in ISO week 18 (2026-04-27..05-03) + one day in week 19 → weekly buckets 2 rows.
+        when(orderRepository.revenueByDay(isNull(), any(), any())).thenReturn(List.of(
+                new DailyRevenueRow(2026, 4, 27, new BigDecimal("100"), 2),
+                new DailyRevenueRow(2026, 4, 28, new BigDecimal("50"), 1),
+                new DailyRevenueRow(2026, 5, 4, new BigDecimal("30"), 3)));
+
+        HqConsolidatedReport weekly = service.hqConsolidated(from, to, null, "weekly", actor);
+
+        List<RevenueTrendPoint> trend = weekly.trend();
+        assertEquals(2, trend.size());
+        assertEquals("2026-W18", trend.get(0).period());
+        assertEquals(new BigDecimal("150"), trend.get(0).revenue());   // 100 + 50 merged into one week
+        assertEquals(3L, trend.get(0).orders());
+        assertEquals("2026-W19", trend.get(1).period());
+        assertEquals(new BigDecimal("30"), trend.get(1).revenue());
+    }
+
+    @Test
+    void storeRevenue_hqCanTargetSpecificBranch() {
+        when(scope.resolveBranch(actor, storeB)).thenReturn(storeB);
+        when(orderRepository.sumStoreRevenue(eq(storeB), any(), any())).thenReturn(new BigDecimal("1000000"));
+        when(orderRepository.countStoreCompleted(eq(storeB), any(), any())).thenReturn(10L);
+        when(orderRepository.sumStoreSalesByMethod(eq(storeB), any(), any(), any())).thenReturn(BigDecimal.ZERO);
+        when(shiftSessionRepository.findByStoreIdAndStartTimeBetween(eq(storeB), any(), any())).thenReturn(List.of());
+
+        StoreRevenueReport r = service.storeRevenue(from, to, storeB, actor);
+
+        assertEquals(storeB, r.storeId());
+        assertEquals(new BigDecimal("1000000"), r.netRevenue());
+    }
+
+    @Test
+    void storeRevenue_requiresConcreteBranch() {
+        when(scope.resolveBranch(actor, null)).thenReturn(null); // HQ with no branch selected
+        assertThrows(AppException.class, () -> service.storeRevenue(from, to, null, actor));
+    }
+
+    @Test
     void storeRevenue_computesTenderAndDrawerDiscrepancy() {
-        when(scope.requireOwnBranch(actor)).thenReturn(storeA);
+        when(scope.resolveBranch(actor, null)).thenReturn(storeA);
         when(orderRepository.sumStoreRevenue(eq(storeA), any(), any())).thenReturn(new BigDecimal("55660000"));
         when(orderRepository.countStoreCompleted(eq(storeA), any(), any())).thenReturn(412L);
         when(orderRepository.sumStoreSalesByMethod(eq(storeA), eq(PaymentMethod.CASH), any(), any()))
@@ -115,7 +165,7 @@ class RevenueReportServiceTest {
         when(orderRefundRepository.sumByShiftAndType(closed.getId(), RefundType.REFUND))
                 .thenReturn(new BigDecimal("10000"));
 
-        StoreRevenueReport r = service.storeRevenue(from, to, actor);
+        StoreRevenueReport r = service.storeRevenue(from, to, null, actor);
 
         assertEquals(new BigDecimal("55660000"), r.netRevenue());
         assertEquals(412L, r.completedOrders());

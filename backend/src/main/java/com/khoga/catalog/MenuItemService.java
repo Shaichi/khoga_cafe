@@ -5,6 +5,7 @@ import com.khoga.catalog.dto.AvailabilityRequest;
 import com.khoga.catalog.dto.CreateMenuItemRequest;
 import com.khoga.catalog.dto.MenuItemDetailResponse;
 import com.khoga.catalog.dto.MenuItemResponse;
+import com.khoga.catalog.dto.MenuItemVariantRequest;
 import com.khoga.catalog.dto.RecipeLineResponse;
 import com.khoga.catalog.dto.ToppingRequest;
 import com.khoga.catalog.dto.ToppingResponse;
@@ -35,7 +36,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -75,17 +79,55 @@ public class MenuItemService {
         this.auditLogService = auditLogService;
     }
 
+    /**
+     * UC-15 list. Without a store context (HQ catalog browsing) every non-deleted item is returned and
+     * {@code available} collapses to the chain-level active flag. With a {@code storeId} (POS/cashier)
+     * the list is the two-level availability model (BR-25): chain-inactive items are hidden entirely,
+     * and a chain-active item the branch has toggled off is returned as "Out of Stock"
+     * ({@code available=false}). Items with no branch row default to available.
+     */
     @Transactional(readOnly = true)
-    public Page<MenuItemResponse> list(UUID categoryId, String search, Pageable pageable) {
-        Page<MenuItem> page;
-        if (StringUtils.hasText(search)) {
-            page = menuItemRepository.findByIsDeletedFalseAndNameContainingIgnoreCase(search, pageable);
-        } else if (categoryId != null) {
-            page = menuItemRepository.findByIsDeletedFalseAndCategoryId(categoryId, pageable);
-        } else {
-            page = menuItemRepository.findByIsDeletedFalse(pageable);
+    public Page<MenuItemResponse> list(UUID storeId, UUID categoryId, String search, Pageable pageable) {
+        if (storeId == null) {
+            return listChainWide(categoryId, search, pageable).map(CatalogMapper::toMenuItemResponse);
         }
-        return page.map(CatalogMapper::toMenuItemResponse);
+        Page<MenuItem> page = listActiveForStore(categoryId, search, pageable);
+        Map<UUID, Boolean> branchAvailability = branchAvailability(storeId, page.getContent());
+        return page.map(m -> CatalogMapper.toMenuItemResponse(
+                m, branchAvailability.getOrDefault(m.getId(), Boolean.TRUE)));
+    }
+
+    private Page<MenuItem> listChainWide(UUID categoryId, String search, Pageable pageable) {
+        if (StringUtils.hasText(search)) {
+            return menuItemRepository.findByIsDeletedFalseAndNameContainingIgnoreCase(search, pageable);
+        } else if (categoryId != null) {
+            return menuItemRepository.findByIsDeletedFalseAndCategoryId(categoryId, pageable);
+        }
+        return menuItemRepository.findByIsDeletedFalse(pageable);
+    }
+
+    private Page<MenuItem> listActiveForStore(UUID categoryId, String search, Pageable pageable) {
+        if (StringUtils.hasText(search)) {
+            return menuItemRepository.findByIsDeletedFalseAndIsActiveTrueAndNameContainingIgnoreCase(search, pageable);
+        } else if (categoryId != null) {
+            return menuItemRepository.findByIsDeletedFalseAndIsActiveTrueAndCategoryId(categoryId, pageable);
+        }
+        return menuItemRepository.findByIsDeletedFalseAndIsActiveTrue(pageable);
+    }
+
+    /** Branch availability keyed by menu-item id for the given page (missing row → not present). */
+    private Map<UUID, Boolean> branchAvailability(UUID storeId, List<MenuItem> items) {
+        if (items.isEmpty()) {
+            return Map.of();
+        }
+        List<UUID> ids = items.stream().map(MenuItem::getId).toList();
+        Map<UUID, Boolean> map = new HashMap<>();
+        for (BranchMenuStatus s : branchMenuStatusRepository.findByStoreIdAndMenuItemIdIn(storeId, ids)) {
+            if (s.getMenuItem() != null) {
+                map.put(s.getMenuItem().getId(), Boolean.TRUE.equals(s.getIsAvailable()));
+            }
+        }
+        return map;
     }
 
     @Transactional(readOnly = true)
@@ -111,6 +153,7 @@ public class MenuItemService {
         item.setAbbreviation(abbreviationGenerator.unique(request.name(), menuItemRepository::existsByAbbreviation));
         MenuItem saved = menuItemRepository.save(item);
         recipeService.replaceForMenuItem(saved, request.recipe());            // BR-73
+        createVariants(saved, request.variants());                            // UC-18 size variants
         auditLogService.record(ActionType.CREATE, "MenuItem", null,
                 "{\"name\":\"" + request.name() + "\"}", actorId);
         return get(saved.getId());
@@ -182,19 +225,33 @@ public class MenuItemService {
         return toppingResponses(menuItemId);
     }
 
+    /**
+     * UC-71 / BR-29: create a single global topping and link it to one or more menu items. The topping
+     * is stored once in {@code OptionTopping}; each link is a row in {@code menu_item_topping_mappings},
+     * so the topping is reused across the path item plus any {@code request.menuItemIds()} — never cloned.
+     */
     @Transactional
     public ToppingResponse addTopping(UUID menuItemId, ToppingRequest request, UUID actorId) {
-        MenuItem item = load(menuItemId);
-        // Toppings are global; the link to a menu item is a row in menu_item_topping_mappings.
+        // Target items = the path item ∪ any extra menuItemIds, de-duplicated, order preserved.
+        LinkedHashSet<UUID> targetIds = new LinkedHashSet<>();
+        targetIds.add(menuItemId);
+        if (request.menuItemIds() != null) {
+            targetIds.addAll(request.menuItemIds());
+        }
+        List<MenuItem> targets = targetIds.stream().map(this::load).toList();
+
+        // Toppings are global; the link to each menu item is a row in menu_item_topping_mappings.
         OptionTopping topping = new OptionTopping();
         topping.setName(request.name());
         topping.setPrice(request.price());
         topping.setIsActive(true);
         OptionTopping saved = optionToppingRepository.save(topping);
-        MenuItemToppingMapping mapping = new MenuItemToppingMapping();
-        mapping.setMenuItem(item);
-        mapping.setOptionTopping(saved);
-        menuItemToppingMappingRepository.save(mapping);
+        for (MenuItem item : targets) {
+            MenuItemToppingMapping mapping = new MenuItemToppingMapping();
+            mapping.setMenuItem(item);
+            mapping.setOptionTopping(saved);
+            menuItemToppingMappingRepository.save(mapping);
+        }
         recipeService.replaceForTopping(saved, request.recipe());               // BR-65
         auditLogService.record(ActionType.CREATE, "OptionTopping", null,
                 "{\"name\":\"" + request.name() + "\"}", actorId);
@@ -218,6 +275,33 @@ public class MenuItemService {
         topping.setIsActive(false);
         optionToppingRepository.save(topping);
         auditLogService.record(ActionType.DELETE, "OptionTopping", null, "{\"id\":\"" + toppingId + "\"}", actorId);
+    }
+
+    /**
+     * UC-18: for each requested size (S/M/L) create a child {@link MenuItem} pointing at {@code base}
+     * via {@code parentItemId}, with its own size name, SKU and selling price. The child inherits the
+     * base item's name, category and description; it is active and not deleted like the base.
+     */
+    private void createVariants(MenuItem base, List<MenuItemVariantRequest> variants) {
+        if (variants == null || variants.isEmpty()) {
+            return;
+        }
+        for (MenuItemVariantRequest v : variants) {
+            MenuItem variant = new MenuItem();
+            variant.setParentItemId(base.getId());
+            variant.setSizeName(v.sizeName());
+            variant.setSku(v.sku());
+            variant.setPrice(v.price());
+            variant.setName(base.getName());
+            variant.setDescription(base.getDescription());
+            variant.setImageUrl(base.getImageUrl());
+            variant.setCategory(base.getCategory());
+            variant.setIsActive(true);
+            variant.setIsDeleted(false);
+            variant.setAbbreviation(abbreviationGenerator.unique(
+                    base.getName() + " " + v.sizeName(), menuItemRepository::existsByAbbreviation));
+            menuItemRepository.save(variant);
+        }
     }
 
     private boolean priceChanged(BigDecimal oldPrice, BigDecimal newPrice) {
