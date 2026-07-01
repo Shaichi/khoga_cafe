@@ -174,7 +174,12 @@ public class OrderService {
         return new StatusUpdateResponse(order.getId(), order.getOrderNumber(), order.getStatus(), warnings);
     }
 
-    /** UC-55 — cancel a PENDING order (BR-05); logs an immutable cancellation (BR-51) and rolls back any applied voucher/loyalty (BR-08). */
+    /**
+     * UC-55 — cancel a PENDING order (BR-05). RDS §3.8.2: the cancel flow **logs the OrderCancellation
+     * only** — there is deliberately no stock/loyalty/voucher rollback and no REFUNDED transition, because
+     * stock is deducted only at PREPARING (BR-07) and cancellation is restricted to PENDING, before any
+     * deduction. A post-payment reversal is the separate SM-authorized refund flow (UC-75).
+     */
     @Transactional
     public OrderSummaryResponse cancelOrder(UUID orderId, CancelOrderRequest req, UUID actorId) {
         User actor = currentUser(actorId);
@@ -188,13 +193,8 @@ public class OrderService {
         cancellation.setCashier(actor);
         cancellation.setReason(req.reason());
         cancellation.setNotes(req.notes());
-        orderCancellationRepository.save(cancellation); // immutable record, BR-51
+        orderCancellationRepository.save(cancellation); // immutable record, BR-51 — log only (RDS §3.8.2)
 
-        if (order.getPaymentStatus() == PaymentStatus.PAID) {
-            reversePoints(order);          // BR-08 loyalty rollback
-            restoreVoucherUsage(order);    // BR-08 voucher limit restored
-            order.setPaymentStatus(PaymentStatus.REFUNDED); // exclude from sales; cash returned
-        }
         order.setStatus(OrderStatus.CANCELLED);
         orderRepository.save(order);
 
@@ -360,15 +360,6 @@ public class OrderService {
         balance -= nz(order.getPointsEarned());   // claw back the accrual
         customer.setPoints(Math.max(balance, 0));
         customerRepository.save(customer);
-    }
-
-    private void restoreVoucherUsage(Order order) {
-        Voucher voucher = order.getVoucher();
-        if (voucher == null) {
-            return;
-        }
-        voucher.setTotalUsageCount(Math.max(nz(voucher.getTotalUsageCount()) - 1, 0));
-        voucherRepository.save(voucher);
     }
 
     private User authorizeStoreManager(UUID storeId, String pin) {

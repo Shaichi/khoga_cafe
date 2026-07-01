@@ -11,7 +11,7 @@ final class VoucherMapper {
 
     static VoucherResponse toResponse(Voucher v, VoucherStatus status) {
         return new VoucherResponse(
-                v.getId(), v.getCode(), v.getDiscountType(), v.getDiscountValue(),
+                v.getId(), v.getCode(), v.getDescription(), v.getDiscountType(), v.getDiscountValue(),
                 v.getMinOrderValue(), v.getStartDate(), v.getEndDate(), v.getMaxDiscountAmount(),
                 v.getUsageLimitPerCustomer(), v.getMaxTotalUses(), v.getTotalUsageCount(), status);
     }

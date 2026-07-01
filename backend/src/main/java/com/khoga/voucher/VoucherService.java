@@ -61,6 +61,7 @@ public class VoucherService {
 
         Voucher voucher = new Voucher();
         voucher.setCode(request.code());
+        voucher.setDescription(request.description());
         voucher.setDiscountType(request.discountType());
         voucher.setDiscountValue(request.discountValue());
         voucher.setMinOrderValue(request.minOrderValue());
@@ -83,6 +84,7 @@ public class VoucherService {
         validateDateRange(request.startDate(), request.endDate());
         validateDiscountShape(request.discountType(), request.discountValue(), request.maxDiscountAmount());
         String oldJson = voucherSnapshot(voucher);      // BR-68 before-image
+        voucher.setDescription(request.description());
         voucher.setDiscountType(request.discountType());
         voucher.setDiscountValue(request.discountValue());
         voucher.setMinOrderValue(request.minOrderValue());

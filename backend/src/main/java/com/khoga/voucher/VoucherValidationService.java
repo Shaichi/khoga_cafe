@@ -37,7 +37,13 @@ public class VoucherValidationService {
         Voucher voucher = voucherRepository.findByCode(code)
                 .orElseThrow(() -> AppException.of("MSG09"));           // invalid / not found
         if (statusEngine.status(voucher) != VoucherStatus.ACTIVE) {
-            throw AppException.of("MSG09");                              // expired / inactive
+            throw AppException.of("MSG09");                              // scheduled / expired / deactivated
+        }
+        // BR-52: usage exhaustion keeps the voucher ACTIVE but blocks further redemption (the cap is an
+        // explicit gate here, not a status change — see VoucherStatusEngine / RDS §3.4.3).
+        if (voucher.getMaxTotalUses() != null && voucher.getTotalUsageCount() != null
+                && voucher.getTotalUsageCount() >= voucher.getMaxTotalUses()) {
+            throw AppException.of("MSG09");
         }
         if (voucher.getMinOrderValue() != null && orderSubtotal.compareTo(voucher.getMinOrderValue()) < 0) {
             throw AppException.of("err.088");

@@ -41,7 +41,7 @@ class VoucherServiceTest {
     void create_percentageWithoutCap_throws() {
         when(voucherRepository.existsByCodeIgnoreCase("SAVE10")).thenReturn(false);
         CreateVoucherRequest request = new CreateVoucherRequest(
-                "SAVE10", DiscountType.PERCENTAGE, new BigDecimal("10"), null, null, null, null, null, null);
+                "SAVE10", DiscountType.PERCENTAGE, new BigDecimal("10"), null, null, null, null, null, null, null);
 
         assertThrows(AppException.class, () -> service().create(request, UUID.randomUUID()));
         verify(voucherRepository, never()).save(any());
@@ -51,7 +51,7 @@ class VoucherServiceTest {
     void create_duplicateCode_throws() {
         when(voucherRepository.existsByCodeIgnoreCase("SAVE10")).thenReturn(true);
         CreateVoucherRequest request = new CreateVoucherRequest(
-                "SAVE10", DiscountType.FIXED_AMOUNT, new BigDecimal("5000"), null, null, null, null, null, null);
+                "SAVE10", DiscountType.FIXED_AMOUNT, new BigDecimal("5000"), null, null, null, null, null, null, null);
 
         assertThrows(AppException.class, () -> service().create(request, UUID.randomUUID()));
         verify(voucherRepository, never()).save(any());
@@ -62,7 +62,7 @@ class VoucherServiceTest {
         when(voucherRepository.existsByCodeIgnoreCase("SAVE5K")).thenReturn(false);
         when(voucherRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         CreateVoucherRequest request = new CreateVoucherRequest(
-                "SAVE5K", DiscountType.FIXED_AMOUNT, new BigDecimal("5000"), null, null, null, null, null, null);
+                "SAVE5K", DiscountType.FIXED_AMOUNT, new BigDecimal("5000"), null, null, null, null, null, null, "Giảm 5k");
 
         service().create(request, UUID.randomUUID());
 
@@ -76,7 +76,7 @@ class VoucherServiceTest {
         LocalDateTime start = LocalDateTime.of(2026, 7, 10, 0, 0);
         LocalDateTime end = LocalDateTime.of(2026, 7, 1, 0, 0); // end before start
         CreateVoucherRequest request = new CreateVoucherRequest(
-                "V1", DiscountType.FIXED_AMOUNT, new BigDecimal("5000"), null, start, end, null, null, null);
+                "V1", DiscountType.FIXED_AMOUNT, new BigDecimal("5000"), null, start, end, null, null, null, null);
 
         assertThrows(AppException.class, () -> service().create(request, UUID.randomUUID()));
         verify(voucherRepository, never()).save(any());
@@ -103,7 +103,7 @@ class VoucherServiceTest {
     void create_percentageValueZero_throws() {
         when(voucherRepository.existsByCodeIgnoreCase("V2")).thenReturn(false);
         CreateVoucherRequest request = new CreateVoucherRequest(
-                "V2", DiscountType.PERCENTAGE, BigDecimal.ZERO, null, null, null, new BigDecimal("5000"), null, null);
+                "V2", DiscountType.PERCENTAGE, BigDecimal.ZERO, null, null, null, new BigDecimal("5000"), null, null, null);
 
         assertThrows(AppException.class, () -> service().create(request, UUID.randomUUID()));
         verify(voucherRepository, never()).save(any());

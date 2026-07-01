@@ -17,6 +17,7 @@ import com.khoga.common.repository.StaffScheduleRepository;
 import com.khoga.common.repository.StoreRepository;
 import com.khoga.common.repository.UserRepository;
 import com.khoga.config.SystemConfigService;
+import com.khoga.integration.EmailService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -53,10 +54,11 @@ class BranchServiceTest {
     @Mock private StaffScheduleRepository staffScheduleRepository;
     @Mock private SystemConfigService systemConfigService;
     @Mock private AuditLogService auditLogService;
+    @Mock private EmailService emailService;
 
     private BranchService service() {
         return new BranchService(storeRepository, userRepository, shiftSessionRepository,
-                orderRepository, staffScheduleRepository, systemConfigService, auditLogService);
+                orderRepository, staffScheduleRepository, systemConfigService, auditLogService, emailService);
     }
 
     private CreateBranchRequest validRequest() {
@@ -129,6 +131,8 @@ class BranchServiceTest {
         User branchUser = new User();
         branchUser.setId(UUID.randomUUID());
         branchUser.setIsActive(true);
+        branchUser.setTokenVersion(2);
+        branchUser.setEmail("staff@khoga.test");
         when(storeRepository.findById(id)).thenReturn(Optional.of(store));
         when(shiftSessionRepository.existsByStoreIdAndStatus(id, ShiftStatus.OPEN)).thenReturn(false);
         when(orderRepository.existsByStoreIdAndStatusIn(eq(id), any())).thenReturn(false);
@@ -138,6 +142,8 @@ class BranchServiceTest {
 
         assertFalse(branchUser.getIsActive());
         assertFalse(store.getIsActive());
+        assertEquals(3, branchUser.getTokenVersion());                       // BR-18 sessions revoked
+        verify(emailService).send(eq("staff@khoga.test"), any(), any());      // BR-37 staff notified
         verify(userRepository).saveAll(any());
         verify(staffScheduleRepository).deleteByStoreIdAndShiftDateGreaterThanEqual(eq(id), any(LocalDate.class));
         verify(storeRepository).save(store);

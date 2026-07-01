@@ -136,15 +136,20 @@
 
 ---
 
-## SPRINT 5 — Từ vựng & Quyết định thiết kế
+## SPRINT 5 — Từ vựng & Quyết định thiết kế — ✅ **DONE 2026-07-02** (gồm integration)
+
+> Đã hoàn thành S5.1–S5.3 theo TDD, bám RDS. Ghi chú:
+> - **S5.1** `VoucherStatus` còn 3 trạng thái (bỏ `INACTIVE` — enum **không persist** nên không vướng CHECK constraint); engine: deactivate→EXPIRED (terminal), **hết lượt vẫn ACTIVE** (chỉ chặn redemption). Việc chặn khi hết `maxTotalUses` chuyển sang **gate tường minh trong `VoucherValidationService`** (trước đây dựa vào status EXPIRED). Thêm `Voucher.description` (≤250) + vào Create/Update DTO + response + mapper + audit snapshot.
+> - **S5.2** (CHỐT: **theo RDS §3.8.2**) `OrderService.cancelOrder` **chỉ log** OrderCancellation + set CANCELLED — bỏ reversePoints/restoreVoucherUsage/REFUNDED. Hoàn tiền sau thanh toán là luồng refund SM riêng (UC-75). Xóa `restoreVoucherUsage` (dead code). *(IMPLEMENTATION_PLAN UC-55 "rollback+REFUNDED" bị override bởi RDS.)*
+> - **S5.3** `BranchService.deactivate` cascade: bump `tokenVersion` mọi user chi nhánh (BR-18 đá phiên) + `EmailService` báo NV (BR-37). Inject `EmailService`.
 
 ### S5.1 — Voucher status: EXPIRED thay vì INACTIVE + hết-lượt vẫn ACTIVE
 - **RED** `VoucherStatusEngineTest`: deactivate → EXPIRED; hết `maxTotalUses` → vẫn ACTIVE (chỉ chặn redemption).
 - **GREEN** bỏ `INACTIVE`, sửa engine; (nếu bỏ enum value → drop CHECK constraint). Thêm field `description` (≤250).
 - **Done** khớp statechart 3-state.
 
-### S5.2 — CHỐT mâu thuẫn RDS↔Plan cho UC-55 cancel · Order  *(cần quyết định người dùng)*
-- RDS: cancel "chỉ log, không rollback"; Plan: cancel đơn PAID → rollback + REFUNDED. **Chọn 1**, sửa bên còn lại (code hoặc RDS) rồi bổ sung test khớp.
+### S5.2 — CHỐT mâu thuẫn RDS↔Plan cho UC-55 cancel · Order  *(✅ ĐÃ CHỐT: theo RDS)*
+- RDS: cancel "chỉ log, không rollback"; Plan: cancel đơn PAID → rollback + REFUNDED. **Người dùng chốt: làm theo RDS** (2026-07-02) → code sửa thành log-only; hoàn tiền đi qua refund SM (UC-75).
 
 ### S5.3 — Branch deactivate: hủy token (BR-18) + báo NV (BR-37) · Branch
 - **RED** `BranchServiceTest`: deactivate branch → mọi user branch bị bump `tokenVersion`; gửi notify.

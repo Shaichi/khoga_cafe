@@ -23,8 +23,9 @@ class VoucherStatusEngineTest {
     }
 
     @Test
-    void inactiveFlagYieldsInactive() {
-        assertEquals(VoucherStatus.INACTIVE, engine.statusAt(voucher(false, null, null), now));
+    void deactivatedFoldsIntoExpired() {
+        // RDS §3.4.3: deactivation is terminal → EXPIRED (no separate INACTIVE state).
+        assertEquals(VoucherStatus.EXPIRED, engine.statusAt(voucher(false, null, null), now));
     }
 
     @Test
@@ -43,10 +44,11 @@ class VoucherStatusEngineTest {
     }
 
     @Test
-    void usageCapReachedIsExpired() {
+    void usageCapReachedStaysActive() {
+        // RDS §3.4.3: exhaustion doesn't change status; it only blocks further redemptions.
         Voucher v = voucher(true, now.minusDays(1), now.plusDays(1));
         v.setMaxTotalUses(5);
         v.setTotalUsageCount(5);
-        assertEquals(VoucherStatus.EXPIRED, engine.statusAt(v, now));
+        assertEquals(VoucherStatus.ACTIVE, engine.statusAt(v, now));
     }
 }

@@ -170,7 +170,8 @@ class OrderServiceTest {
     }
 
     @Test
-    void cancel_paidPending_rollsBackPointsAndVoucher_BR08() {
+    void cancel_paidPending_logsOnly_noRollback_RDS() {
+        // RDS §3.8.2: cancel logs the OrderCancellation only — NO loyalty/voucher rollback, no REFUNDED.
         Order order = order(OrderStatus.PENDING, PaymentStatus.PAID);
         Customer customer = new Customer();
         customer.setId(UUID.randomUUID());
@@ -190,10 +191,12 @@ class OrderServiceTest {
         service.cancelOrder(orderId, new CancelOrderRequest("khách hủy", "tại quầy"), actorId);
 
         assertEquals(OrderStatus.CANCELLED, order.getStatus());
-        assertEquals(PaymentStatus.REFUNDED, order.getPaymentStatus());
-        assertEquals(145, customer.getPoints());        // 50 + 100 redeemed back − 5 earned clawed
-        assertEquals(2, voucher.getTotalUsageCount());   // 3 − 1 restored
+        assertEquals(PaymentStatus.PAID, order.getPaymentStatus());  // NOT flipped to REFUNDED
+        assertEquals(50, customer.getPoints());                       // points untouched (no rollback)
+        assertEquals(3, voucher.getTotalUsageCount());                // voucher usage untouched
         verify(orderCancellationRepository).save(any());
+        verify(customerRepository, never()).save(any());              // no loyalty write
+        verify(voucherRepository, never()).save(any());               // no voucher write
     }
 
     // ---- UC-75 refund / comp ------------------------------------------------

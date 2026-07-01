@@ -21,6 +21,7 @@ import com.khoga.common.repository.StaffScheduleRepository;
 import com.khoga.common.repository.StoreRepository;
 import com.khoga.common.repository.UserRepository;
 import com.khoga.config.SystemConfigService;
+import com.khoga.integration.EmailService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
@@ -52,11 +53,12 @@ public class BranchService {
     private final StaffScheduleRepository staffScheduleRepository;
     private final SystemConfigService systemConfigService;
     private final AuditLogService auditLogService;
+    private final EmailService emailService;
 
     public BranchService(StoreRepository storeRepository, UserRepository userRepository,
                          ShiftSessionRepository shiftSessionRepository, OrderRepository orderRepository,
                          StaffScheduleRepository staffScheduleRepository, SystemConfigService systemConfigService,
-                         AuditLogService auditLogService) {
+                         AuditLogService auditLogService, EmailService emailService) {
         this.storeRepository = storeRepository;
         this.userRepository = userRepository;
         this.shiftSessionRepository = shiftSessionRepository;
@@ -64,6 +66,7 @@ public class BranchService {
         this.staffScheduleRepository = staffScheduleRepository;
         this.systemConfigService = systemConfigService;
         this.auditLogService = auditLogService;
+        this.emailService = emailService;
     }
 
     @Transactional(readOnly = true)
@@ -128,14 +131,31 @@ public class BranchService {
             throw AppException.of("err.016");      // BR-55
         }
         List<User> branchUsers = userRepository.findByStoreId(id);                            // BR-56
-        branchUsers.forEach(user -> user.setIsActive(false));
+        branchUsers.forEach(user -> {
+            user.setIsActive(false);
+            // BR-18: revoke in-flight tokens for every branch user (bump tokenVersion → JWT filter rejects).
+            user.setTokenVersion((user.getTokenVersion() != null ? user.getTokenVersion() : 0) + 1);
+        });
         userRepository.saveAll(branchUsers);
         staffScheduleRepository.deleteByStoreIdAndShiftDateGreaterThanEqual(id, LocalDate.now());
+        notifyBranchClosure(branchUsers, store);                                              // BR-37
         store.setIsActive(false);
         storeRepository.save(store);
         String oldJson = AuditJson.snapshot().put("active", true).json();
         String newJson = AuditJson.snapshot().put("active", false).json();
         auditLogService.record(ActionType.DEACTIVATE, "Store", oldJson, newJson, actorId);
+    }
+
+    /** BR-37: notify each affected branch employee that their branch (and shifts) closed. */
+    private void notifyBranchClosure(List<User> branchUsers, Store store) {
+        String subject = "Chi nhánh " + store.getName() + " đã ngừng hoạt động";
+        String body = "Chi nhánh " + store.getName() + " đã bị vô hiệu hóa. Tài khoản và các ca sắp tới "
+                + "của bạn đã bị hủy. Vui lòng liên hệ quản lý để được sắp xếp lại.";
+        for (User user : branchUsers) {
+            if (user.getEmail() != null && !user.getEmail().isBlank()) {
+                emailService.send(user.getEmail(), subject, body);
+            }
+        }
     }
 
     /** BR-80 before/after image of the mutable branch fields. */

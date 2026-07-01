@@ -4,6 +4,7 @@ import com.khoga.common.model.enums.DiscountType;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -18,5 +19,6 @@ public record UpdateVoucherRequest(
         @PositiveOrZero BigDecimal maxDiscountAmount,
         Integer usageLimitPerCustomer,
         Integer maxTotalUses,
-        Boolean active) {
+        Boolean active,
+        @Size(max = 250, message = "Mô tả tối đa 250 ký tự") String description) {
 }

@@ -20,6 +20,9 @@ public class Voucher extends BaseEntity {
     private UUID id;
 
     private String code;
+    /** Optional human-readable description (≤250 chars), RDS §3.4 Voucher entity. */
+    @Column(length = 250)
+    private String description;
     @Enumerated(EnumType.STRING)
     private DiscountType discountType;
     private BigDecimal discountValue;

@@ -13,8 +13,9 @@ import java.time.LocalDateTime;
 public class VoucherStatusEngine {
 
     public VoucherStatus statusAt(Voucher voucher, LocalDateTime now) {
+        // Deactivation is terminal and folds into EXPIRED (RDS §3.4.3 — no separate INACTIVE state).
         if (!Boolean.TRUE.equals(voucher.getIsActive())) {
-            return VoucherStatus.INACTIVE;
+            return VoucherStatus.EXPIRED;
         }
         if (voucher.getStartDate() != null && now.isBefore(voucher.getStartDate())) {
             return VoucherStatus.SCHEDULED;
@@ -22,10 +23,8 @@ public class VoucherStatusEngine {
         if (voucher.getEndDate() != null && now.isAfter(voucher.getEndDate())) {
             return VoucherStatus.EXPIRED;
         }
-        if (voucher.getMaxTotalUses() != null && voucher.getTotalUsageCount() != null
-                && voucher.getTotalUsageCount() >= voucher.getMaxTotalUses()) {
-            return VoucherStatus.EXPIRED;
-        }
+        // Usage exhaustion (totalUsageCount >= maxTotalUses) does NOT change status — it stays ACTIVE;
+        // the cap only blocks further redemptions (enforced in VoucherValidationService, BR-52).
         return VoucherStatus.ACTIVE;
     }
 
