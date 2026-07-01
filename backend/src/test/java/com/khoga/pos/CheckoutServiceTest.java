@@ -186,7 +186,7 @@ class CheckoutServiceTest {
         order.setTotal(new BigDecimal("30000"));
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
 
-        service.handleQrCallback(new VietQrCallbackRequest(orderId, "ref-1"));
+        service.handleQrCallback(new VietQrCallbackRequest(orderId, "ref-1", null));
 
         assertEquals(PaymentStatus.PAID, order.getPaymentStatus());
     }
@@ -206,7 +206,7 @@ class CheckoutServiceTest {
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
         when(userRepository.findByStoreId(storeId)).thenReturn(List.of());
 
-        service.handleQrCallback(new VietQrCallbackRequest(orderId, "ref-2"));
+        service.handleQrCallback(new VietQrCallbackRequest(orderId, "ref-2", null));
 
         assertEquals(PaymentStatus.UNPAID, order.getPaymentStatus()); // not revived
         verify(orderRepository, never()).save(any());

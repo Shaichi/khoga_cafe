@@ -8,6 +8,5 @@ import java.util.UUID;
 public record VietQrCallbackRequest(
         @NotNull UUID orderId,
         String reference,
-        String signature,
         String transactionId) {
 }

@@ -16,6 +16,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import com.khoga.common.exception.AppException;
 
+import org.springframework.web.bind.annotation.RequestHeader;
+
 /**
  * Payment gateway webhooks. The VietQR callback is public (permitAll in SecurityConfig) because the
  * gateway authenticates via HMAC signature, not a JWT (BR-84). Auto-confirm + late-callback guard
@@ -35,27 +37,34 @@ public class PaymentController {
     }
 
     @PostMapping("/vietqr/callback")
-    public ResponseEntity<ApiResponse<Void>> vietqrCallback(@Valid @RequestBody VietQrCallbackRequest req) {
-        // BR-47: Validate HMAC Signature
-        if (req.signature() == null || !isValidSignature(req.orderId().toString(), req.reference(), req.signature())) {
+    public ResponseEntity<ApiResponse<Void>> vietqrCallback(
+            @RequestHeader(value = "x-api-validate", required = false) String signature,
+            @RequestBody VietQrCallbackRequest req) {
+
+        if (signature == null || signature.isEmpty()) {
+            throw AppException.of("err.049"); // "Chữ ký Webhook không hợp lệ"
+        }
+
+        String payload = req.orderId().toString() + "|" + req.reference();
+        String expected = generateMac(payload, webhookSecret);
+
+        if (!expected.equals(signature)) {
             throw AppException.of("err.049");
         }
-        
+
         checkoutService.handleQrCallback(req);
         return ResponseEntity.ok(ApiResponse.success(null, "Đã xử lý callback"));
     }
 
-    private boolean isValidSignature(String orderId, String reference, String signature) {
+    private String generateMac(String payload, String secret) {
         try {
-            String payload = orderId + "|" + reference;
             Mac mac = Mac.getInstance("HmacSHA256");
-            SecretKeySpec secretKeySpec = new SecretKeySpec(webhookSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+            SecretKeySpec secretKeySpec = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
             mac.init(secretKeySpec);
             byte[] hmacBytes = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
-            String expectedSignature = Base64.getEncoder().encodeToString(hmacBytes);
-            return expectedSignature.equals(signature);
+            return Base64.getEncoder().encodeToString(hmacBytes);
         } catch (Exception e) {
-            return false;
+            throw new RuntimeException("Failed to generate HMAC", e);
         }
     }
 }
