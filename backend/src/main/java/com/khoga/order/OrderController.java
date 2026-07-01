@@ -5,6 +5,7 @@ import com.khoga.common.dto.ApiResponse;
 import com.khoga.common.dto.PageResponse;
 import com.khoga.common.model.enums.OrderStatus;
 import com.khoga.order.dto.CancelOrderRequest;
+import com.khoga.order.dto.ForceAbandonRequest;
 import com.khoga.order.dto.OrderDetailResponse;
 import com.khoga.order.dto.OrderSummaryResponse;
 import com.khoga.order.dto.RefundRequest;
@@ -87,5 +88,14 @@ public class OrderController {
             @PathVariable UUID id, @Valid @RequestBody RefundRequest req) {
         RefundResponse res = orderService.refund(id, req, SecurityUtil.currentUserId());
         return ResponseEntity.ok(ApiResponse.success(res, "Đã xử lý hoàn tiền/làm lại"));
+    }
+
+    /** BR-88 — SM force-abandons the shift's remaining READY orders at shift close (SM PIN required). */
+    @PostMapping("/shifts/{sessionId}/force-abandon-ready")
+    @PreAuthorize("hasRole('STORE_MANAGER')")
+    public ResponseEntity<ApiResponse<Integer>> forceAbandonReady(
+            @PathVariable UUID sessionId, @Valid @RequestBody ForceAbandonRequest req) {
+        int count = orderService.forceAbandonReadyOrders(sessionId, req.smApprovalPin(), SecurityUtil.currentUserId());
+        return ResponseEntity.ok(ApiResponse.success(count, "Đã đóng các đơn READY còn tồn"));
     }
 }

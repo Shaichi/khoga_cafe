@@ -34,6 +34,9 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     /** READY orders that became stale (last touched before the cutoff) — BR-88 auto-abandon. */
     List<Order> findByStatusAndUpdatedAtBefore(OrderStatus status, LocalDateTime cutoff);
 
+    /** READY orders whose time-in-READY exceeded the cutoff (measured from {@code readyAt}) — BR-88. */
+    List<Order> findByStatusAndReadyAtBefore(OrderStatus status, LocalDateTime cutoff);
+
     /** Order history for one branch (UC-54), newest first, with an optional status filter. */
     @Query("select o from Order o where o.store.id = :storeId "
             + "and (:status is null or o.status = :status) order by o.createdAt desc")

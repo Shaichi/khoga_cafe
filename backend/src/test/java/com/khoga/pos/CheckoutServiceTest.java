@@ -22,6 +22,7 @@ import com.khoga.common.repository.ShiftSessionRepository;
 import com.khoga.common.repository.UserRepository;
 import com.khoga.common.repository.VoucherRepository;
 import com.khoga.config.SystemConfigService;
+import com.khoga.customer.LoyaltyPointCalculator;
 import com.khoga.integration.EmailService;
 import com.khoga.integration.PrinterService;
 import com.khoga.integration.VietQrClient;
@@ -35,6 +36,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
@@ -46,6 +48,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -65,6 +68,7 @@ class CheckoutServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private VoucherValidationService voucherValidationService;
     @Mock private DiscountStackingEngine discountEngine;
+    @Spy private LoyaltyPointCalculator loyaltyPointCalculator = new LoyaltyPointCalculator();
     @Mock private SystemConfigService config;
     @Mock private VietQrClient vietQrClient;
     @Mock private PrinterService printerService;
@@ -105,12 +109,16 @@ class CheckoutServiceTest {
         return mi;
     }
 
-    private void stubConfigAndEngine(DiscountBreakdown b, int redeemPoints) {
+    private void stubConfig() {
         when(config.getGlobalDecimal(eq("VAT_RATE"), any())).thenReturn(new BigDecimal("10"));
         when(config.getGlobalDecimal(eq("LOYALTY_REDEMPTION_VALUE_PER_POINT"), any())).thenReturn(new BigDecimal("100"));
         when(config.getGlobalDecimal(eq("LOYALTY_MAX_REDEMPTION_PERCENT"), any())).thenReturn(new BigDecimal("50"));
         when(config.getGlobalDecimal(eq("LOYALTY_MAX_REDEMPTION_LIMIT"), any())).thenReturn(new BigDecimal("100000"));
         when(config.getGlobalDecimal(eq("LOYALTY_ACCRUAL_PERCENTAGE"), any())).thenReturn(new BigDecimal("1"));
+    }
+
+    private void stubConfigAndEngine(DiscountBreakdown b, int redeemPoints) {
+        stubConfig();
         when(discountEngine.compute(any(), any(), eq(redeemPoints), any())).thenReturn(b);
     }
 
@@ -176,6 +184,26 @@ class CheckoutServiceTest {
     }
 
     @Test
+    void submitRedeemExceedsCap_throws_BR02() {
+        UUID customerId = UUID.randomUUID();
+        Customer customer = new Customer();
+        customer.setId(customerId);
+        customer.setPoints(2000); // enough balance, but value exceeds the BR-02 cap
+        when(userRepository.findById(actorId)).thenReturn(Optional.of(cashier()));
+        when(shiftSessionRepository.findFirstByUserIdAndStatus(actorId, ShiftStatus.OPEN)).thenReturn(Optional.of(openShift()));
+        when(customerRepository.findById(customerId)).thenReturn(Optional.of(customer));
+        when(menuItemRepository.findById(menuItemId)).thenReturn(Optional.of(latte()));
+        stubConfig(); // valuePerPoint=100, cap=min(50% of 30000=15000, 100000)=15000
+
+        // 1000 pts × 100 = 100,000 value > 15,000 cap → reject, don't silently clamp
+        CheckoutRequest req = new CheckoutRequest(customerId, null, 1000, PaymentMethod.CASH,
+                new BigDecimal("100000"), List.of(new CartLineRequest(menuItemId, 1, null)));
+
+        assertThrows(AppException.class, () -> service.submitOrder(req, actorId));
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
     void qrCallback_awaitingOrder_marksPaid_BR84() {
         UUID orderId = UUID.randomUUID();
         Order order = new Order();
@@ -189,6 +217,52 @@ class CheckoutServiceTest {
         service.handleQrCallback(new VietQrCallbackRequest(orderId, "ref-1", null));
 
         assertEquals(PaymentStatus.PAID, order.getPaymentStatus());
+    }
+
+    @Test
+    void qrCallback_awaitingOrder_storesTransactionRef() {
+        UUID orderId = UUID.randomUUID();
+        Order order = new Order();
+        order.setId(orderId);
+        order.setOrderNumber("OD-3");
+        order.setStatus(OrderStatus.PENDING);
+        order.setPaymentStatus(PaymentStatus.UNPAID);
+        order.setTotal(new BigDecimal("30000"));
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        service.handleQrCallback(new VietQrCallbackRequest(orderId, "txn-999", null));
+
+        assertEquals(PaymentStatus.PAID, order.getPaymentStatus());
+        assertEquals("txn-999", order.getTransactionRef()); // saved for reconciliation (S3.1)
+    }
+
+    @Test
+    void qrCallback_duplicateOnPaidOrder_sameRef_isNoOp() {
+        UUID orderId = UUID.randomUUID();
+        Store store = new Store();
+        store.setId(storeId);
+        store.setName("Branch 1");
+        User sm = new User();
+        sm.setId(UUID.randomUUID());
+        sm.setRole(com.khoga.common.model.enums.Role.STORE_MANAGER);
+        sm.setIsActive(true);
+        sm.setEmail("sm@khoga.vn");
+        Order order = new Order();
+        order.setId(orderId);
+        order.setOrderNumber("OD-4");
+        order.setStore(store);
+        order.setStatus(OrderStatus.PENDING);
+        order.setPaymentStatus(PaymentStatus.PAID);       // already paid by the first callback
+        order.setTransactionRef("ref-1");
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        // If it wrongly took the BR-85 reconciliation branch, this SM would get a false refund alert.
+        lenient().when(userRepository.findByStoreId(storeId)).thenReturn(List.of(sm));
+
+        service.handleQrCallback(new VietQrCallbackRequest(orderId, "ref-1", null)); // duplicate, same ref
+
+        assertEquals(PaymentStatus.PAID, order.getPaymentStatus());
+        verify(orderRepository, never()).save(any());                 // idempotent: no re-save
+        verify(emailService, never()).send(any(), any(), any());      // no false refund alert
     }
 
     @Test

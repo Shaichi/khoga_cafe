@@ -79,7 +79,8 @@ public class RecipeDeductionEngine {
         for (Map.Entry<UUID, BigDecimal> entry : required.entrySet()) {
             UUID materialId = entry.getKey();
             BigDecimal need = entry.getValue();
-            StockItem stock = stockItemRepository.findByStoreIdAndRawMaterialId(storeId, materialId).orElse(null);
+            // S3.4: lock the branch stock row for the read-modify-write (concurrent deductions).
+            StockItem stock = stockItemRepository.findByStoreIdAndRawMaterialIdForUpdate(storeId, materialId).orElse(null);
             if (stock == null) {
                 shortages.add(new DeductionResult.Shortage(null, materialId.toString(), need));
                 log.warn("[MSG07] No branch stock row for material {} at store {} — phantom {}", materialId, storeId, need);

@@ -297,15 +297,56 @@ class OrderServiceTest {
     // ---- BR-88 auto-abandon -------------------------------------------------
 
     @Test
-    void abandonStaleReadyOrders_setsAbandoned_BR88() {
+    void abandonStaleReadyOrders_usesReadyElapsedTime_andAudits_BR88() {
         Order stale = order(OrderStatus.READY, PaymentStatus.PAID);
         when(config.getGlobalInt(eq("READY_ABANDON_TIMEOUT"), eq(15))).thenReturn(15);
-        when(orderRepository.findByStatusAndUpdatedAtBefore(eq(OrderStatus.READY), any(LocalDateTime.class)))
+        // Abandon clock is measured from readyAt, not updatedAt (unrelated writes don't reset it).
+        when(orderRepository.findByStatusAndReadyAtBefore(eq(OrderStatus.READY), any(LocalDateTime.class)))
                 .thenReturn(List.of(stale));
 
         int count = service.abandonStaleReadyOrders();
 
         assertEquals(1, count);
         assertEquals(OrderStatus.ABANDONED, stale.getStatus());
+        verify(auditLogService).record(any(), eq("Order"), eq(OrderStatus.READY.name()),
+                eq(OrderStatus.ABANDONED.name()), any());
+    }
+
+    @Test
+    void updateStatus_toReady_stampsReadyAt() {
+        Order order = order(OrderStatus.PREPARING, PaymentStatus.PAID);
+        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor()));
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        service.updateStatus(orderId, OrderStatus.READY, actorId);
+
+        assertNotNull(order.getReadyAt()); // abandon clock starts at time-in-READY
+    }
+
+    @Test
+    void forceAbandonReadyOrders_badPin_throws_noAbandon() {
+        UUID sessionId = UUID.randomUUID();
+        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor()));
+        when(userRepository.findByStoreId(storeId)).thenReturn(List.of(sm("1234")));
+
+        assertThrows(AppException.class, () -> service.forceAbandonReadyOrders(sessionId, "0000", actorId));
+        verify(orderRepository, never()).findByShiftSessionIdAndStatus(any(), any());
+    }
+
+    @Test
+    void forceAbandonReadyOrders_smAuth_abandonsAndAudits_BR88() {
+        UUID sessionId = UUID.randomUUID();
+        Order ready = order(OrderStatus.READY, PaymentStatus.PAID);
+        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor()));
+        when(userRepository.findByStoreId(storeId)).thenReturn(List.of(sm("1234")));
+        when(orderRepository.findByShiftSessionIdAndStatus(sessionId, OrderStatus.READY))
+                .thenReturn(List.of(ready));
+
+        int count = service.forceAbandonReadyOrders(sessionId, "1234", actorId);
+
+        assertEquals(1, count);
+        assertEquals(OrderStatus.ABANDONED, ready.getStatus());
+        verify(auditLogService).record(any(), eq("Order"), eq(OrderStatus.READY.name()),
+                eq(OrderStatus.ABANDONED.name()), eq(actorId));
     }
 }

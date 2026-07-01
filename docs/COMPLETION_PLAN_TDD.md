@@ -81,7 +81,13 @@
 
 ---
 
-## SPRINT 3 — Độ bền POS / Order / Inventory (MED)
+## SPRINT 3 — Độ bền POS / Order / Inventory (MED) — ✅ **DONE 2026-07-01** (230 test xanh, gồm integration)
+
+> Đã hoàn thành S3.1–S3.4 theo TDD. Ghi chú bổ sung khi làm:
+> - **S3.1** thêm `Order.transactionRef` (nullable); callback awaiting → lưu ref rồi finalize; **duplicate trên đơn PAID cùng ref → no-op** (hết cảnh báo hoàn tiền giả); khác/không-awaiting → BR-85 reconciliation. Theo RDS §3.7.4 chuyển HMAC verify vào `VietQrClient.verifyWebhookSignature` (RealVietQrClient giữ secret + generateMac), `PaymentController` chỉ delegate. WIP header-based signature của bạn được commit riêng trước đó.
+> - **S3.2** thêm `Order.readyAt` (set khi →READY) + query `findByStatusAndReadyAtBefore` → auto-abandon đo **thời gian ở READY** (write khác không reset đồng hồ); ghi audit mỗi lần abandon; thêm `forceAbandonReadyOrders(shift, smPin, actor)` cần SM auth + audit + endpoint `POST /shifts/{id}/force-abandon-ready`.
+> - **S3.3** thêm `LoyaltyPointCalculator.validateSufficientPoints(...)` gộp balance (MSG11) + cap %/tuyệt đối (err.093) → **throw thay vì clamp âm thầm**; `CheckoutService.validateRedeem` gọi nó (build config trước, truyền discounted-subtotal). Inject `LoyaltyPointCalculator` vào CheckoutService (test dùng `@Spy` real).
+> - **S3.4** thêm `@Lock(PESSIMISTIC_WRITE)` `findByIdForUpdate` + `findByStoreIdAndRawMaterialIdForUpdate`; dùng ở `StockService.loadForStore` (import/export/audit) và `RecipeDeductionEngine` (trừ kho) → read-modify-write không mất update khi song song.
 
 ### S3.1 — VietQR: idempotency + lưu transactionRef + verify trong client · POS
 - **RED** `CheckoutServiceTest`: callback trùng trên đơn PAID → **no-op** (không refund-alert); PAID lưu `transactionRef`.

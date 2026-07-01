@@ -76,7 +76,7 @@ class StockServiceTest {
         User user = actorInStore(storeId);
         StockItem item = stockItem(storeId, new BigDecimal("5"));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(stockItemRepository.findById(item.getId())).thenReturn(Optional.of(item));
+        when(stockItemRepository.findByIdForUpdate(item.getId())).thenReturn(Optional.of(item));
         when(stockTransactionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         StockTransactionResponse resp = service.importStock(
@@ -86,6 +86,7 @@ class StockServiceTest {
         assertEquals(TransactionType.IMPORT, resp.transactionType());
         assertEquals(0, resp.quantityBefore().compareTo(new BigDecimal("5")));
         assertEquals(0, resp.quantityAfter().compareTo(new BigDecimal("15")));
+        verify(stockItemRepository).findByIdForUpdate(item.getId()); // S3.4 pessimistic lock
     }
 
     @Test
@@ -93,7 +94,7 @@ class StockServiceTest {
         User user = actorInStore(storeId);
         StockItem item = stockItem(UUID.randomUUID(), new BigDecimal("5")); // different store
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(stockItemRepository.findById(item.getId())).thenReturn(Optional.of(item));
+        when(stockItemRepository.findByIdForUpdate(item.getId())).thenReturn(Optional.of(item));
 
         assertThrows(AppException.class, () -> service.importStock(
                 new ImportStockRequest(item.getId(), new BigDecimal("10"), "x"), userId));
@@ -105,7 +106,7 @@ class StockServiceTest {
         User user = actorInStore(storeId);
         StockItem item = stockItem(storeId, new BigDecimal("3"));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(stockItemRepository.findById(item.getId())).thenReturn(Optional.of(item));
+        when(stockItemRepository.findByIdForUpdate(item.getId())).thenReturn(Optional.of(item));
 
         assertThrows(AppException.class, () -> service.exportStock(
                 new ExportStockRequest(item.getId(), new BigDecimal("5"), "wastage"), userId));
@@ -118,7 +119,7 @@ class StockServiceTest {
         User user = actorInStore(storeId);
         StockItem item = stockItem(storeId, new BigDecimal("10"));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(stockItemRepository.findById(item.getId())).thenReturn(Optional.of(item));
+        when(stockItemRepository.findByIdForUpdate(item.getId())).thenReturn(Optional.of(item));
 
         StockAuditRequest req = new StockAuditRequest(
                 List.of(new StockAuditLine(item.getId(), new BigDecimal("8"), null)));
@@ -131,7 +132,7 @@ class StockServiceTest {
         User user = actorInStore(storeId);
         StockItem item = stockItem(storeId, new BigDecimal("10"));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(stockItemRepository.findById(item.getId())).thenReturn(Optional.of(item));
+        when(stockItemRepository.findByIdForUpdate(item.getId())).thenReturn(Optional.of(item));
 
         StockAuditRequest req = new StockAuditRequest(
                 List.of(new StockAuditLine(item.getId(), new BigDecimal("8"), "spillage")));

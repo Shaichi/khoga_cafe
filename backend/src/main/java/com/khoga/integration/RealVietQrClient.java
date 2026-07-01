@@ -9,7 +9,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -19,6 +23,9 @@ import java.util.UUID;
 public class RealVietQrClient implements VietQrClient {
 
     private final RestTemplate restTemplate = new RestTemplate();
+
+    @Value("${app.vietqr.webhook-secret:dev-webhook-secret}")
+    private String webhookSecret;
 
     @Value("${app.vietqr.client-id:}")
     private String clientId;
@@ -73,5 +80,24 @@ public class RealVietQrClient implements VietQrClient {
         // Fallback to basic string if API fails
         String fallbackQr = "00020101021238" + reference + "5303704" + amount;
         return new VietQrPayment(orderId, amount, fallbackQr, reference);
+    }
+
+    @Override
+    public boolean verifyWebhookSignature(String payload, String signature) {
+        if (signature == null || signature.isEmpty() || payload == null) {
+            return false;
+        }
+        return generateMac(payload, webhookSecret).equals(signature);
+    }
+
+    private String generateMac(String payload, String secret) {
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            byte[] hmacBytes = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
+            return Base64.getEncoder().encodeToString(hmacBytes);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to generate HMAC", e);
+        }
     }
 }

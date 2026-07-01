@@ -80,13 +80,14 @@ class RecipeDeductionEngineTest {
         when(orderItemRepository.findByOrderId(order.getId())).thenReturn(List.of(orderItem));
         when(orderItemToppingRepository.findByOrderItemId(orderItem.getId())).thenReturn(List.of());
         when(recipeItemRepository.findByMenuItemId(menuItem.getId())).thenReturn(List.of(recipe));
-        when(stockItemRepository.findByStoreIdAndRawMaterialId(storeId, mat.getId())).thenReturn(Optional.of(stock));
+        when(stockItemRepository.findByStoreIdAndRawMaterialIdForUpdate(storeId, mat.getId())).thenReturn(Optional.of(stock));
 
         DeductionResult result = engine.deductForOrder(order);
 
         assertEquals(0, stock.getCurrentQuantity().compareTo(new BigDecimal("4"))); // 10 − 2×3
         assertFalse(result.hasShortage());
         verify(stockTransactionRepository, times(1)).save(any()); // RECIPE_DEDUCTION only
+        verify(stockItemRepository).findByStoreIdAndRawMaterialIdForUpdate(storeId, mat.getId()); // S3.4 lock
     }
 
     @Test
@@ -116,7 +117,7 @@ class RecipeDeductionEngineTest {
         when(orderItemRepository.findByOrderId(order.getId())).thenReturn(List.of(orderItem));
         when(orderItemToppingRepository.findByOrderItemId(orderItem.getId())).thenReturn(List.of());
         when(recipeItemRepository.findByMenuItemId(menuItem.getId())).thenReturn(List.of(recipe));
-        when(stockItemRepository.findByStoreIdAndRawMaterialId(storeId, mat.getId())).thenReturn(Optional.of(stock));
+        when(stockItemRepository.findByStoreIdAndRawMaterialIdForUpdate(storeId, mat.getId())).thenReturn(Optional.of(stock));
 
         DeductionResult result = engine.deductForOrder(order);
 

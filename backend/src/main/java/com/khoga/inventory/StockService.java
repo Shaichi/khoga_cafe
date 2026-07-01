@@ -173,7 +173,8 @@ public class StockService {
     }
 
     private StockItem loadForStore(UUID stockItemId, Store store) {
-        StockItem item = stockItemRepository.findById(stockItemId)
+        // S3.4: pessimistic-write lock so concurrent import/export/audit can't lose an update.
+        StockItem item = stockItemRepository.findByIdForUpdate(stockItemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy mục tồn kho"));
         if (item.getStore() == null || !item.getStore().getId().equals(store.getId())) {
             throw AppException.of("err.032"); // BR-59

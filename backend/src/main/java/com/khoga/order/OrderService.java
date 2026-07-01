@@ -162,6 +162,9 @@ public class OrderService {
         }
 
         order.setStatus(target);
+        if (target == OrderStatus.READY) {
+            order.setReadyAt(LocalDateTime.now()); // BR-88 — start the abandon clock from time-in-READY
+        }
         orderRepository.save(order);
 
         if (target == OrderStatus.READY) {
@@ -253,18 +256,44 @@ public class OrderService {
                 order.getPaymentStatus(), remake.getId());
     }
 
-    /** BR-88 — READY orders idle beyond READY_ABANDON_TIMEOUT become ABANDONED (no stock reversal). Called by the scheduler. */
+    /**
+     * BR-88 — READY orders idle beyond READY_ABANDON_TIMEOUT become ABANDONED (no stock reversal). Idle
+     * time is measured from {@code readyAt} (time-in-READY), so an unrelated write never resets the clock.
+     * Each abandon is audited. Called by the scheduler.
+     */
     @Transactional
     public int abandonStaleReadyOrders() {
         int minutes = config.getGlobalInt("READY_ABANDON_TIMEOUT", DEFAULT_READY_ABANDON_MINUTES);
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(minutes);
-        List<Order> stale = orderRepository.findByStatusAndUpdatedAtBefore(OrderStatus.READY, cutoff);
+        List<Order> stale = orderRepository.findByStatusAndReadyAtBefore(OrderStatus.READY, cutoff);
         for (Order order : stale) {
-            order.setStatus(OrderStatus.ABANDONED);
-            orderRepository.save(order);
+            abandon(order, null); // system actor
             log.info("[BR-88] Order {} auto-abandoned after {}min in READY", order.getOrderNumber(), minutes);
         }
         return stale.size();
+    }
+
+    /**
+     * BR-88 — Store-Manager force-close of the shift's remaining READY orders at shift close. Requires SM
+     * authorization via attendance PIN; each abandon is audited. READY → ABANDONED (no stock reversal).
+     */
+    @Transactional
+    public int forceAbandonReadyOrders(UUID shiftSessionId, String smApprovalPin, UUID actorId) {
+        User actor = currentUser(actorId);
+        authorizeStoreManager(actor.getStore().getId(), smApprovalPin); // SM authorises (BR-88)
+        List<Order> ready = orderRepository.findByShiftSessionIdAndStatus(shiftSessionId, OrderStatus.READY);
+        for (Order order : ready) {
+            abandon(order, actorId);
+            log.info("[BR-88] Order {} force-abandoned at shift close by {}", order.getOrderNumber(), actorId);
+        }
+        return ready.size();
+    }
+
+    private void abandon(Order order, UUID actorId) {
+        order.setStatus(OrderStatus.ABANDONED);
+        orderRepository.save(order);
+        auditLogService.record(ActionType.UPDATE, "Order", OrderStatus.READY.name(),
+                OrderStatus.ABANDONED.name(), actorId);
     }
 
     private OrderRefund saveRefund(Order order, User sm, User cashier, ShiftSession shift,

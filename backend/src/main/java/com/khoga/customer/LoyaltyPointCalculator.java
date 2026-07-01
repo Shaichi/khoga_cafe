@@ -1,5 +1,6 @@
 package com.khoga.customer;
 
+import com.khoga.common.exception.AppException;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -35,6 +36,27 @@ public class LoyaltyPointCalculator {
             return BigDecimal.ZERO;
         }
         return valuePerPoint.multiply(BigDecimal.valueOf(points));            // BR-74
+    }
+
+    /**
+     * BR-02 gate: validates a redemption request before it is applied, throwing rather than silently
+     * clamping (so the cashier sees a clear error and points-deducted always equals points-shown).
+     * Rejects when the balance is insufficient (MSG11) or the redeemed cash value exceeds the cap
+     * ({@code err.093}). A non-positive request is a no-op.
+     */
+    public void validateSufficientPoints(int redeemPoints, int balance, BigDecimal discountedSubtotal,
+                                         BigDecimal valuePerPoint, BigDecimal maxPercent, BigDecimal maxAbsolute) {
+        if (redeemPoints <= 0) {
+            return;
+        }
+        if (balance < redeemPoints) {
+            throw AppException.of("MSG11"); // insufficient points balance
+        }
+        BigDecimal rawValue = redeemValue(redeemPoints, valuePerPoint);
+        BigDecimal cap = maxRedeemableValue(discountedSubtotal, maxPercent, maxAbsolute);
+        if (cap != null && rawValue.compareTo(cap) > 0) {
+            throw AppException.of("err.093"); // BR-02 redemption cap exceeded
+        }
     }
 
     /** BR-02: smallest of (percentage-of-subtotal, absolute) cap; null bounds are ignored. */

@@ -48,4 +48,17 @@ public class Order extends BaseEntity {
     private Integer pointsRedeemed;
     /** Loyalty points accrued to the customer when this order is paid (BR-01/BR-69). */
     private Integer pointsEarned;
+    /**
+     * VietQR gateway transaction reference recorded when the order is paid via the callback
+     * (BR-84). Nullable (cash/card orders and unpaid orders have none). Enables reconciliation and
+     * idempotent handling of duplicate callbacks — a repeat callback carrying this same ref is a no-op.
+     */
+    @Column(name = "transaction_ref")
+    private String transactionRef;
+    /**
+     * When the order entered READY (BR-88). Auto-abandon measures idle time from this instant, not from
+     * {@code updatedAt}, so unrelated writes never reset the abandon clock. Nullable (set on →READY).
+     */
+    @Column(name = "ready_at")
+    private LocalDateTime readyAt;
 }

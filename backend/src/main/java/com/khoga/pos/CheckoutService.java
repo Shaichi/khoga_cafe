@@ -29,6 +29,7 @@ import com.khoga.common.repository.ShiftSessionRepository;
 import com.khoga.common.repository.UserRepository;
 import com.khoga.common.repository.VoucherRepository;
 import com.khoga.config.SystemConfigService;
+import com.khoga.customer.LoyaltyPointCalculator;
 import com.khoga.integration.EmailService;
 import com.khoga.integration.PrinterService;
 import com.khoga.integration.VietQrClient;
@@ -71,6 +72,7 @@ public class CheckoutService {
     private final UserRepository userRepository;
     private final VoucherValidationService voucherValidationService;
     private final DiscountStackingEngine discountEngine;
+    private final LoyaltyPointCalculator loyaltyPointCalculator;
     private final SystemConfigService config;
     private final VietQrClient vietQrClient;
     private final PrinterService printerService;
@@ -82,8 +84,8 @@ public class CheckoutService {
                            MenuItemRepository menuItemRepository, OptionToppingRepository optionToppingRepository,
                            CustomerRepository customerRepository, VoucherRepository voucherRepository,
                            UserRepository userRepository, VoucherValidationService voucherValidationService,
-                           DiscountStackingEngine discountEngine, SystemConfigService config,
-                           VietQrClient vietQrClient, PrinterService printerService,
+                           DiscountStackingEngine discountEngine, LoyaltyPointCalculator loyaltyPointCalculator,
+                           SystemConfigService config, VietQrClient vietQrClient, PrinterService printerService,
                            AuditLogService auditLogService, EmailService emailService) {
         this.shiftSessionRepository = shiftSessionRepository;
         this.orderRepository = orderRepository;
@@ -96,6 +98,7 @@ public class CheckoutService {
         this.userRepository = userRepository;
         this.voucherValidationService = voucherValidationService;
         this.discountEngine = discountEngine;
+        this.loyaltyPointCalculator = loyaltyPointCalculator;
         this.config = config;
         this.vietQrClient = vietQrClient;
         this.printerService = printerService;
@@ -111,8 +114,9 @@ public class CheckoutService {
                 : customerRepository.findById(req.customerId()).orElse(null);
         BigDecimal gross = priceCart(req.items());
         BigDecimal voucherDiscount = voucherDiscount(req.voucherCode(), gross);
-        validateRedeem(req, customer);
-        return discountEngine.compute(gross, voucherDiscount, req.redeemPoints(), buildConfig());
+        DiscountConfig cfg = buildConfig();
+        validateRedeem(req, customer, gross.subtract(voucherDiscount), cfg);
+        return discountEngine.compute(gross, voucherDiscount, req.redeemPoints(), cfg);
     }
 
     /** UC-51 submit order + take payment. */
@@ -129,9 +133,9 @@ public class CheckoutService {
         Voucher voucher = resolveVoucher(req.voucherCode());
         BigDecimal voucherDiscount = voucher == null ? BigDecimal.ZERO
                 : voucherValidationService.validate(voucher.getCode(), gross, 0); // per-customer usage tracking: P2.3
-        validateRedeem(req, customer);
 
         DiscountConfig cfg = buildConfig();
+        validateRedeem(req, customer, gross.subtract(voucherDiscount), cfg);
         DiscountBreakdown b = discountEngine.compute(gross, voucherDiscount, req.redeemPoints(), cfg);
         int pointsConsumed = pointsConsumed(b.pointDiscount(), cfg.valuePerPoint());
 
@@ -174,21 +178,27 @@ public class CheckoutService {
         };
     }
 
-    /** VietQR webhook (BR-84 auto-confirm) with late-callback guard (BR-85). */
+    /** VietQR webhook (BR-84 auto-confirm) with late-callback guard (BR-85) and idempotency (S3.1). */
     @Transactional
     public void handleQrCallback(VietQrCallbackRequest req) {
         Order order = orderRepository.findById(req.orderId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn"));
+        String ref = StringUtils.hasText(req.reference()) ? req.reference() : req.transactionId();
         boolean awaiting = order.getPaymentStatus() == PaymentStatus.UNPAID
                 && order.getStatus() == OrderStatus.PENDING;
         if (awaiting) {
+            order.setTransactionRef(ref);                              // store gateway ref for reconciliation
             finalizePaid(order, null); // system actor
-            log.info("[VietQR] Order {} marked PAID via callback (ref {})", order.getId(), req.reference());
+            log.info("[VietQR] Order {} marked PAID via callback (ref {})", order.getId(), ref);
+        } else if (order.getPaymentStatus() == PaymentStatus.PAID
+                && java.util.Objects.equals(order.getTransactionRef(), ref)) {
+            // Duplicate of the same successful callback — idempotent no-op, no false refund alert (S3.1).
+            log.info("[VietQR] Duplicate callback for already-PAID order {} (ref {}) — no-op", order.getId(), ref);
         } else {
             // BR-85: do not revive a cancelled/timed-out order — route to reconciliation + alert SM
             log.warn("[BR-85] Late VietQR callback for non-awaiting order {} (status={}, payment={}) ref {} — flagged for refund",
-                    order.getId(), order.getStatus(), order.getPaymentStatus(), req.reference());
-            alertReconciliation(order, req.reference());
+                    order.getId(), order.getStatus(), order.getPaymentStatus(), ref);
+            alertReconciliation(order, ref);
         }
     }
 
@@ -289,7 +299,7 @@ public class CheckoutService {
         return voucherValidationService.validate(code, gross, 0);
     }
 
-    private void validateRedeem(CheckoutRequest req, Customer customer) {
+    private void validateRedeem(CheckoutRequest req, Customer customer, BigDecimal discountedSubtotal, DiscountConfig cfg) {
         if (req.redeemPoints() <= 0) {
             return;
         }
@@ -299,9 +309,9 @@ public class CheckoutService {
         if (req.redeemPoints() % 100 != 0) {
             throw AppException.of("MSG14"); // BR-74 — redemption must be a multiple of 100
         }
-        if (nz(customer.getPoints()) < req.redeemPoints()) {
-            throw AppException.of("MSG11"); // insufficient points balance
-        }
+        // BR-02: reject (not silently clamp) an over-balance or over-cap redemption — MSG11 / err.093.
+        loyaltyPointCalculator.validateSufficientPoints(req.redeemPoints(), nz(customer.getPoints()),
+                discountedSubtotal, cfg.valuePerPoint(), cfg.maxRedeemPercent(), cfg.maxRedeemLimit());
     }
 
     private int pointsConsumed(BigDecimal pointDiscount, BigDecimal valuePerPoint) {
