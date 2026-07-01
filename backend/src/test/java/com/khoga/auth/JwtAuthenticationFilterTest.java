@@ -21,6 +21,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * BR-18 unit tests for the JWT auth filter's server-side invalidation. A real {@link JwtTokenProvider}
@@ -28,13 +32,25 @@ import static org.mockito.Mockito.when;
  * exercised directly (no Spring context) and the resulting {@link SecurityContextHolder} state is
  * asserted.
  */
+@ExtendWith(MockitoExtension.class)
 class JwtAuthenticationFilterTest {
 
     private static final String SECRET = "khoga-test-secret-please-change-0123456789abcdef";
 
     private final JwtTokenProvider provider = new JwtTokenProvider(SECRET, 120, 480);
-    private final UserRepository userRepository = mock(UserRepository.class);
-    private final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(provider, userRepository);
+    
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private UserActivityTracker userActivityTracker;
+
+    private JwtAuthenticationFilter filter;
+
+    @BeforeEach
+    void setUp() {
+        filter = new JwtAuthenticationFilter(provider, userRepository, userActivityTracker);
+    }
 
     @AfterEach
     void clear() {

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -63,14 +64,7 @@ public class SessionTimeoutScheduler {
     public void sweepIdleSessions() {
         LocalDateTime threshold = LocalDateTime.now().minusMinutes(30);
         
-        // Find users who have logged in (lastActiveAt != null) and haven't been active in 30+ mins
-        // Note: For a production app, we might write a native query, but iterating is fine for this scale.
-        // Or we could write a custom @Query in UserRepository. Let's do it in Java for simplicity.
-        
-        var idleUsers = userRepository.findAll().stream()
-                .filter(u -> Boolean.TRUE.equals(u.getIsActive()))
-                .filter(u -> u.getLastActiveAt() != null && u.getLastActiveAt().isBefore(threshold))
-                .toList();
+        List<User> idleUsers = userRepository.findIdleUsers(threshold);
 
         for (User user : idleUsers) {
             int currentTv = user.getTokenVersion() != null ? user.getTokenVersion() : 0;

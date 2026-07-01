@@ -15,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class UserActivityTracker {
 
-    private final Map<UUID, LocalDateTime> activeUsers = new ConcurrentHashMap<>();
+    private Map<UUID, LocalDateTime> activeUsers = new ConcurrentHashMap<>();
 
     public void recordActivity(UUID userId) {
         if (userId != null) {
@@ -23,9 +23,9 @@ public class UserActivityTracker {
         }
     }
 
-    public Map<UUID, LocalDateTime> getAndClearActiveUsers() {
-        Map<UUID, LocalDateTime> currentBatch = new ConcurrentHashMap<>(activeUsers);
-        activeUsers.keySet().removeAll(currentBatch.keySet());
+    public synchronized Map<UUID, LocalDateTime> getAndClearActiveUsers() {
+        Map<UUID, LocalDateTime> currentBatch = activeUsers;
+        activeUsers = new ConcurrentHashMap<>();
         return currentBatch;
     }
 }
