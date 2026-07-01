@@ -1,5 +1,6 @@
 package com.khoga.branch;
 
+import com.khoga.audit.AuditJson;
 import com.khoga.audit.AuditLogService;
 import com.khoga.branch.dto.BranchResponse;
 import com.khoga.branch.dto.BranchSettingsRequest;
@@ -104,11 +105,12 @@ public class BranchService {
         if (storeRepository.existsByNameIgnoreCaseAndIdNot(request.name(), id)) {
             throw AppException.of("err.013");
         }
+        String oldJson = branchSnapshot(store);         // BR-80 before-image
         store.setName(request.name());
         store.setAddress(request.address());
         store.setPhone(request.phone());
         storeRepository.save(store);
-        auditLogService.record(ActionType.UPDATE, "Store", null, null, actorId);
+        auditLogService.record(ActionType.UPDATE, "Store", oldJson, branchSnapshot(store), actorId);
         return BranchMapper.toResponse(store);
     }
 
@@ -131,7 +133,18 @@ public class BranchService {
         staffScheduleRepository.deleteByStoreIdAndShiftDateGreaterThanEqual(id, LocalDate.now());
         store.setIsActive(false);
         storeRepository.save(store);
-        auditLogService.record(ActionType.UPDATE, "Store", null, "{\"event\":\"DEACTIVATE\"}", actorId);
+        String oldJson = AuditJson.snapshot().put("active", true).json();
+        String newJson = AuditJson.snapshot().put("active", false).json();
+        auditLogService.record(ActionType.DEACTIVATE, "Store", oldJson, newJson, actorId);
+    }
+
+    /** BR-80 before/after image of the mutable branch fields. */
+    private String branchSnapshot(Store store) {
+        return AuditJson.snapshot()
+                .put("name", store.getName())
+                .put("address", store.getAddress())
+                .put("phone", store.getPhone())
+                .json();
     }
 
     /** UC-42: read current branch settings, scoped like {@link #updateSettings} (manager = own branch). */

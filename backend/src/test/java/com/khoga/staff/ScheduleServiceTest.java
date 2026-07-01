@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -108,6 +109,29 @@ class ScheduleServiceTest {
 
         assertNotNull(res);
         verify(scheduleRepository).save(any());
+    }
+
+    @Test
+    void create_crossBranch_writesDedicatedAuditRow_BR90() {
+        LocalDate date = LocalDate.now().plusDays(1);
+        UUID homeStoreId = UUID.randomUUID();
+        User emp = employee(Role.BARISTA);
+        Store home = new Store();
+        home.setId(homeStoreId);
+        emp.setStore(home); // employee's home branch differs from the target (manager's) branch
+        when(userRepository.findById(actorId)).thenReturn(Optional.of(manager()));
+        when(userRepository.findById(employeeId)).thenReturn(Optional.of(emp));
+        stubEmptyConstraints();
+        when(scheduleRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        CreateScheduleRequest req = new CreateScheduleRequest(employeeId, date, ShiftType.MORNING,
+                LocalTime.of(8, 0), LocalTime.of(12, 0), null, null);
+        service.create(req, actorId);
+
+        // BR-90: a dedicated cross-branch audit row carrying home + target store, not just a flag.
+        verify(auditLogService).record(any(), eq("StaffScheduleCrossBranch"), any(),
+                argThat(json -> json.contains(homeStoreId.toString()) && json.contains(storeId.toString())),
+                eq(actorId));
     }
 
     @Test

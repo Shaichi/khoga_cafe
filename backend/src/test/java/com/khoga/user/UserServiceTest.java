@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -139,6 +140,40 @@ class UserServiceTest {
         when(userRepository.findById(actor)).thenReturn(Optional.of(self));
 
         assertThrows(AppException.class, () -> service.setActive(actor, false, actor));
+    }
+
+    @Test
+    void update_recordsBeforeAndAfterSnapshot_BR81() {
+        UUID id = UUID.randomUUID();
+        UUID actor = UUID.randomUUID();
+        User user = userOf(id, Role.CASHIER);
+        user.setEmail("old@khoga.com");
+        user.setPhone("0900000000");
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
+        when(userRepository.existsByEmailAndIdNot("new@khoga.com", id)).thenReturn(false);
+        when(userRepository.existsByPhoneAndIdNot("0900000001", id)).thenReturn(false);
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.update(id, new UpdateUserRequest(null, null, "new@khoga.com", "0900000001"), actor);
+
+        verify(auditLogService).record(eq(ActionType.UPDATE), eq("User"),
+                argThat(old -> old != null && old.contains("old@khoga.com")),
+                argThat(now -> now != null && now.contains("new@khoga.com")), eq(actor));
+    }
+
+    @Test
+    void setActive_deactivate_usesDeactivateActionWithBeforeAfter_S42() {
+        UUID id = UUID.randomUUID();
+        UUID actor = UUID.randomUUID();
+        User user = userOf(id, Role.CASHIER);
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.setActive(id, false, actor);
+
+        verify(auditLogService).record(eq(ActionType.DEACTIVATE), eq("User"),
+                argThat(old -> old.contains("\"active\":true")),
+                argThat(now -> now.contains("\"active\":false")), eq(actor));
     }
 
     private static User userOf(UUID id, Role role) {

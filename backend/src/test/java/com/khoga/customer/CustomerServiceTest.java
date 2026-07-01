@@ -105,7 +105,8 @@ class CustomerServiceTest {
 
         assertEquals(25, c.getPoints());
         verify(customerRepository).save(c);
-        verify(auditLogService).record(eq(ActionType.UPDATE), eq("Customer"), any(), any(), eq(actor));
+        // S4.2: manual point change carries the POINT_ADJUSTMENT action with before/after points.
+        verify(auditLogService).record(eq(ActionType.POINT_ADJUSTMENT), eq("Customer"), any(), any(), eq(actor));
     }
 
     @Test

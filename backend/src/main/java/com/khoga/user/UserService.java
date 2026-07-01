@@ -1,5 +1,6 @@
 package com.khoga.user;
 
+import com.khoga.audit.AuditJson;
 import com.khoga.audit.AuditLogService;
 import com.khoga.common.exception.AppException;
 import com.khoga.common.exception.ResourceNotFoundException;
@@ -110,6 +111,7 @@ public class UserService {
             throw AppException.of("err.081");   // BR-82
         }
         requireUniqueContact(request.email(), request.phone(), id);
+        String oldJson = userSnapshot(user);        // BR-81 before-image
         if (request.role() != null) {
             user.setRole(request.role());
         }
@@ -123,7 +125,7 @@ public class UserService {
             user.setPhone(request.phone());
         }
         userRepository.save(user);
-        auditLogService.record(ActionType.UPDATE, "User", null, "{\"id\":\"" + id + "\"}", actorId);
+        auditLogService.record(ActionType.UPDATE, "User", oldJson, userSnapshot(user), actorId);
         return UserMapper.toResponse(user);
     }
 
@@ -138,6 +140,7 @@ public class UserService {
                 && userRepository.countByRoleAndIsActiveTrue(Role.SSADMIN) <= 1) {
             throw AppException.of("err.083"); // BR-23
         }
+        boolean wasActive = Boolean.TRUE.equals(user.getIsActive());
         user.setIsActive(active);
         if (!active) {
             // BR-18: revoke any tokens already in flight. JwtAuthenticationFilter rejects an
@@ -145,8 +148,11 @@ public class UserService {
             user.setTokenVersion((user.getTokenVersion() != null ? user.getTokenVersion() : 0) + 1);
         }
         userRepository.save(user);
-        auditLogService.record(ActionType.UPDATE, "User", null,
-                "{\"id\":\"" + id + "\",\"active\":" + active + "}", actorId);
+        // BR-81: capture before/after active flag; a deactivation carries the semantic DEACTIVATE action.
+        String oldJson = AuditJson.snapshot().put("id", id.toString()).put("active", wasActive).json();
+        String newJson = AuditJson.snapshot().put("id", id.toString()).put("active", active).json();
+        auditLogService.record(active ? ActionType.UPDATE : ActionType.DEACTIVATE,
+                "User", oldJson, newJson, actorId);
         return UserMapper.toResponse(user);
     }
 
@@ -202,6 +208,16 @@ public class UserService {
         }
         return storeRepository.findById(storeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chi nhánh"));
+    }
+
+    /** BR-81 before/after image of the mutable account fields. */
+    private String userSnapshot(User user) {
+        return AuditJson.snapshot()
+                .put("role", user.getRole() == null ? null : user.getRole().name())
+                .put("storeId", user.getStore() == null ? null : user.getStore().getId().toString())
+                .put("email", user.getEmail())
+                .put("phone", user.getPhone())
+                .json();
     }
 
     private User load(UUID id) {

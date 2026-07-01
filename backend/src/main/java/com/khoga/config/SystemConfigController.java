@@ -1,9 +1,7 @@
 package com.khoga.config;
 
-import com.khoga.audit.AuditLogService;
 import com.khoga.auth.SecurityUtil;
 import com.khoga.common.dto.ApiResponse;
-import com.khoga.common.model.enums.ActionType;
 import com.khoga.config.dto.SystemConfigResponse;
 import com.khoga.config.dto.SystemConfigUpdateRequest;
 import jakarta.validation.Valid;
@@ -17,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Central (chain-wide) system settings — screen 24 / UC-24. Reading is open to HQ admins;
@@ -28,11 +25,9 @@ import java.util.UUID;
 public class SystemConfigController {
 
     private final SystemConfigService systemConfigService;
-    private final AuditLogService auditLogService;
 
-    public SystemConfigController(SystemConfigService systemConfigService, AuditLogService auditLogService) {
+    public SystemConfigController(SystemConfigService systemConfigService) {
         this.systemConfigService = systemConfigService;
-        this.auditLogService = auditLogService;
     }
 
     @GetMapping
@@ -45,10 +40,7 @@ public class SystemConfigController {
     @PreAuthorize("hasRole('SSADMIN')")
     public ResponseEntity<ApiResponse<SystemConfigResponse>> update(
             @PathVariable String key, @Valid @RequestBody SystemConfigUpdateRequest request) {
-        UUID actor = SecurityUtil.currentUserId();
-        SystemConfigResponse updated = systemConfigService.setGlobal(key, request.value(), actor.toString());
-        auditLogService.record(ActionType.UPDATE, "SystemConfig", null,
-                "{\"event\":\"GLOBAL_CONFIG\",\"key\":\"" + key + "\"}", actor);
+        SystemConfigResponse updated = systemConfigService.setGlobal(key, request.value(), SecurityUtil.currentUserId());
         return ResponseEntity.ok(ApiResponse.success(updated, "Cập nhật cấu hình thành công"));
     }
 }

@@ -1,5 +1,6 @@
 package com.khoga.staff;
 
+import com.khoga.audit.AuditJson;
 import com.khoga.audit.AuditLogService;
 import com.khoga.common.exception.AppException;
 import com.khoga.common.exception.ResourceNotFoundException;
@@ -109,8 +110,18 @@ public class ScheduleService {
                 "{\"employee\":\"" + employee.getUsername() + "\",\"date\":\"" + req.shiftDate()
                         + "\",\"crossBranch\":" + crossBranch + "}", actorId);
         if (crossBranch) {
+            // BR-90 / RDS §3.9 logCrossBranchAssignment — a dedicated audit row (not just a flag on the
+            // CREATE above) recording employee, home store, target store and the authorising manager.
+            UUID home = homeStoreId(employee);
+            auditLogService.record(ActionType.CREATE, "StaffScheduleCrossBranch", null,
+                    AuditJson.snapshot()
+                            .put("employeeId", employee.getId() == null ? null : employee.getId().toString())
+                            .put("homeStoreId", home == null ? null : home.toString())
+                            .put("targetStoreId", store.getId().toString())
+                            .put("managerId", actorId == null ? null : actorId.toString())
+                            .json(), actorId);
             log.info("[BR-90] Cross-branch assignment: {} (home {}) → store {}",
-                    employee.getUsername(), homeStoreId(employee), store.getId());
+                    employee.getUsername(), home, store.getId());
         }
         return StaffMapper.toScheduleResponse(saved, crossBranch);
     }

@@ -136,6 +136,7 @@ public class AuthService {
         user.setLockExpiryAt(null);
         user.setLastLoginAt(LocalDateTime.now());
         userRepository.save(user);
+        auditLogService.record(ActionType.UPDATE, "User", null, "{\"event\":\"LOGIN\"}", user.getId()); // login trail
         return issueToken(user);
     }
 
@@ -212,9 +213,17 @@ public class AuthService {
      * revocation to password-change and deactivation ("all other devices"), both implemented via
      * {@code User.tokenVersion} + {@code JwtAuthenticationFilter}. A captured bearer token therefore
      * survives a logout until its natural expiry — the intended stateless-logout behaviour.
+     *
+     * <p>BR-13: it still records the logout time and an audit entry so the account-activity trail shows
+     * both sides of the session.
      */
+    @Transactional
     public void logout(UUID userId) {
-        // no-op by design
+        userRepository.findById(userId).ifPresent(user -> {
+            user.setLastLogoutAt(LocalDateTime.now());
+            userRepository.save(user);
+            auditLogService.record(ActionType.UPDATE, "User", null, "{\"event\":\"LOGOUT\"}", userId); // BR-13
+        });
     }
 
     private boolean isLocked(User user) {

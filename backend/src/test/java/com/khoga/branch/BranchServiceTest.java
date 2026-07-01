@@ -3,9 +3,11 @@ package com.khoga.branch;
 import com.khoga.audit.AuditLogService;
 import com.khoga.branch.dto.BranchSettingsResponse;
 import com.khoga.branch.dto.CreateBranchRequest;
+import com.khoga.branch.dto.UpdateBranchRequest;
 import com.khoga.common.exception.AppException;
 import com.khoga.common.model.Store;
 import com.khoga.common.model.User;
+import com.khoga.common.model.enums.ActionType;
 import com.khoga.common.model.enums.OrderStatus;
 import com.khoga.common.model.enums.Role;
 import com.khoga.common.model.enums.ShiftStatus;
@@ -31,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -138,6 +141,26 @@ class BranchServiceTest {
         verify(userRepository).saveAll(any());
         verify(staffScheduleRepository).deleteByStoreIdAndShiftDateGreaterThanEqual(eq(id), any(LocalDate.class));
         verify(storeRepository).save(store);
+        // S4.2: branch deactivation carries the DEACTIVATE action with before/after active flag.
+        verify(auditLogService).record(eq(ActionType.DEACTIVATE), eq("Store"),
+                argThat(old -> old.contains("\"active\":true")),
+                argThat(now -> now.contains("\"active\":false")), any());
+    }
+
+    @Test
+    void update_recordsBeforeAndAfterSnapshot_BR80() {
+        UUID id = UUID.randomUUID();
+        UUID actor = UUID.randomUUID();
+        Store store = activeStore(id); // name "Khoga District 1"
+        when(storeRepository.findById(id)).thenReturn(Optional.of(store));
+        when(storeRepository.existsByNameIgnoreCaseAndIdNot(anyString(), eq(id))).thenReturn(false);
+        when(storeRepository.save(any(Store.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service().update(id, new UpdateBranchRequest("Khoga Thu Duc", "2 Vo Van Ngan", "0908"), actor);
+
+        verify(auditLogService).record(eq(ActionType.UPDATE), eq("Store"),
+                argThat(old -> old != null && old.contains("Khoga District 1")),
+                argThat(now -> now != null && now.contains("Khoga Thu Duc")), eq(actor));
     }
 
     @Test

@@ -1,8 +1,11 @@
 package com.khoga.config;
 
+import com.khoga.audit.AuditJson;
+import com.khoga.audit.AuditLogService;
 import com.khoga.common.exception.AppException;
 import com.khoga.common.model.Store;
 import com.khoga.common.model.SystemConfig;
+import com.khoga.common.model.enums.ActionType;
 import com.khoga.common.repository.SystemConfigRepository;
 import com.khoga.config.dto.SystemConfigResponse;
 import org.springframework.stereotype.Service;
@@ -25,9 +28,11 @@ public class SystemConfigService {
     public static final String BRANCH_SCOPE = "BRANCH";
 
     private final SystemConfigRepository repository;
+    private final AuditLogService auditLogService;
 
-    public SystemConfigService(SystemConfigRepository repository) {
+    public SystemConfigService(SystemConfigRepository repository, AuditLogService auditLogService) {
         this.repository = repository;
+        this.auditLogService = auditLogService;
     }
 
     public String getGlobal(String key, String defaultValue) {
@@ -77,12 +82,17 @@ public class SystemConfigService {
      * settings UI cannot create stray rows — the seeded key set is authoritative.
      */
     @Transactional
-    public SystemConfigResponse setGlobal(String key, String value, String updatedBy) {
+    public SystemConfigResponse setGlobal(String key, String value, UUID actorId) {
         SystemConfig cfg = repository.findFirstByConfigKeyAndScope(key, GLOBAL_SCOPE)
                 .orElseThrow(() -> new AppException("Khóa cấu hình không tồn tại: " + key));
+        String oldValue = cfg.getConfigValue();                          // BR-80 before-image
         cfg.setConfigValue(value);
-        cfg.setUpdatedBy(updatedBy);
+        cfg.setUpdatedBy(actorId == null ? null : actorId.toString());
         SystemConfig saved = repository.save(cfg);
+        // RDS §3.11: writeAuditLog(CONFIG_UPDATE, system_configs, oldConfig, newConfig)
+        auditLogService.record(ActionType.CONFIG_UPDATE, "SystemConfig",
+                AuditJson.snapshot().put("key", key).put("value", oldValue).json(),
+                AuditJson.snapshot().put("key", key).put("value", value).json(), actorId);
         return new SystemConfigResponse(saved.getConfigKey(), saved.getConfigValue(), saved.getUpdatedBy(), saved.getUpdatedAt());
     }
 

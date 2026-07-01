@@ -2,6 +2,8 @@ package com.khoga.voucher;
 
 import com.khoga.audit.AuditLogService;
 import com.khoga.common.exception.AppException;
+import com.khoga.common.model.Voucher;
+import com.khoga.common.model.enums.ActionType;
 import com.khoga.common.model.enums.DiscountType;
 import com.khoga.common.repository.VoucherRepository;
 import com.khoga.voucher.dto.CreateVoucherRequest;
@@ -12,10 +14,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -75,6 +80,23 @@ class VoucherServiceTest {
 
         assertThrows(AppException.class, () -> service().create(request, UUID.randomUUID()));
         verify(voucherRepository, never()).save(any());
+    }
+
+    @Test
+    void deactivate_usesDeactivateActionWithBeforeAfter_S42() {
+        UUID id = UUID.randomUUID();
+        UUID actor = UUID.randomUUID();
+        Voucher v = new Voucher();
+        v.setId(id);
+        v.setIsActive(true);
+        when(voucherRepository.findById(id)).thenReturn(Optional.of(v));
+        when(voucherRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service().deactivate(id, actor);
+
+        verify(auditLogService).record(eq(ActionType.DEACTIVATE), eq("Voucher"),
+                argThat(old -> old.contains("\"active\":true")),
+                argThat(now -> now.contains("\"active\":false")), eq(actor));
     }
 
     @Test

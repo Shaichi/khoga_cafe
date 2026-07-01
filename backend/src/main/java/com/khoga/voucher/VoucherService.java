@@ -1,5 +1,6 @@
 package com.khoga.voucher;
 
+import com.khoga.audit.AuditJson;
 import com.khoga.audit.AuditLogService;
 import com.khoga.common.exception.AppException;
 import com.khoga.common.exception.ResourceNotFoundException;
@@ -81,6 +82,7 @@ public class VoucherService {
         Voucher voucher = load(id);
         validateDateRange(request.startDate(), request.endDate());
         validateDiscountShape(request.discountType(), request.discountValue(), request.maxDiscountAmount());
+        String oldJson = voucherSnapshot(voucher);      // BR-68 before-image
         voucher.setDiscountType(request.discountType());
         voucher.setDiscountValue(request.discountValue());
         voucher.setMinOrderValue(request.minOrderValue());
@@ -93,7 +95,7 @@ public class VoucherService {
             voucher.setIsActive(request.active());
         }
         voucherRepository.save(voucher);
-        auditLogService.record(ActionType.UPDATE, "Voucher", null, "{\"id\":\"" + id + "\"}", actorId);
+        auditLogService.record(ActionType.UPDATE, "Voucher", oldJson, voucherSnapshot(voucher), actorId);
         return VoucherMapper.toResponse(voucher, statusEngine.status(voucher));
     }
 
@@ -101,9 +103,24 @@ public class VoucherService {
     @Transactional
     public void deactivate(UUID id, UUID actorId) {
         Voucher voucher = load(id);
+        boolean wasActive = Boolean.TRUE.equals(voucher.getIsActive());
         voucher.setIsActive(false);
         voucherRepository.save(voucher);
-        auditLogService.record(ActionType.UPDATE, "Voucher", null, "{\"event\":\"DEACTIVATE\"}", actorId);
+        String oldJson = AuditJson.snapshot().put("active", wasActive).json();
+        String newJson = AuditJson.snapshot().put("active", false).json();
+        auditLogService.record(ActionType.DEACTIVATE, "Voucher", oldJson, newJson, actorId);
+    }
+
+    /** BR-68 before/after image of the mutable voucher fields. */
+    private String voucherSnapshot(Voucher v) {
+        return AuditJson.snapshot()
+                .put("discountType", v.getDiscountType() == null ? null : v.getDiscountType().name())
+                .put("discountValue", v.getDiscountValue())
+                .put("minOrderValue", v.getMinOrderValue())
+                .put("maxDiscountAmount", v.getMaxDiscountAmount())
+                .put("maxTotalUses", v.getMaxTotalUses())
+                .put("active", Boolean.TRUE.equals(v.getIsActive()))
+                .json();
     }
 
     private void validateDateRange(LocalDateTime start, LocalDateTime end) {

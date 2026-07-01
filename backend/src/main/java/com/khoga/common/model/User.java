@@ -33,6 +33,8 @@ public class User extends BaseEntity {
     @JoinColumn(name = "store_id")
     private Store store;
     private LocalDateTime lastLoginAt;
+    /** When the user last logged out (BR-13). Nullable; stamped by {@code AuthService.logout}. */
+    private LocalDateTime lastLogoutAt;
     private Boolean mustChangePassword;
     private String attendancePin;
     private Integer failedAttempts;

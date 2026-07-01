@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -89,6 +90,21 @@ class AuthServiceTest {
         assertEquals(0, u.getFailedAttempts());
         assertNull(u.getLockExpiryAt());
         assertNotNull(u.getLastLoginAt());
+        verify(auditLogService).record(eq(ActionType.UPDATE), eq("User"), any(),
+                argThat(j -> j.contains("LOGIN")), eq(u.getId())); // login trail
+    }
+
+    @Test
+    void logout_stampsLastLogoutTimeAndAudits_BR13() {
+        User u = activeUser("Secret@123");
+        when(userRepository.findById(u.getId())).thenReturn(Optional.of(u));
+
+        authService.logout(u.getId());
+
+        assertNotNull(u.getLastLogoutAt());
+        verify(userRepository).save(u);
+        verify(auditLogService).record(eq(ActionType.UPDATE), eq("User"), any(),
+                argThat(j -> j.contains("LOGOUT")), eq(u.getId()));
     }
 
     @Test

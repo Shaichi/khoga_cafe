@@ -111,7 +111,13 @@
 
 ---
 
-## SPRINT 4 — Đầy đủ Audit (MED/LOW, nhiều finding cùng pattern)
+## SPRINT 4 — Đầy đủ Audit (MED/LOW, nhiều finding cùng pattern) — ✅ **DONE 2026-07-01** (gồm integration)
+
+> Đã hoàn thành S4.1–S4.3 theo TDD, bám RDS. Ghi chú:
+> - **Helper** `audit/AuditJson` (JSON writer nhỏ, không phụ thuộc Jackson) dựng snapshot before/after gọn & an toàn escape.
+> - **S4.1** ghi old+new cho: `UserService.update` (role/store/email/phone) & `setActive`; `VoucherService.update` & `deactivate`; `BranchService.update` & `deactivate`; `SystemConfigService.setGlobal` (chuyển audit **vào service** theo RDS §3.11 ConfigCoordinator, đổi chữ ký nhận `UUID actorId`, controller chỉ gọi); `CustomerService.adjustPoints` (đã có sẵn old/new).
+> - **S4.2** thêm `ActionType` {PRICE_UPDATE, POINT_ADJUSTMENT, CONFIG_UPDATE, DEACTIVATE}; dùng: point-adjust→POINT_ADJUSTMENT, config→CONFIG_UPDATE, deactivate user/voucher/branch→DEACTIVATE; cross-branch schedule ghi **row audit riêng** `StaffScheduleCrossBranch` (employee/home/target/manager) theo `logCrossBranchAssignment` (BR-90). ⚠️ **DB dev cũ:** cột `audit_logs.action_type` có CHECK constraint cũ (chỉ CREATE/UPDATE/DELETE) → phải drop trước khi INSERT giá trị mới ở runtime (CLAUDE.md gotcha; test suite không INSERT giá trị mới lúc boot nên vẫn xanh).
+> - **S4.3** thêm `User.lastLogoutAt`; `AuthService.logout` set mốc + audit `{event:LOGOUT}` (BR-13); `completeLogin` ghi audit `{event:LOGIN}`.
 
 ### S4.1 — Ghi old/new value cho mọi mutation (BR-80/68/81)
 - **RED** test: update user/voucher/branch/config/customer → audit row có `oldValueJson` + `newValueJson` khác null, chứa field đổi.

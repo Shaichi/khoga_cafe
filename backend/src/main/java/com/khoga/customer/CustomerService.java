@@ -109,7 +109,7 @@ public class CustomerService {
         customer.setPoints(updated);
         customerRepository.save(customer);
         String reason = request.reason().replace("\"", "'");
-        auditLogService.record(ActionType.UPDATE, "Customer",
+        auditLogService.record(ActionType.POINT_ADJUSTMENT, "Customer",
                 "{\"points\":" + current + "}",
                 "{\"points\":" + updated + ",\"reason\":\"" + reason + "\"}", actorId);
         return CustomerMapper.toResponse(customer);
