@@ -7,9 +7,22 @@ on:
     branches: [ "**" ]
 
 jobs:
-  build:
-    name: Build & unit tests (JDK 21)
+  test:
+    name: Build & test (JDK 21 + SQL Server)
     runs-on: ubuntu-latest
+
+    # Real SQL Server so the @Tag("integration") full-context test can run in CI (it used to be
+    # excluded). Ephemeral, torn down with the job — the inline password is a throwaway, not a secret.
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: "Khoga_CI_Pass_2026"
+          MSSQL_PID: Developer
+        ports:
+          - 1433:1433
+
     steps:
       - uses: actions/checkout@v4
 
@@ -20,8 +33,92 @@ jobs:
           java-version: "21"
           cache: maven
 
-      # The runner has no SQL Server, so the @Tag("integration") full-context test
-      # (CoffeeshopApplicationTests) is excluded. Pure unit tests still run.
-      # Provisioning a DB service for the integration test is a P4 hardening item.
-      - name: Build & unit tests
-        run: ./mvnw -B verify -DexcludedGroups=integration
+      # The mssql image needs a strong SA password (the local dev "123" won't satisfy it), and Hibernate
+      # creates tables, not the database — so wait for readiness, then create khoga_coffee_shop once.
+      - name: Wait for SQL Server & create database
+        run: |
+          for i in $(seq 1 30); do
+            if docker exec "${{ job.services.sqlserver.id }}" /opt/mssql-tools18/bin/sqlcmd \
+                 -S localhost -U sa -P "Khoga_CI_Pass_2026" -C -Q "SELECT 1" >/dev/null 2>&1; then
+              echo "SQL Server is up"; break
+            fi
+            echo "waiting for SQL Server ($i/30)..."; sleep 5
+          done
+          docker exec "${{ job.services.sqlserver.id }}" /opt/mssql-tools18/bin/sqlcmd \
+            -S localhost -U sa -P "Khoga_CI_Pass_2026" -C \
+            -Q "IF DB_ID('khoga_coffee_shop') IS NULL CREATE DATABASE khoga_coffee_shop"
+
+      # Full suite INCLUDING the integration test (no -DexcludedGroups). Default profile → Flyway off,
+      # ddl-auto=update + DataSeeder, exactly like local dev. Only the DB connection is overridden.
+      - name: Build & all tests
+        working-directory: backend
+        env:
+          DB_URL: "jdbc:sqlserver://localhost:1433;databaseName=khoga_coffee_shop;encrypt=true;trustServerCertificate=true;"
+          DB_USERNAME: sa
+          DB_PASSWORD: "Khoga_CI_Pass_2026"
+        run: ./mvnw -B verify
+
+      # Drift guard: build the schema from Flyway V1 on a FRESH DB, then let Hibernate `validate`. Fails
+      # if an entity changed without a matching migration — keeps the prod baseline honest.
+      - name: Verify Flyway baseline matches entities
+        working-directory: backend
+        run: |
+          docker exec "${{ job.services.sqlserver.id }}" /opt/mssql-tools18/bin/sqlcmd \
+            -S localhost -U sa -P "Khoga_CI_Pass_2026" -C \
+            -Q "IF DB_ID('khoga_flyway_check') IS NULL CREATE DATABASE khoga_flyway_check"
+          ./mvnw -B test -Dtest=CoffeeshopApplicationTests -DforkCount=0 \
+            "-Dspring.datasource.url=jdbc:sqlserver://localhost:1433;databaseName=khoga_flyway_check;encrypt=true;trustServerCertificate=true;" \
+            -Dspring.datasource.username=sa \
+            -Dspring.datasource.password=Khoga_CI_Pass_2026 \
+            -Dspring.flyway.enabled=true \
+            -Dspring.jpa.hibernate.ddl-auto=validate
+
+  images:
+    name: Build Docker images
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # GHCR image names must be lowercase; owner/repo may contain uppercase.
+      - name: Compute image base
+        id: img
+        run: echo "base=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      # Push only on a real push to master (uses the built-in GITHUB_TOKEN — no extra secrets).
+      # Every other trigger builds without pushing, which still validates the Dockerfiles.
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+          tags: |
+            ${{ steps.img.outputs.base }}-backend:latest
+            ${{ steps.img.outputs.base }}-backend:${{ github.sha }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Web image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./khoga_web_admin
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+          tags: |
+            ${{ steps.img.outputs.base }}-web:latest
+            ${{ steps.img.outputs.base }}-web:${{ github.sha }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web

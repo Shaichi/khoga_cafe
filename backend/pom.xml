@@ -66,6 +66,23 @@
             <artifactId>mssql-jdbc</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!-- DB migrations (Flyway) — versions managed by the Spring Boot parent BOM.
+             Boot 4.x split autoconfig into per-tech modules, so the engine alone (flyway-core +
+             flyway-sqlserver) does NOT run migrations — spring-boot-flyway carries the
+             FlywayAutoConfiguration. flyway-sqlserver adds SQL Server support (Flyway 10+ split
+             per-database support into modules). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-flyway</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-sqlserver</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

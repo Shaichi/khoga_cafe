@@ -175,10 +175,11 @@ public class OrderService {
     }
 
     /**
-     * UC-55 — cancel a PENDING order (BR-05). RDS §3.8.2: the cancel flow **logs the OrderCancellation
-     * only** — there is deliberately no stock/loyalty/voucher rollback and no REFUNDED transition, because
-     * stock is deducted only at PREPARING (BR-07) and cancellation is restricted to PENDING, before any
-     * deduction. A post-payment reversal is the separate SM-authorized refund flow (UC-75).
+     * UC-55 — cancel a PENDING order (BR-05). No stock action ever occurs: stock is deducted only at
+     * PREPARING (BR-07) and cancellation is restricted to PENDING, before any deduction. But per BR-08, a
+     * PENDING order that was already paid (prepaid) has its loyalty points and applied-voucher usage reversed
+     * and its payment flipped to REFUNDED. Post-payment reversal on non-PENDING orders is the separate
+     * SM-authorized refund flow (UC-75).
      */
     @Transactional
     public OrderSummaryResponse cancelOrder(UUID orderId, CancelOrderRequest req, UUID actorId) {
@@ -193,9 +194,19 @@ public class OrderService {
         cancellation.setCashier(actor);
         cancellation.setReason(req.reason());
         cancellation.setNotes(req.notes());
-        orderCancellationRepository.save(cancellation); // immutable record, BR-51 — log only (RDS §3.8.2)
+        orderCancellationRepository.save(cancellation); // immutable record, BR-51
 
         order.setStatus(OrderStatus.CANCELLED);
+        if (order.getPaymentStatus() == PaymentStatus.PAID) {
+            // BR-08 — a prepaid order reverses loyalty + voucher usage and is marked REFUNDED (no stock action, BR-07).
+            reversePoints(order);
+            Voucher voucher = order.getVoucher();
+            if (voucher != null) {
+                voucher.setTotalUsageCount(Math.max(0, nz(voucher.getTotalUsageCount()) - 1));
+                voucherRepository.save(voucher);
+            }
+            order.setPaymentStatus(PaymentStatus.REFUNDED);
+        }
         orderRepository.save(order);
 
         auditLogService.record(ActionType.UPDATE, "OrderCancellation", OrderStatus.PENDING.name(),

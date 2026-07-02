@@ -1,0 +1,31 @@
+# Edge reverse proxy — terminates TLS for the whole stack (React SPA + Spring Boot API), so the
+# browser talks HTTPS to one origin and the SPA keeps using relative "/api/v1" URLs (same-origin).
+#
+#   - Default (SITE_ADDRESS=localhost, ACME_EMAIL=internal): a self-signed cert from Caddy's internal
+#     CA — HTTPS works immediately, offline; browsers warn about the untrusted CA (fine for staging).
+#   - Public deploy: set SITE_ADDRESS=your.domain and ACME_EMAIL=you@example.com in .env → Caddy
+#     obtains and auto-renews a real Let's Encrypt certificate (the domain must resolve to this host).
+#
+# Caddy auto-serves HTTP on :80 and redirects it to HTTPS when SITE_ADDRESS is a hostname.
+
+{
+	admin off
+}
+
+{$SITE_ADDRESS:localhost} {
+	# API → Spring Boot. `handle` (not `handle_path`) keeps the /api prefix the controllers expect,
+	# and Caddy sets X-Forwarded-Proto=https / X-Forwarded-For directly on the backend request.
+	handle /api/* {
+		reverse_proxy backend:8080
+	}
+
+	# Everything else → the SPA (nginx container), including client-side routes.
+	handle {
+		reverse_proxy web:80
+	}
+
+	# "internal" => self-signed local CA (default). An email => ACME / Let's Encrypt.
+	tls {$ACME_EMAIL:internal}
+
+	encode gzip
+}

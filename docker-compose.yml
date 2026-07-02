@@ -20,7 +20,7 @@ services:
       retries: 12
       start_period: 30s
 
-  # One-shot: create the database Hibernate then populates (JDBC can't CREATE DATABASE).
+  # One-shot: create the database Flyway then migrates into (JDBC can't CREATE DATABASE on SQL Server).
   db-init:
     image: mcr.microsoft.com/mssql/server:2022-latest
     depends_on:
@@ -49,22 +49,48 @@ services:
       DB_USERNAME: sa
       DB_PASSWORD: ${DB_PASSWORD:-Khoga@Strong#2026}
       JWT_SECRET: ${JWT_SECRET:-please-change-this-to-a-32byte-min-secret-0123456789}
-      JPA_DDL_AUTO: ${JPA_DDL_AUTO:-update}
-      COOKIE_SECURE: ${COOKIE_SECURE:-false}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8081}
+      # Prod is Flyway-managed: Flyway builds the schema, Hibernate only validates it.
+      JPA_DDL_AUTO: ${JPA_DDL_AUTO:-validate}
+      # Behind the Caddy TLS proxy the browser leg is HTTPS → Secure cookies on by default.
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      # SPA + API share one origin through the proxy, so CORS only matters for other clients.
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://localhost}
       MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
       MAIL_USERNAME: ${MAIL_USERNAME:-noreply@khoga.com}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-dummy_password}
       VIETQR_WEBHOOK_SECRET: ${VIETQR_WEBHOOK_SECRET:-dev-webhook-secret}
-    ports:
-      - "8080:8080"
+    # No host port — only the proxy is published. Add `ports: ["8080:8080"]` for direct debugging.
+    expose:
+      - "8080"
 
   web:
     build: ./khoga_web_admin
     depends_on:
       - backend
+    # Internal only — the proxy fronts it. Add `ports: ["8081:80"]` to hit the SPA directly.
+    expose:
+      - "80"
+
+  # Edge reverse proxy — terminates TLS on 443 (redirects 80→443) and routes the SPA + API. See Caddyfile.
+  proxy:
+    image: caddy:2-alpine
+    depends_on:
+      - web
+      - backend
+    environment:
+      # Hostname Caddy serves. "localhost" → self-signed local cert; a real domain (+ ACME_EMAIL) → Let's Encrypt.
+      SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
+      # "internal" → self-signed local CA; an email → ACME / Let's Encrypt (needs a public SITE_ADDRESS).
+      ACME_EMAIL: ${ACME_EMAIL:-internal}
     ports:
-      - "8081:80"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
 
 volumes:
   mssql-data:
+  caddy-data:
+  caddy-config:

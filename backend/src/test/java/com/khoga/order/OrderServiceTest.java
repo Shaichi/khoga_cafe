@@ -170,33 +170,35 @@ class OrderServiceTest {
     }
 
     @Test
-    void cancel_paidPending_logsOnly_noRollback_RDS() {
-        // RDS §3.8.2: cancel logs the OrderCancellation only — NO loyalty/voucher rollback, no REFUNDED.
+    void cancel_paidPending_rollbacksPointsAndVoucher_BR08() {
+        // BR-08: cancelling a prepaid PENDING order reverses loyalty + voucher usage and marks it REFUNDED.
         Order order = order(OrderStatus.PENDING, PaymentStatus.PAID);
         Customer customer = new Customer();
         customer.setId(UUID.randomUUID());
-        customer.setPoints(50);
+        customer.setPoints(5);
         Voucher voucher = new Voucher();
         voucher.setId(UUID.randomUUID());
         voucher.setTotalUsageCount(3);
         order.setCustomer(customer);
         order.setVoucher(voucher);
-        order.setPointsRedeemed(100);
+        order.setPointsRedeemed(0);
         order.setPointsEarned(5);
 
         when(userRepository.findById(actorId)).thenReturn(Optional.of(actor()));
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
         when(orderItemRepository.countByOrderId(orderId)).thenReturn(2L);
+        when(customerRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(voucherRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         service.cancelOrder(orderId, new CancelOrderRequest("khách hủy", "tại quầy"), actorId);
 
         assertEquals(OrderStatus.CANCELLED, order.getStatus());
-        assertEquals(PaymentStatus.PAID, order.getPaymentStatus());  // NOT flipped to REFUNDED
-        assertEquals(50, customer.getPoints());                       // points untouched (no rollback)
-        assertEquals(3, voucher.getTotalUsageCount());                // voucher usage untouched
+        assertEquals(PaymentStatus.REFUNDED, order.getPaymentStatus()); // prepaid → REFUNDED (BR-08)
+        assertEquals(0, customer.getPoints());                          // accrual clawed back (reversePoints)
+        assertEquals(2, voucher.getTotalUsageCount());                  // one usage returned: 3 → 2
         verify(orderCancellationRepository).save(any());
-        verify(customerRepository, never()).save(any());              // no loyalty write
-        verify(voucherRepository, never()).save(any());               // no voucher write
+        verify(customerRepository).save(any());                         // loyalty rollback persisted
+        verify(voucherRepository).save(any());                          // voucher usage persisted
     }
 
     // ---- UC-75 refund / comp ------------------------------------------------
