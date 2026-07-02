@@ -9,171 +9,171 @@
 ```mermaid
 erDiagram
     STORE {
-        uuid id PK
-        string name
-        string address
-        string phone
-        boolean is_active
-        datetime created_at
+        UNIQUEIDENTIFIER id PK
+        NVARCHAR(255) name
+        NVARCHAR(255) address
+        NVARCHAR(255) phone
+        BIT is_active
+        DATETIME2 created_at
     }
 
     USER {
-        uuid id PK
-        string username
-        string password_hash
-        enum role
-        string full_name
-        boolean is_active
-        string email
-        string phone
-        uuid store_id FK
-        string employee_id
-        int failed_attempts
-        datetime lock_expiry_at
-        datetime password_last_changed_at
-        datetime created_at
-        datetime last_login_at
-        boolean must_change_password
-        string attendance_pin
+        UNIQUEIDENTIFIER id PK
+        NVARCHAR(255) username
+        NVARCHAR(255) password_hash
+        VARCHAR(50) role
+        NVARCHAR(255) full_name
+        BIT is_active
+        NVARCHAR(255) email
+        NVARCHAR(255) phone
+        UNIQUEIDENTIFIER store_id FK
+        NVARCHAR(255) employee_id
+        INT failed_attempts
+        DATETIME2 lock_expiry_at
+        DATETIME2 password_last_changed_at
+        DATETIME2 created_at
+        DATETIME2 last_login_at
+        BIT must_change_password
+        NVARCHAR(255) attendance_pin
     }
 
     CATEGORY {
-        uuid id PK
-        string name
-        text description
-        boolean is_active
+        UNIQUEIDENTIFIER id PK
+        NVARCHAR(255) name
+        NVARCHAR(MAX) description
+        BIT is_active
     }
 
     MENU_ITEM {
-        uuid id PK
-        uuid category_id FK
-        uuid parent_item_id FK
-        string name
-        decimal price
-        text description
-        boolean is_active
-        string image_url
-        string barcode
-        string sku
-        string size_name
-        string abbreviation
-        datetime created_at
-        boolean is_deleted
+        UNIQUEIDENTIFIER id PK
+        UNIQUEIDENTIFIER category_id FK
+        UNIQUEIDENTIFIER parent_item_id FK
+        NVARCHAR(255) name
+        DECIMAL(18,2) price
+        NVARCHAR(MAX) description
+        BIT is_active
+        NVARCHAR(255) image_url
+        NVARCHAR(255) barcode
+        NVARCHAR(255) sku
+        NVARCHAR(255) size_name
+        NVARCHAR(255) abbreviation
+        DATETIME2 created_at
+        BIT is_deleted
     }
 
     BRANCH_MENU_STATUS {
-        uuid store_id PK
-        uuid menu_item_id PK
-        boolean is_available
+        UNIQUEIDENTIFIER store_id PK
+        UNIQUEIDENTIFIER menu_item_id PK
+        BIT is_available
     }
 
     OPTION_TOPPING {
-        uuid id PK
-        string name
-        decimal price
-        boolean is_active
+        UNIQUEIDENTIFIER id PK
+        NVARCHAR(255) name
+        DECIMAL(18,2) price
+        BIT is_active
     }
 
     CUSTOMER {
-        uuid id PK
-        string phone
-        string full_name
-        int points
-        string email
-        date birth_date
-        boolean is_active
-        datetime created_at
-        datetime consent_at
-        string consent_version
+        UNIQUEIDENTIFIER id PK
+        NVARCHAR(255) phone
+        NVARCHAR(255) full_name
+        INT points
+        NVARCHAR(255) email
+        DATE birth_date
+        BIT is_active
+        DATETIME2 created_at
+        DATETIME2 consent_at
+        NVARCHAR(255) consent_version
     }
 
     MENU_ITEM_TOPPING_MAPPING {
-        uuid id PK
-        uuid menu_item_id FK
-        uuid option_topping_id FK
+        UNIQUEIDENTIFIER id PK
+        UNIQUEIDENTIFIER menu_item_id FK
+        UNIQUEIDENTIFIER option_topping_id FK
     }
 
     SHIFT_SESSION {
-        uuid id PK
-        uuid store_id FK
-        uuid user_id FK
-        datetime start_time
-        datetime end_time
-        decimal starting_cash
-        decimal ending_cash
-        enum status
-        string pos_register_id
+        UNIQUEIDENTIFIER id PK
+        UNIQUEIDENTIFIER store_id FK
+        UNIQUEIDENTIFIER user_id FK
+        DATETIME2 start_time
+        DATETIME2 end_time
+        DECIMAL(18,2) starting_cash
+        DECIMAL(18,2) ending_cash
+        VARCHAR(50) status
+        NVARCHAR(255) pos_register_id
     }
 
     ORDER {
-        uuid id PK
-        uuid store_id FK
-        string order_number
-        uuid shift_session_id FK
-        uuid customer_id FK
-        uuid voucher_id FK
-        enum order_type
-        decimal subtotal
-        decimal discount
-        decimal tax_amount
-        decimal total
-        enum payment_method
-        enum payment_status
-        enum status
-        datetime created_at
+        UNIQUEIDENTIFIER id PK
+        UNIQUEIDENTIFIER store_id FK
+        NVARCHAR(255) order_number
+        UNIQUEIDENTIFIER shift_session_id FK
+        UNIQUEIDENTIFIER customer_id FK
+        UNIQUEIDENTIFIER voucher_id FK
+        VARCHAR(50) order_type
+        DECIMAL(18,2) subtotal
+        DECIMAL(18,2) discount
+        DECIMAL(18,2) tax_amount
+        DECIMAL(18,2) total
+        VARCHAR(50) payment_method
+        VARCHAR(50) payment_status
+        VARCHAR(50) status
+        DATETIME2 created_at
     }
 
     ORDER_ITEM {
-        uuid id PK
-        uuid order_id FK
-        uuid menu_item_id FK
-        int quantity
-        decimal unit_price
+        UNIQUEIDENTIFIER id PK
+        UNIQUEIDENTIFIER order_id FK
+        UNIQUEIDENTIFIER menu_item_id FK
+        INT quantity
+        DECIMAL(18,2) unit_price
     }
 
     ORDER_ITEM_TOPPING {
-        uuid id PK
-        uuid order_item_id FK
-        uuid topping_id FK
-        int quantity
-        decimal unit_price
+        UNIQUEIDENTIFIER id PK
+        UNIQUEIDENTIFIER order_item_id FK
+        UNIQUEIDENTIFIER topping_id FK
+        INT quantity
+        DECIMAL(18,2) unit_price
     }
 
     ORDER_CANCELLATION {
-        uuid id PK
-        uuid order_id FK
-        uuid cashier_id FK
-        string reason
-        text notes
-        datetime created_at
+        UNIQUEIDENTIFIER id PK
+        UNIQUEIDENTIFIER order_id FK
+        UNIQUEIDENTIFIER cashier_id FK
+        NVARCHAR(255) reason
+        NVARCHAR(MAX) notes
+        DATETIME2 created_at
     }
 
     ORDER_REFUND {
-        uuid id PK
-        uuid order_id FK
-        uuid sm_id FK
-        uuid cashier_id FK
-        uuid shift_session_id FK
-        enum refund_type
-        decimal amount
-        string reason
-        text notes
-        datetime created_at
+        UNIQUEIDENTIFIER id PK
+        UNIQUEIDENTIFIER order_id FK
+        UNIQUEIDENTIFIER sm_id FK
+        UNIQUEIDENTIFIER cashier_id FK
+        UNIQUEIDENTIFIER shift_session_id FK
+        VARCHAR(50) refund_type
+        DECIMAL(18,2) amount
+        NVARCHAR(255) reason
+        NVARCHAR(MAX) notes
+        DATETIME2 created_at
     }
 
     VOUCHER {
-        uuid id PK
-        string code
-        enum discount_type
-        decimal discount_value
-        decimal min_order_value
-        datetime start_date
-        datetime end_date
-        boolean is_active
-        int usage_limit_per_customer
-        int total_usage_count
-        int max_total_uses
-        decimal max_discount_amount
+        UNIQUEIDENTIFIER id PK
+        NVARCHAR(255) code
+        VARCHAR(50) discount_type
+        DECIMAL(18,2) discount_value
+        DECIMAL(18,2) min_order_value
+        DATETIME2 start_date
+        DATETIME2 end_date
+        BIT is_active
+        INT usage_limit_per_customer
+        INT total_usage_count
+        INT max_total_uses
+        DECIMAL(18,2) max_discount_amount
     }
 
     %% Relationships
@@ -210,136 +210,136 @@ erDiagram
 ```mermaid
 erDiagram
     STORE {
-        uuid id PK
-        string name
-        string address
-        string phone
-        boolean is_active
-        datetime created_at
+        UNIQUEIDENTIFIER id PK
+        NVARCHAR(255) name
+        NVARCHAR(255) address
+        NVARCHAR(255) phone
+        BIT is_active
+        DATETIME2 created_at
     }
 
     USER {
-        uuid id PK
-        string username
-        string password_hash
-        enum role
-        string full_name
-        boolean is_active
-        string email
-        string phone
-        uuid store_id FK
-        string employee_id
-        int failed_attempts
-        datetime lock_expiry_at
-        datetime password_last_changed_at
-        datetime created_at
-        datetime last_login_at
-        boolean must_change_password
-        string attendance_pin
+        UNIQUEIDENTIFIER id PK
+        NVARCHAR(255) username
+        NVARCHAR(255) password_hash
+        VARCHAR(50) role
+        NVARCHAR(255) full_name
+        BIT is_active
+        NVARCHAR(255) email
+        NVARCHAR(255) phone
+        UNIQUEIDENTIFIER store_id FK
+        NVARCHAR(255) employee_id
+        INT failed_attempts
+        DATETIME2 lock_expiry_at
+        DATETIME2 password_last_changed_at
+        DATETIME2 created_at
+        DATETIME2 last_login_at
+        BIT must_change_password
+        NVARCHAR(255) attendance_pin
     }
 
     RAW_MATERIAL {
-        uuid id PK
-        string code
-        string name
-        string unit
-        decimal suggested_min_threshold
-        decimal standard_cost
-        boolean is_active
-        string category
+        UNIQUEIDENTIFIER id PK
+        NVARCHAR(255) code
+        NVARCHAR(255) name
+        NVARCHAR(255) unit
+        DECIMAL(18,2) suggested_min_threshold
+        DECIMAL(18,2) standard_cost
+        BIT is_active
+        NVARCHAR(255) category
     }
 
     STOCK_ITEM {
-        uuid id PK
-        uuid store_id FK
-        uuid raw_material_id FK
-        decimal current_quantity
-        decimal min_alert_threshold
+        UNIQUEIDENTIFIER id PK
+        UNIQUEIDENTIFIER store_id FK
+        UNIQUEIDENTIFIER raw_material_id FK
+        DECIMAL(18,2) current_quantity
+        DECIMAL(18,2) min_alert_threshold
     }
 
     STOCK_TRANSACTION {
-        uuid id PK
-        uuid stock_item_id FK
-        uuid manager_id FK
-        enum transaction_type "IMPORT/EXPORT/AUDIT_ADJUSTMENT/RECIPE_DEDUCTION/PHANTOM_USAGE"
-        decimal quantity
-        text reason
-        datetime created_at
+        UNIQUEIDENTIFIER id PK
+        UNIQUEIDENTIFIER stock_item_id FK
+        UNIQUEIDENTIFIER manager_id FK
+        VARCHAR(50) transaction_type "IMPORT/EXPORT/AUDIT_ADJUSTMENT/RECIPE_DEDUCTION/PHANTOM_USAGE"
+        DECIMAL(18,2) quantity
+        NVARCHAR(MAX) reason
+        DATETIME2 created_at
     }
 
     RECIPE_ITEM {
-        uuid id PK
-        uuid menu_item_id FK
-        uuid option_topping_id FK
-        uuid raw_material_id FK
-        decimal quantity_required
+        UNIQUEIDENTIFIER id PK
+        UNIQUEIDENTIFIER menu_item_id FK
+        UNIQUEIDENTIFIER option_topping_id FK
+        UNIQUEIDENTIFIER raw_material_id FK
+        DECIMAL(18,2) quantity_required
     }
 
     MENU_ITEM {
-        uuid id PK
-        uuid category_id FK
-        uuid parent_item_id FK
-        string name
-        decimal price
-        text description
-        boolean is_active
-        string image_url
-        string barcode
-        string sku
-        string size_name
-        string abbreviation
-        datetime created_at
-        boolean is_deleted
+        UNIQUEIDENTIFIER id PK
+        UNIQUEIDENTIFIER category_id FK
+        UNIQUEIDENTIFIER parent_item_id FK
+        NVARCHAR(255) name
+        DECIMAL(18,2) price
+        NVARCHAR(MAX) description
+        BIT is_active
+        NVARCHAR(255) image_url
+        NVARCHAR(255) barcode
+        NVARCHAR(255) sku
+        NVARCHAR(255) size_name
+        NVARCHAR(255) abbreviation
+        DATETIME2 created_at
+        BIT is_deleted
     }
 
     OPTION_TOPPING {
-        uuid id PK
-        string name
-        decimal price
-        boolean is_active
+        UNIQUEIDENTIFIER id PK
+        NVARCHAR(255) name
+        DECIMAL(18,2) price
+        BIT is_active
     }
 
     STAFF_SCHEDULE {
-        uuid id PK
-        uuid store_id FK
-        uuid user_id FK
-        date shift_date
-        enum shift_type
-        time shift_start_time
-        time shift_end_time
-        string pos_register_id
-        datetime created_at
+        UNIQUEIDENTIFIER id PK
+        UNIQUEIDENTIFIER store_id FK
+        UNIQUEIDENTIFIER user_id FK
+        DATE shift_date
+        VARCHAR(50) shift_type
+        TIME shift_start_time
+        TIME shift_end_time
+        NVARCHAR(255) pos_register_id
+        DATETIME2 created_at
     }
 
     ATTENDANCE {
-        uuid id PK
-        uuid store_id FK
-        uuid user_id FK
-        date shift_date
-        datetime check_in_at
-        datetime check_out_at
-        datetime scheduled_start
-        enum status
-        string photo_url
+        UNIQUEIDENTIFIER id PK
+        UNIQUEIDENTIFIER store_id FK
+        UNIQUEIDENTIFIER user_id FK
+        DATE shift_date
+        DATETIME2 check_in_at
+        DATETIME2 check_out_at
+        DATETIME2 scheduled_start
+        VARCHAR(50) status
+        NVARCHAR(255) photo_url
     }
 
     AUDIT_LOG {
-        uuid id PK
-        uuid user_id FK
-        enum action_type
-        string entity_affected
-        text old_value_json
-        text new_value_json
-        datetime created_at
+        UNIQUEIDENTIFIER id PK
+        UNIQUEIDENTIFIER user_id FK
+        VARCHAR(50) action_type
+        NVARCHAR(255) entity_affected
+        NVARCHAR(MAX) old_value_json
+        NVARCHAR(MAX) new_value_json
+        DATETIME2 created_at
     }
 
     SYSTEM_CONFIG {
-        uuid id PK
-        string config_key
-        string config_value
-        string scope
-        uuid store_id FK
-        string updated_by
+        UNIQUEIDENTIFIER id PK
+        NVARCHAR(255) config_key
+        NVARCHAR(255) config_value
+        NVARCHAR(255) scope
+        UNIQUEIDENTIFIER store_id FK
+        NVARCHAR(255) updated_by
     }
 
     %% Relationships

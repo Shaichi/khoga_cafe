@@ -126,7 +126,7 @@ sequenceDiagram
         StockCoord->>RawMatDB: insert(code immutable, isActive=true)
     else edit material
         businessadmin->>MasterForm: edit name / standardCost / suggestedMinThreshold
-        Note over StockCoord, RawMatDB: reject code change (BR-63); reject unit change if referenced (BR-64)
+        Note over StockCoord, RawMatDB: reject code change (BR-63), reject unit change if referenced (BR-64)
         MasterForm->>StockCoord: updateRawMaterial(dto)
         StockCoord->>RawMatDB: update(allowed fields only)
     else soft-delete material

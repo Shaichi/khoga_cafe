@@ -76,7 +76,7 @@ public class AuthService {
     @Transactional(noRollbackFor = AppException.class)
     public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByUsername(request.username())
-                .orElseThrow(() -> AppException.of("err.001"));
+                .orElseThrow(() -> AppException.of("MSG02", MAX_FAILED_ATTEMPTS));
 
         if (Boolean.FALSE.equals(user.getIsActive())) {
             throw AppException.of("MSG03");            // BR-10 — account suspended/deactivated
@@ -87,7 +87,7 @@ public class AuthService {
         clearExpiredLock(user);
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             registerFailure(user);
-            throw AppException.of("err.003");
+            throw AppException.of("MSG02", MAX_FAILED_ATTEMPTS - (user.getFailedAttempts() == null ? 0 : user.getFailedAttempts()));
         }
 
         // BR-83: HQ roles need a second factor before a token is issued. The failure counter is NOT

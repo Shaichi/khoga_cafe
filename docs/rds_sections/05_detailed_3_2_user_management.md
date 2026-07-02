@@ -146,7 +146,8 @@ sequenceDiagram
     ssadmin->>EditForm: select user + edit fields
     EditForm->>UserMgmtCoord: submitChanges(userId, dto)
     UserMgmtCoord->>UserMgmtCoord: checkNotSelfChange(actor.id, userId, newRole, newPermissions, newActiveStatus) [BR-82]
-    note over UserMgmtCoord: reject if actor.id == userId and any of role / permissions / active-status changes;<br/>such a change must be made by a different ssadmin
+    Note over UserMgmtCoord: Reject if actor.id == userId and any of role / permissions / active-status changes.
+    Note over UserMgmtCoord: Such a change must be made by a different ssadmin.
 
     alt Update User (UC-12)
         UserMgmtCoord->>UserDB: findById(userId)

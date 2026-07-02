@@ -317,17 +317,17 @@ sequenceDiagram
 stateDiagram-v2
     [*] --> CREATED : createAccount() / setMustChangePassword(true)
 
-    CREATED --> ACTIVE : login() [mustChangePassword == true] / forcePasswordChange(); setMustChangePassword(false)
+    CREATED --> ACTIVE : login() / forcePasswordChange(), setMustChangePassword(false)
 
-    ACTIVE --> LOCKED : loginFailed() [consecutiveFailures >= 5] / lockAccount() [BR-11]
+    ACTIVE --> LOCKED : loginFailed() (BR-11, consecutiveFailures ≥ 5) / lockAccount()
 
-    ACTIVE --> INACTIVE_BY_SM : deactivate() [isSM == true && isOwnBranch == true] / deactivateAccount()
+    ACTIVE --> INACTIVE_BY_SM : deactivate() [isSM and isOwnBranch] / deactivateAccount()
 
     ACTIVE --> INACTIVE_BY_ADMIN : deactivate() [isSSAdmin == true] / deactivateAccount()
 
-    LOCKED --> ACTIVE : after(15min) / autoUnlock(); resetFailedAttempts() [BR-11]
+    LOCKED --> ACTIVE : after(15min) (BR-11) / autoUnlock(), resetFailedAttempts()
 
-    LOCKED --> ACTIVE : unlock() [(isSM == true && isOwnBranch == true) || isSSAdmin == true] / resetFailedAttempts()
+    LOCKED --> ACTIVE : unlock() [(isSM and isOwnBranch) or isSSAdmin] / resetFailedAttempts()
 
     INACTIVE_BY_SM --> ACTIVE : reactivate() [isSSAdmin == true] / activateAccount()
 
