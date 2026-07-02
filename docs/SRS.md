@@ -1,3 +1,5 @@
+# Software Requirements Specification (SRS)
+
 # 1. Product Overview
 
 The Coffee Shop Management System is an integrated software solution designed to streamline the operations of a modern coffee shop. This section details the objectives, scope, and system context of the product.
@@ -467,6 +469,91 @@ graph LR
 
 ---
 
+### Use Case Index
+
+| ID | Use Case Name |
+|---|---|
+| UC-01 | Login |
+| UC-02 | Logout |
+| UC-03 | Forgot Password |
+| UC-04 | Verify OTP |
+| UC-05 | Set New Password |
+| UC-06 | Force Password Change |
+| UC-07 | View Profile |
+| UC-08 | Update Profile |
+| UC-09 | Change Password |
+| UC-10 | View User Account List |
+| UC-11 | Add User Account |
+| UC-12 | Update User Account |
+| UC-13 | View User Account Detail |
+| UC-14 | Deactivate User Account |
+| UC-15 | View Menu & Categories List |
+| UC-68 | View Menu Item Detail |
+| UC-69 | View Categories List |
+| UC-16 | Add Category |
+| UC-17 | Update Category |
+| UC-70 | Delete Category |
+| UC-18 | Add Menu Item & Recipe |
+| UC-71 | Manage Toppings & Options |
+| UC-19 | Update Menu Item & Recipe |
+| UC-72 | Delete Menu Item |
+| UC-74 | Manage Raw Material Master |
+| UC-20 | View Vouchers List |
+| UC-21 | Add Voucher |
+| UC-22 | Update Voucher |
+| UC-23 | Delete Voucher |
+| UC-24 | View Customer List |
+| UC-25 | Add Customer |
+| UC-26 | Update Customer |
+| UC-27 | View Customer History |
+| UC-28 | View Consolidated Business Reports |
+| UC-29 | Export HQ Reports |
+| UC-76 | View COGS / Margin & Ingredient Shrinkage Report |
+| UC-77 | View Price & Voucher Change History |
+| UC-78 | View Loyalty Liability & Movement Report |
+| UC-79 | View Labour Hours vs Revenue Report |
+| UC-80 | Export Worked-Hours Report |
+| UC-81 | View Daily Z-Report |
+| UC-82 | View Cashier Void/Refund Anomaly Report |
+| UC-83 | View User Account Change & Access Review Report |
+| UC-30 | Configure Central System Settings |
+| UC-31 | View Stock List |
+| UC-32 | Import Stock |
+| UC-33 | Export Stock |
+| UC-34 | Perform Inventory Audit |
+| UC-35 | View Staff Schedule |
+| UC-36 | Create Staff Schedule |
+| UC-37 | Update Staff Schedule |
+| UC-38 | Delete Staff Schedule |
+| UC-39 | View Staff Attendance Report |
+| UC-66 | View Branch Staff List |
+| UC-40 | View Store Revenue Reports |
+| UC-41 | Export Store Reports |
+| UC-42 | Configure Local Branch Settings |
+| UC-44 | Open Shift |
+| UC-45 | Add Item to Order |
+| UC-46 | Update Cart Item |
+| UC-47 | Search Menu Item |
+| UC-48 | Apply Discount Code |
+| UC-49 | Redeem Loyalty Points |
+| UC-50 | Lookup Customer Membership |
+| UC-51 | Process Payment |
+| UC-52 | Issue Invoice |
+| UC-53 | Close Shift |
+| UC-54 | View Local Order History |
+| UC-73 | View Order Detail |
+| UC-55 | Request Transaction Refund |
+| UC-75 | Store-Manager Refund or Comp |
+| UC-57 | View Order Queue Display |
+| UC-58 | Update Preparation Status |
+| UC-59 | Print Drink Label Sticker |
+| UC-60 | Report Issue / Escalate Order |
+| UC-61 | View Import/Export History |
+| UC-62 | Auto-Deduct Inventory on Order Completion |
+| UC-63 | View Branch List |
+| UC-64 | Add Branch |
+| UC-65 | Update / Deactivate Branch |
+
 ## 2.3 Use Case Descriptions
 This part describes the use cases & their main flow (the list of the user actions and corresponding system responses that will take place during execution of the use case under normal, expected conditions), using the table format below.
 
@@ -541,7 +628,7 @@ This part describes the use cases & their main flow (the list of the user action
 | **UC-53** | POS Sales & Billing | Close Shift | Cashier | **Description**: Closes POS session.<br>**Main Flow**:<br>1. Cashier counts cash and inputs closing float.<br>2. Discrepancies are calculated and flagged, and the session is closed. |
 | **UC-54** | POS Sales & Billing | View Local Order History | Cashier | **Description**: Displays local branch orders.<br>**Main Flow**:<br>1. Cashier opens order history grid.<br>2. Cash drawer orders processed during the current shift are displayed. |
 | **UC-73** | POS Sales & Billing | View Order Detail | Cashier, Store Manager, Barista | **Description**: Displays receipt details, payments, and fulfillment tracking metrics for an order.<br>**Main Flow**:<br>1. User taps on specific order.<br>2. Portal displays details, payments log, and order item list. |
-| **UC-55** | POS Sales & Billing | Request Transaction Refund | Cashier | **Description**: Initiates refund and cancellation process for PENDING orders.<br>**Precondition**: Order must be in `PENDING` state.<br>**Main Flow**:<br>1. Cashier selects a pending order and clicks Cancel Order.<br>2. Cashier inputs cancellation reason and details, then confirms cancellation. POS voids transaction and updates stock immediately. |
+| **UC-55** | POS Sales & Billing | Request Transaction Refund | Cashier | **Description**: Initiates refund and cancellation process for PENDING orders.<br>**Precondition**: Order must be in `PENDING` state.<br>**Main Flow**:<br>1. Cashier selects a pending order and clicks Cancel Order.<br>2. Cashier inputs cancellation reason and details, then confirms cancellation. POS voids transaction and updates order status to CANCELLED. |
 | **UC-75** | POS Sales & Billing | Store-Manager Refund or Comp | Store Manager | **Description**: Handles complaints after preparation has started (`PREPARING`/`READY`/`COMPLETED`) — cannot be cancelled (BR-05). SM authorises a Refund or a Comp/Remake; logged with `sm_id` (§3.7.5a, BR-67).<br>**Main Flow**:<br>1. Cashier opens the order and taps Refund/Comp; Store Manager authorises (login/PIN).<br>2. SM selects Refund (full/partial) or Comp/Remake, enters reason; system applies money + loyalty effects and logs the record. |
 | **UC-57** | Order Prep & Queue | View Order Queue Display | Barista | **Description**: Monitors preparation queue.<br>**Main Flow**:<br>1. Barista opens queue display.<br>2. Pending, preparing, and ready orders are displayed. |
 | **UC-58** | Order Prep & Queue | Update Preparation Status | Barista | **Description**: Modifies preparation flags.<br>**Main Flow**:<br>1. Barista selects active order and moves it to preparing/ready.<br>2. Timestamps are logged and the cashier status is updated. |
@@ -4129,14 +4216,14 @@ All orders follow the state transitions below:
 | **Description** | Voids a pending order and processes payment refund. |
 | **Precondition** | Order is in `PENDING` state. |
 | **Trigger** | Cashier clicks Cancel Order. |
-| **Post-Condition** | Order is cancelled, stock rollbacked, and refund completed. |
+| **Post-Condition** | Order is cancelled and refund completed. |
 
 #### Main Flows
 | Step | Actor | Action |
 |---|---|---|
 | 1 | Cashier | Selects a PENDING order, taps Cancel, inputs reason and detailed notes. |
 | 2 | Cashier | Taps **Xác nhận hủy**. |
-| 3 | Portal | Updates order status to `CANCELLED`, reverses vouchers/points (BR-08), records inventory wastage logs (BR-07), and saves cancellation audit logs. |
+| 3 | Portal | Updates order status to `CANCELLED`, reverses vouchers/points (BR-08), and saves cancellation audit logs. (No inventory rollback per BR-07). |
 | 4 | Portal | Displays success notification and returns to order history screen. |
 
 #### Business Rules
@@ -6229,7 +6316,7 @@ This section contains business rules, global requirements, common application me
 | BR-04 | **Shift Discrepancy Alert**: Any cash discrepancy exceeding 100,000 VND must be flagged and automatically emailed to the Store Manager. If email delivery fails, an in-app push notification is sent to the Store Manager's dashboard as a fallback. |
 | BR-05 | **Order Cancellation Rules**: Order cancellation is strictly restricted to the `PENDING` status. Once the order transitions to `PREPARING` (preparation started), the cancellation action is disabled for all users, including Cashiers and Managers. |
 | BR-06 | [RESERVED / DELETED] |
-| BR-07 | **Inventory Action on Cancellation**: For packaged/ready-to-serve products, stock is deducted immediately at payment checkout (UC-51). If the order is cancelled while in the `PENDING` state, these items are auto-replenished. For freshly prepared items, stock is only deducted when the order transitions to the `PREPARING` state (UC-62). If cancelled while in the `PENDING` state, no stock deduction has occurred yet, so no replenishment is needed. |
+| BR-07 | **Inventory Action on Cancellation**: In the simplified stock model, stock is deducted ONLY when the order transitions to the `PREPARING` state (UC-62). Order cancellation is strictly restricted to the `PENDING` state (BR-05) — before any deduction has occurred — so there is never a stock rollback or replenishment to perform. |
 | BR-08 | **Loyalty & Voucher Rollback**: Order cancellation reverses used vouchers (restoring total and customer limits) and adjusts loyalty points (gained points are deducted, and redeemed points are refunded to the customer balance). |
 | BR-09 | **Refund Authorization & Execution**: Refunds for orders in the `PENDING` status can be performed directly by the Cashier without manager approval. All refunds must occur within **7 days** of the original purchase. **Cash refunds** are paid from, and recorded against, the **currently open Shift Session** on the terminal at the moment of refund (the drawer that physically pays out) — regardless of which shift the original order belonged to — reducing that shift's expected cash for reconciliation (BR-03). If **no** shift is open at the time, a cash refund cannot be processed until a shift is opened. **Card/VietQR refunds** invoke the payment gateway's refund API and have no cash-drawer impact, so they are independent of the shift session. |
 | BR-10 | **Inactive Accounts Block**: Inactive accounts must be blocked from logging into the system. |
@@ -6405,4 +6492,33 @@ The matrix below maps operational modules and system features to employee roles,
 
 
 
+
+
+
+---
+
+# Glossary of Terms
+
+| Term | Definition |
+|---|---|
+| **Branch** | A physical store location of the coffee shop chain. |
+| **Shift Session** | A continuous period of work assigned to an employee at a specific branch, e.g., Morning Shift, Afternoon Shift. |
+| **Z-Report** | An end-of-day financial report summarizing all POS transactions, cash counts, and discrepancies for a specific branch. |
+| **COGS** | Cost of Goods Sold; the direct costs attributable to the production of the goods sold in a company. |
+| **Net Total Payable** | The final amount a customer pays after all discounts (vouchers, loyalty points) and taxes (VAT) have been applied. |
+| **Gross Subtotal** | The total price of all items in an order before any discounts or taxes are applied. |
+| **Loyalty Points** | Reward points earned by customers based on their purchases, which can be redeemed for discounts on future orders. |
+| **PDPA** | Personal Data Protection Act; governs the collection, use, and disclosure of personal data. |
+| **VietQR** | A standardized QR code payment method used in Vietnam for quick bank transfers. |
+| **Base Staff** | A general term for employees like Cashiers and Baristas who operate the daily functions of the coffee shop. |
+| **Store Manager** | The manager responsible for overseeing operations, staff, and inventory at a specific branch. |
+| **Business Admin** | An administrative role responsible for managing chain-wide settings, catalog, vouchers, and customer loyalty. |
+| **System Admin (`ssadmin`)** | The highest-level administrative role responsible for system configuration, user access, and branch lifecycle management. |
+| **CEO Viewer** | An executive role with read-only access to chain-wide consolidated reports and analytics. |
+| **Topping** | An optional or mandatory modifier that can be added to a menu item (e.g., Extra Shot, Boba, No Ice). |
+| **Recipe** | The formulation of raw materials required to produce a specific saleable menu item. |
+| **Raw Material** | Basic inventory items used in recipes (e.g., Coffee Beans, Milk, Sugar). |
+
+
+---
 

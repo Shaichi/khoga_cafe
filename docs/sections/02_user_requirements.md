@@ -377,6 +377,91 @@ graph LR
 
 ---
 
+### Use Case Index
+
+| ID | Use Case Name |
+|---|---|
+| UC-01 | Login |
+| UC-02 | Logout |
+| UC-03 | Forgot Password |
+| UC-04 | Verify OTP |
+| UC-05 | Set New Password |
+| UC-06 | Force Password Change |
+| UC-07 | View Profile |
+| UC-08 | Update Profile |
+| UC-09 | Change Password |
+| UC-10 | View User Account List |
+| UC-11 | Add User Account |
+| UC-12 | Update User Account |
+| UC-13 | View User Account Detail |
+| UC-14 | Deactivate User Account |
+| UC-15 | View Menu & Categories List |
+| UC-68 | View Menu Item Detail |
+| UC-69 | View Categories List |
+| UC-16 | Add Category |
+| UC-17 | Update Category |
+| UC-70 | Delete Category |
+| UC-18 | Add Menu Item & Recipe |
+| UC-71 | Manage Toppings & Options |
+| UC-19 | Update Menu Item & Recipe |
+| UC-72 | Delete Menu Item |
+| UC-74 | Manage Raw Material Master |
+| UC-20 | View Vouchers List |
+| UC-21 | Add Voucher |
+| UC-22 | Update Voucher |
+| UC-23 | Delete Voucher |
+| UC-24 | View Customer List |
+| UC-25 | Add Customer |
+| UC-26 | Update Customer |
+| UC-27 | View Customer History |
+| UC-28 | View Consolidated Business Reports |
+| UC-29 | Export HQ Reports |
+| UC-76 | View COGS / Margin & Ingredient Shrinkage Report |
+| UC-77 | View Price & Voucher Change History |
+| UC-78 | View Loyalty Liability & Movement Report |
+| UC-79 | View Labour Hours vs Revenue Report |
+| UC-80 | Export Worked-Hours Report |
+| UC-81 | View Daily Z-Report |
+| UC-82 | View Cashier Void/Refund Anomaly Report |
+| UC-83 | View User Account Change & Access Review Report |
+| UC-30 | Configure Central System Settings |
+| UC-31 | View Stock List |
+| UC-32 | Import Stock |
+| UC-33 | Export Stock |
+| UC-34 | Perform Inventory Audit |
+| UC-35 | View Staff Schedule |
+| UC-36 | Create Staff Schedule |
+| UC-37 | Update Staff Schedule |
+| UC-38 | Delete Staff Schedule |
+| UC-39 | View Staff Attendance Report |
+| UC-66 | View Branch Staff List |
+| UC-40 | View Store Revenue Reports |
+| UC-41 | Export Store Reports |
+| UC-42 | Configure Local Branch Settings |
+| UC-44 | Open Shift |
+| UC-45 | Add Item to Order |
+| UC-46 | Update Cart Item |
+| UC-47 | Search Menu Item |
+| UC-48 | Apply Discount Code |
+| UC-49 | Redeem Loyalty Points |
+| UC-50 | Lookup Customer Membership |
+| UC-51 | Process Payment |
+| UC-52 | Issue Invoice |
+| UC-53 | Close Shift |
+| UC-54 | View Local Order History |
+| UC-73 | View Order Detail |
+| UC-55 | Request Transaction Refund |
+| UC-75 | Store-Manager Refund or Comp |
+| UC-57 | View Order Queue Display |
+| UC-58 | Update Preparation Status |
+| UC-59 | Print Drink Label Sticker |
+| UC-60 | Report Issue / Escalate Order |
+| UC-61 | View Import/Export History |
+| UC-62 | Auto-Deduct Inventory on Order Completion |
+| UC-63 | View Branch List |
+| UC-64 | Add Branch |
+| UC-65 | Update / Deactivate Branch |
+
 ## 2.3 Use Case Descriptions
 This part describes the use cases & their main flow (the list of the user actions and corresponding system responses that will take place during execution of the use case under normal, expected conditions), using the table format below.
 
@@ -451,7 +536,7 @@ This part describes the use cases & their main flow (the list of the user action
 | **UC-53** | POS Sales & Billing | Close Shift | Cashier | **Description**: Closes POS session.<br>**Main Flow**:<br>1. Cashier counts cash and inputs closing float.<br>2. Discrepancies are calculated and flagged, and the session is closed. |
 | **UC-54** | POS Sales & Billing | View Local Order History | Cashier | **Description**: Displays local branch orders.<br>**Main Flow**:<br>1. Cashier opens order history grid.<br>2. Cash drawer orders processed during the current shift are displayed. |
 | **UC-73** | POS Sales & Billing | View Order Detail | Cashier, Store Manager, Barista | **Description**: Displays receipt details, payments, and fulfillment tracking metrics for an order.<br>**Main Flow**:<br>1. User taps on specific order.<br>2. Portal displays details, payments log, and order item list. |
-| **UC-55** | POS Sales & Billing | Request Transaction Refund | Cashier | **Description**: Initiates refund and cancellation process for PENDING orders.<br>**Precondition**: Order must be in `PENDING` state.<br>**Main Flow**:<br>1. Cashier selects a pending order and clicks Cancel Order.<br>2. Cashier inputs cancellation reason and details, then confirms cancellation. POS voids transaction and updates stock immediately. |
+| **UC-55** | POS Sales & Billing | Request Transaction Refund | Cashier | **Description**: Initiates refund and cancellation process for PENDING orders.<br>**Precondition**: Order must be in `PENDING` state.<br>**Main Flow**:<br>1. Cashier selects a pending order and clicks Cancel Order.<br>2. Cashier inputs cancellation reason and details, then confirms cancellation. POS voids transaction and updates order status to CANCELLED. |
 | **UC-75** | POS Sales & Billing | Store-Manager Refund or Comp | Store Manager | **Description**: Handles complaints after preparation has started (`PREPARING`/`READY`/`COMPLETED`) — cannot be cancelled (BR-05). SM authorises a Refund or a Comp/Remake; logged with `sm_id` (§3.7.5a, BR-67).<br>**Main Flow**:<br>1. Cashier opens the order and taps Refund/Comp; Store Manager authorises (login/PIN).<br>2. SM selects Refund (full/partial) or Comp/Remake, enters reason; system applies money + loyalty effects and logs the record. |
 | **UC-57** | Order Prep & Queue | View Order Queue Display | Barista | **Description**: Monitors preparation queue.<br>**Main Flow**:<br>1. Barista opens queue display.<br>2. Pending, preparing, and ready orders are displayed. |
 | **UC-58** | Order Prep & Queue | Update Preparation Status | Barista | **Description**: Modifies preparation flags.<br>**Main Flow**:<br>1. Barista selects active order and moves it to preparing/ready.<br>2. Timestamps are logged and the cashier status is updated. |

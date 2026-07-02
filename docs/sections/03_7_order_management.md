@@ -273,14 +273,14 @@ All orders follow the state transitions below:
 | **Description** | Voids a pending order and processes payment refund. |
 | **Precondition** | Order is in `PENDING` state. |
 | **Trigger** | Cashier clicks Cancel Order. |
-| **Post-Condition** | Order is cancelled, stock rollbacked, and refund completed. |
+| **Post-Condition** | Order is cancelled and refund completed. |
 
 #### Main Flows
 | Step | Actor | Action |
 |---|---|---|
 | 1 | Cashier | Selects a PENDING order, taps Cancel, inputs reason and detailed notes. |
 | 2 | Cashier | Taps **Xác nhận hủy**. |
-| 3 | Portal | Updates order status to `CANCELLED`, reverses vouchers/points (BR-08), records inventory wastage logs (BR-07), and saves cancellation audit logs. |
+| 3 | Portal | Updates order status to `CANCELLED`, reverses vouchers/points (BR-08), and saves cancellation audit logs. (No inventory rollback per BR-07). |
 | 4 | Portal | Displays success notification and returns to order history screen. |
 
 #### Business Rules
