@@ -598,8 +598,8 @@ erDiagram
         UNIQUEIDENTIFIER user_id FK
         DATE shift_date
         VARCHAR(50) shift_type
-        time shift_start_time
-        time shift_end_time
+        TIME shift_start_time
+        TIME shift_end_time
         NVARCHAR(255) pos_register_id
         DATETIME2 created_at
     }
