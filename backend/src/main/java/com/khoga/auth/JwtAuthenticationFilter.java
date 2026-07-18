@@ -94,6 +94,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
         }
+        String queryToken = request.getParameter("token");
+        if (StringUtils.hasText(queryToken)) {
+            return queryToken;
+        }
         return null;
     }
 }

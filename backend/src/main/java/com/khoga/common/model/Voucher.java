@@ -19,9 +19,10 @@ public class Voucher extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(columnDefinition = "nvarchar(255)")
     private String code;
     /** Optional human-readable description (≤250 chars), RDS §3.4 Voucher entity. */
-    @Column(length = 250)
+    @Column(length = 250, columnDefinition = "nvarchar(250)")
     private String description;
     @Enumerated(EnumType.STRING)
     private DiscountType discountType;

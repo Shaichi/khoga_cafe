@@ -33,6 +33,8 @@ class ApiClient {
 
   /// Set (or clear, with null) the bearer token sent on subsequent requests.
   void setToken(String? token) => _token = token;
+  
+  String? get token => _token;
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
@@ -62,6 +64,12 @@ class ApiClient {
         headers: _headers,
         body: jsonEncode(body ?? {}),
       ),
+    );
+  }
+
+  Future<dynamic> delete(String path) async {
+    return _unwrap(
+      await _client.delete(Uri.parse('$baseUrl$path'), headers: _headers),
     );
   }
 

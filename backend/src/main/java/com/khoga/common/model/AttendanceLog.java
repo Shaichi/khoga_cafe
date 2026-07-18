@@ -31,6 +31,7 @@ public class AttendanceLog extends BaseEntity {
     private LocalDateTime scheduledStart;
     @Enumerated(EnumType.STRING)
     private AttendanceStatus status;
+    @Column(columnDefinition = "nvarchar(255)")
     private String photoUrl;
     /** BR-93 fallback: check-in recorded without a photo, awaiting Store Manager verification. */
     private Boolean pendingVerification;

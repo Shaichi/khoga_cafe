@@ -34,6 +34,8 @@ public class OrderRefund extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private RefundType refundType;
     private BigDecimal amount;
+    @Column(columnDefinition = "nvarchar(255)")
     private String reason;
+    @Column(columnDefinition = "nvarchar(255)")
     private String notes;
 }

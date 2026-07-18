@@ -139,6 +139,64 @@ public class AttendanceService {
         return StaffMapper.toAttendanceResponse(saved);
     }
 
+    /** Manager manually updates attendance for today. */
+    @Transactional
+    public AttendanceResponse manualUpdate(com.khoga.staff.dto.ManualAttendanceRequest req, UUID actorId) {
+        Store store = currentUser(actorId).getStore();
+        User employee = userRepository.findById(req.userId())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy nhân viên"));
+        LocalDate today = LocalDate.now();
+
+        AttendanceLog logRow = attendanceLogRepository
+                .findFirstByUserIdAndShiftDateAndCheckOutAtIsNull(employee.getId(), today)
+                .orElse(null);
+
+        if (logRow == null) {
+            List<AttendanceLog> todayLogs = attendanceLogRepository.findByStoreIdAndShiftDateBetween(store.getId(), today, today);
+            for (AttendanceLog l : todayLogs) {
+                if (l.getUser().getId().equals(employee.getId())) {
+                    logRow = l;
+                    break;
+                }
+            }
+        }
+
+        if (req.checkInAt() == null && req.checkOutAt() == null) {
+            if (logRow != null && logRow.getId() != null) {
+                attendanceLogRepository.delete(logRow);
+                auditLogService.record(ActionType.DELETE, "ManualAttendance", logRow.getId().toString(), null, actorId);
+            }
+            return null;
+        }
+
+        if (logRow == null) {
+            LocalDateTime scheduledStart = scheduleRepository.findByUserIdAndShiftDate(employee.getId(), today).stream()
+                    .findFirst()
+                    .map(s -> LocalDateTime.of(s.getShiftDate(), s.getShiftStartTime()))
+                    .orElse(null);
+
+            logRow = new AttendanceLog();
+            logRow.setStore(store);
+            logRow.setUser(employee);
+            logRow.setShiftDate(today);
+            logRow.setScheduledStart(scheduledStart);
+            logRow.setPendingVerification(false);
+        }
+
+        logRow.setCheckInAt(req.checkInAt());
+        logRow.setCheckOutAt(req.checkOutAt());
+
+        long grace = config.getGlobalInt("ATTENDANCE_LATE_GRACE_MINUTES", 5);
+        AttendanceMetrics m = metricsCalculator.derive(logRow.getScheduledStart(), null,
+                logRow.getCheckInAt(), logRow.getCheckOutAt(), grace);
+        logRow.setStatus(m.status());
+
+        AttendanceLog saved = attendanceLogRepository.save(logRow);
+        auditLogService.record(ActionType.UPDATE, "ManualAttendance", null,
+                "{\"employee\":\"" + employee.getUsername() + "\"}", actorId);
+        return StaffMapper.toAttendanceResponse(saved);
+    }
+
     /** UC-39 — attendance report for the branch with BR-91 derived metrics. */
     @Transactional(readOnly = true)
     public List<AttendanceReportRow> getReport(LocalDate from, LocalDate to, UUID actorId) {
@@ -165,7 +223,7 @@ public class AttendanceService {
             AttendanceMetrics m = metricsCalculator.derive(schedStart, schedEnd,
                     logRow != null ? logRow.getCheckInAt() : null,
                     logRow != null ? logRow.getCheckOutAt() : null, grace);
-            rows.add(row(s.getUser(), s.getShiftDate(), schedStart, schedEnd, logRow, m));
+            rows.add(row(s.getUser(), s.getShiftDate(), schedStart, schedEnd, logRow, m, s.getShiftType().name()));
         }
         // Unscheduled attendance (walk-in shifts) — no schedule to compare against
         for (AttendanceLog l : logs) {
@@ -174,7 +232,7 @@ public class AttendanceService {
                 continue;
             }
             AttendanceMetrics m = metricsCalculator.derive(null, null, l.getCheckInAt(), l.getCheckOutAt(), grace);
-            rows.add(row(l.getUser(), l.getShiftDate(), null, null, l, m));
+            rows.add(row(l.getUser(), l.getShiftDate(), null, null, l, m, null));
         }
         return rows;
     }
@@ -261,12 +319,12 @@ public class AttendanceService {
     }
 
     private AttendanceReportRow row(User user, LocalDate date, LocalDateTime schedStart, LocalDateTime schedEnd,
-                                    AttendanceLog logRow, AttendanceMetrics m) {
+                                    AttendanceLog logRow, AttendanceMetrics m, String shiftType) {
         return new AttendanceReportRow(
                 user.getId(), user.getFullName(), date, schedStart, schedEnd,
                 logRow != null ? logRow.getCheckInAt() : null,
                 logRow != null ? logRow.getCheckOutAt() : null,
-                m.status(), m.lateMinutes(), m.earlyLeaveMinutes(), m.overtimeMinutes(), m.workedMinutes());
+                m.status(), shiftType, m.lateMinutes(), m.earlyLeaveMinutes(), m.overtimeMinutes(), m.workedMinutes());
     }
 
     private static String key(UUID userId, LocalDate date) {

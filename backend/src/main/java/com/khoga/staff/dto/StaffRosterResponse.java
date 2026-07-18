@@ -6,11 +6,11 @@ import java.util.UUID;
 
 /** UC-66 branch roster row: identity, role, attendance-PIN status. */
 public record StaffRosterResponse(
-        UUID userId,
-        String employeeId,
-        String fullName,
-        Role role,
-        boolean pinSet,
-        boolean pinLocked,
-        Boolean isActive) {
+                UUID userId,
+                String employeeId,
+                String fullName,
+                Role role,
+                boolean pinSet,
+                boolean pinLocked,
+                Boolean isActive) {
 }

@@ -22,12 +22,17 @@ public class MenuItem extends BaseEntity {
     @ManyToOne
     @JoinColumn(name = "category_id")
     private Category category;
+    @Column(columnDefinition = "nvarchar(255)")
     private String name;
     private BigDecimal price;
+    @Column(columnDefinition = "nvarchar(255)")
     private String description;
     private Boolean isActive;
+    @Column(columnDefinition = "nvarchar(255)")
     private String imageUrl;
+    @Column(columnDefinition = "nvarchar(255)")
     private String barcode;
+    @Column(columnDefinition = "nvarchar(255)")
     private String abbreviation;
     private Boolean isDeleted;
     
@@ -35,8 +40,9 @@ public class MenuItem extends BaseEntity {
     @Column(name = "parent_item_id")
     private UUID parentItemId;
     
+    @Column(columnDefinition = "nvarchar(255)")
     private String sku;
     
-    @Column(name = "size_name")
+    @Column(name = "size_name", columnDefinition = "nvarchar(255)")
     private String sizeName; // S, M, L
 }

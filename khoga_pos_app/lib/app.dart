@@ -7,6 +7,7 @@ import 'pos/open_shift_screen.dart';
 import 'pos/shift_controller.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/manager_dashboard_screen.dart';
 import 'theme.dart';
 
 /// Root app widget. Providers are wired above this (see main.dart / tests) so the
@@ -36,6 +37,9 @@ class AuthGate extends StatelessWidget {
     final auth = context.watch<AuthController>();
     if (!auth.isAuthenticated) return const LoginScreen();
     if (auth.profile?.role == 'BARISTA') return const BaristaPortalScreen();
+    if (auth.profile?.role == 'STORE_MANAGER') {
+      return const ManagerDashboardScreen();
+    }
     return const ShiftGate();
   }
 }

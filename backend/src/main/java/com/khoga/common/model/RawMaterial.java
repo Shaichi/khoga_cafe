@@ -19,11 +19,15 @@ public class RawMaterial extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(columnDefinition = "nvarchar(255)")
     private String code;
+    @Column(columnDefinition = "nvarchar(255)")
     private String name;
+    @Column(columnDefinition = "nvarchar(255)")
     private String unit;
     private BigDecimal suggestedMinThreshold;
     private BigDecimal standardCost;
     private Boolean isActive;
+    @Column(columnDefinition = "nvarchar(255)")
     private String category;
 }

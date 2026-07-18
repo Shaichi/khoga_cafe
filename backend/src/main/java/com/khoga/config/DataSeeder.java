@@ -20,11 +20,15 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * First-run bootstrap (P0.6): seeds the global {@link SystemConfig} defaults, a sample {@link Store},
- * and the initial {@code ssadmin} super-admin (BR-82, {@code mustChangePassword=true}). Idempotent —
+ * First-run bootstrap (P0.6): seeds the global {@link SystemConfig} defaults, a
+ * sample {@link Store},
+ * and the initial {@code ssadmin} super-admin (BR-82,
+ * {@code mustChangePassword=true}). Idempotent —
  * each item is only created when absent, so it is safe to run on every startup.
  *
- * <p>Disabled under the {@code prod} profile: the hardcoded bootstrap credentials (logged in clear)
+ * <p>
+ * Disabled under the {@code prod} profile: the hardcoded bootstrap credentials
+ * (logged in clear)
  * are for dev/test only. Production provisioning is a P4 hardening item.
  */
 @Slf4j
@@ -36,10 +40,16 @@ public class DataSeeder implements CommandLineRunner {
     /** Dev bootstrap password — meets BR-14 and must be changed on first login. */
     static final String SEED_ADMIN_PASSWORD = "Admin@123";
     static final String SEED_BIZADMIN_USERNAME = "bizadmin";
-    /** Same dev bootstrap password (BR-14 compliant); must be changed on first login. */
+    /**
+     * Same dev bootstrap password (BR-14 compliant); must be changed on first
+     * login.
+     */
     static final String SEED_BIZADMIN_PASSWORD = "Admin@123";
     static final String SEED_CEOVIEWER_USERNAME = "ceoviewer";
-    /** Same dev bootstrap password (BR-14 compliant); must be changed on first login. */
+    /**
+     * Same dev bootstrap password (BR-14 compliant); must be changed on first
+     * login.
+     */
     static final String SEED_CEOVIEWER_PASSWORD = "Admin@123";
     private static final String GLOBAL_SCOPE = "GLOBAL";
 
@@ -49,7 +59,7 @@ public class DataSeeder implements CommandLineRunner {
     private final PasswordEncoder passwordEncoder;
 
     public DataSeeder(UserRepository userRepository, StoreRepository storeRepository,
-                      SystemConfigRepository systemConfigRepository, PasswordEncoder passwordEncoder) {
+            SystemConfigRepository systemConfigRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.storeRepository = storeRepository;
         this.systemConfigRepository = systemConfigRepository;
@@ -71,17 +81,26 @@ public class DataSeeder implements CommandLineRunner {
         seedAdminUser(SEED_ADMIN_USERNAME, SEED_ADMIN_PASSWORD, Role.SSADMIN, "System Super Admin");
     }
 
-    /** HQ businessadmin bootstrap (owns master data / promotions / loyalty adjustments — BR-49, UC-74). */
+    /**
+     * HQ businessadmin bootstrap (owns master data / promotions / loyalty
+     * adjustments — BR-49, UC-74).
+     */
     private void seedBusinessAdmin() {
         seedAdminUser(SEED_BIZADMIN_USERNAME, SEED_BIZADMIN_PASSWORD, Role.BUSINESSADMIN, "Business Admin");
     }
 
-    /** HQ ceoviewer bootstrap (read-only consolidated chain reports — SRS §2.1, BR-44). */
+    /**
+     * HQ ceoviewer bootstrap (read-only consolidated chain reports — SRS §2.1,
+     * BR-44).
+     */
     private void seedCeoViewer() {
         seedAdminUser(SEED_CEOVIEWER_USERNAME, SEED_CEOVIEWER_PASSWORD, Role.CEOVIEWER, "CEO Viewer");
     }
 
-    /** Creates an HQ bootstrap account if absent (idempotent); {@code mustChangePassword=true} per BR-82. */
+    /**
+     * Creates an HQ bootstrap account if absent (idempotent);
+     * {@code mustChangePassword=true} per BR-82.
+     */
     private void seedAdminUser(String username, String rawPassword, Role role, String fullName) {
         if (userRepository.findByUsername(username).isPresent()) {
             log.info("[seed] {} already present — skipping", username);
@@ -93,7 +112,7 @@ public class DataSeeder implements CommandLineRunner {
         user.setRole(role);
         user.setFullName(fullName);
         user.setIsActive(true);
-        user.setMustChangePassword(true);   // BR-82
+        user.setMustChangePassword(true); // BR-82
         user.setFailedAttempts(0);
         userRepository.save(user);
         log.warn("[seed] Created bootstrap {} (username='{}', password='{}') — CHANGE ON FIRST LOGIN",
@@ -115,18 +134,18 @@ public class DataSeeder implements CommandLineRunner {
 
     private void seedSystemConfig() {
         Map<String, String> defaults = new LinkedHashMap<>();
-        defaults.put("VAT_RATE", "10");                         // BR-45 (VAT inclusive 10/110), BR-70
-        defaults.put("LOYALTY_ACCRUAL_PERCENTAGE", "1");        // BR-01 / BR-94
+        defaults.put("VAT_RATE", "10"); // BR-45 (VAT inclusive 10/110), BR-70
+        defaults.put("LOYALTY_ACCRUAL_PERCENTAGE", "1"); // BR-01 / BR-94
         defaults.put("LOYALTY_REDEMPTION_VALUE_PER_POINT", "100"); // BR-74 / BR-94
-        defaults.put("LOYALTY_MAX_REDEMPTION_PERCENT", "50");   // BR-02 / BR-94
+        defaults.put("LOYALTY_MAX_REDEMPTION_PERCENT", "50"); // BR-02 / BR-94
         defaults.put("LOYALTY_MAX_REDEMPTION_LIMIT", "100000"); // BR-02 / BR-94 (max VND discount/order)
-        defaults.put("MAX_ACTIVE_BRANCHES", "5");               // BR-54
-        defaults.put("HQ_MFA_REQUIRED", "true");                // BR-83
-        defaults.put("CANCEL_REFUND_ALERT_THRESHOLD", "5");     // BR-79 / BR-94 (% of orders)
-        defaults.put("LOYALTY_EXPIRY_MONTHS", "12");            // BR-35 (P4 — point inactivity expiry)
-        defaults.put("CUSTOMER_PII_RETENTION_MONTHS", "24");    // BR-72 (P4 — PDPA anonymisation)
-        defaults.put("ATTENDANCE_PIN_MAX_ATTEMPTS", "5");       // BR-93 (terminal PIN lockout threshold)
-        defaults.put("ATTENDANCE_PIN_LOCK_MINUTES", "15");      // BR-93 (terminal PIN lockout cooldown)
+        defaults.put("MAX_ACTIVE_BRANCHES", "5"); // BR-54
+        defaults.put("HQ_MFA_REQUIRED", "true"); // BR-83
+        defaults.put("CANCEL_REFUND_ALERT_THRESHOLD", "5"); // BR-79 / BR-94 (% of orders)
+        defaults.put("LOYALTY_EXPIRY_MONTHS", "12"); // BR-35 (P4 — point inactivity expiry)
+        defaults.put("CUSTOMER_PII_RETENTION_MONTHS", "24"); // BR-72 (P4 — PDPA anonymisation)
+        defaults.put("ATTENDANCE_PIN_MAX_ATTEMPTS", "5"); // BR-93 (terminal PIN lockout threshold)
+        defaults.put("ATTENDANCE_PIN_LOCK_MINUTES", "15"); // BR-93 (terminal PIN lockout cooldown)
 
         Set<String> existing = systemConfigRepository.findAll().stream()
                 .filter(c -> GLOBAL_SCOPE.equals(c.getScope()))
@@ -157,7 +176,8 @@ public class DataSeeder implements CommandLineRunner {
         seedStaffUser("manager", "Admin@123", Role.STORE_MANAGER, "Default Store Manager", store, "EMP-002");
     }
 
-    private void seedStaffUser(String username, String rawPassword, Role role, String fullName, Store store, String employeeId) {
+    private void seedStaffUser(String username, String rawPassword, Role role, String fullName, Store store,
+            String employeeId) {
         if (userRepository.findByUsername(username).isPresent()) {
             log.info("[seed] Staff {} already present — skipping", username);
             return;
