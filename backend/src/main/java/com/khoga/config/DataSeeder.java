@@ -29,7 +29,6 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Component
-@Profile("!prod")
 public class DataSeeder implements CommandLineRunner {
 
     static final String SEED_ADMIN_USERNAME = "ssadmin";
@@ -155,6 +154,7 @@ public class DataSeeder implements CommandLineRunner {
         }
         seedStaffUser("cashier", "Admin@123", Role.CASHIER, "Default Cashier", store, "EMP-001");
         seedStaffUser("manager", "Admin@123", Role.STORE_MANAGER, "Default Store Manager", store, "EMP-002");
+        seedStaffUser("barista", "Admin@123", Role.BARISTA, "Default Barista", store, "EMP-003");
     }
 
     private void seedStaffUser(String username, String rawPassword, Role role, String fullName, Store store, String employeeId) {
