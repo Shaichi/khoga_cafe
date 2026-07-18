@@ -33,15 +33,23 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** P1.2 unit tests: account creation (BR-22/57/58/81) and the BR-82/BR-23 guards. */
+/**
+ * P1.2 unit tests: account creation (BR-22/57/58/81) and the BR-82/BR-23
+ * guards.
+ */
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
 
-    @Mock private UserRepository userRepository;
-    @Mock private StoreRepository storeRepository;
-    @Mock private AuditLogRepository auditLogRepository;
-    @Mock private AuditLogService auditLogService;
-    @Mock private EmailService emailService;
+    @Mock
+    private UserRepository userRepository;
+    @Mock
+    private StoreRepository storeRepository;
+    @Mock
+    private AuditLogRepository auditLogRepository;
+    @Mock
+    private AuditLogService auditLogService;
+    @Mock
+    private EmailService emailService;
 
     private UserService service;
 
@@ -76,8 +84,8 @@ class UserServiceTest {
 
     @Test
     void create_skipsRetiredEmployeeNumber() {
-        when(userRepository.count()).thenReturn(2L);                          // candidate starts at EMP-003
-        when(userRepository.existsByEmployeeId("EMP-003")).thenReturn(true);  // retired/taken → skip
+        when(userRepository.count()).thenReturn(2L); // candidate starts at EMP-003
+        when(userRepository.existsByEmployeeId("EMP-003")).thenReturn(true); // retired/taken → skip
         when(userRepository.existsByEmployeeId("EMP-004")).thenReturn(false);
         when(userRepository.existsByUsername(anyString())).thenReturn(false);
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -86,7 +94,7 @@ class UserServiceTest {
                 new CreateUserRequest("Phạm Dũng", Role.CASHIER, "dung@khoga.com", "0900000003", null),
                 UUID.randomUUID());
 
-        assertEquals("EMP-004", response.employeeId());   // no reuse of the retired EMP-003
+        assertEquals("EMP-004", response.employeeId()); // no reuse of the retired EMP-003
     }
 
     @Test
@@ -117,8 +125,8 @@ class UserServiceTest {
         User self = userOf(actor, Role.CASHIER);
         when(userRepository.findById(actor)).thenReturn(Optional.of(self));
 
-        assertThrows(AppException.class, () ->
-                service.update(actor, new UpdateUserRequest(Role.SSADMIN, null, null, null), actor));
+        assertThrows(AppException.class,
+                () -> service.update(actor, new UpdateUserRequest(null, Role.SSADMIN, null, null, null), actor));
     }
 
     @Test
@@ -154,7 +162,7 @@ class UserServiceTest {
         when(userRepository.existsByPhoneAndIdNot("0900000001", id)).thenReturn(false);
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        service.update(id, new UpdateUserRequest(null, null, "new@khoga.com", "0900000001"), actor);
+        service.update(id, new UpdateUserRequest(null, null, null, "new@khoga.com", "0900000001"), actor);
 
         verify(auditLogService).record(eq(ActionType.UPDATE), eq("User"),
                 argThat(old -> old != null && old.contains("old@khoga.com")),

@@ -1,4 +1,4 @@
-﻿# **I. Record of Changes**
+# **I. Record of Changes**
 
 | Date | A\*M, D | In charge | Change Description |
 | ----- | ----- | ----- | ----- |
@@ -19,6 +19,8 @@
 | 2026-07-02 | M | Software Engineering Team | Fixed Section 1.2.2 Package Diagram: corrected web admin from React/Vite/TypeScript to Thymeleaf (Spring MVC server-side rendered). |\r\n| 2026-07-02 | M | Software Engineering Team | Moved Store Manager from Thymeleaf (web) to Flutter (mobile app) — shared app with Cashier \u0026 Barista (role-based routing). Renamed Flutter app from `khoga_pos_app` to `khoga_cafe_app`. Clarified 2 separate HQ admin roles (Business Admin + System Admin) sharing 1 web portal with CEO Viewer. |\r\n| 2026-07-02 | A | Software Engineering Team | Added Section 1.3 Deployment Diagram (UML notation) with execution environments, artifacts (display names), components, and communication paths. |
 
 \*A – Added   M – Modified   D – Deleted
+
+
 ## **1\. System Design**
 
 ### **1.1 System Architecture**
@@ -162,6 +164,8 @@ graph TB
 | 04 | Application Server (Cloud) | Khoga Admin Portal | Khoga Admin Portal | Spring Boot application serving Thymeleaf-rendered HTML pages for the HQ Admin Portal. Handles role-based menu rendering for 3 HQ roles: ceoviewer (read-only reports), businessadmin (catalog/voucher/CRM), ssadmin (user/branch/config management). |
 | 05 | Application Server (Cloud) | Khoga Backend | Khoga Backend API | Spring Boot 4.1.0 (Java 21) REST API backend. Exposes all `/api/v1/` endpoints consumed by both the Flutter mobile app and the Thymeleaf web frontend. Handles JWT authentication, business logic, and transaction management. |
 | 06 | Database Server (Cloud) | SQL Server Database | — | Microsoft SQL Server relational database. 23 tables with ACID transactions, Unicode support (NVARCHAR). All primary keys are UUID VARCHAR(36). |
+
+
 ### **1.2 Package Diagram**
 
 #### **1.2.1 Package Diagram - Backend (Spring Boot)**
@@ -344,6 +348,8 @@ graph TB
 | 10 | `profile/` | View and edit personal user profile. |
 | 11 | `api/` | Dio HTTP client configuration and REST API calls to the backend. |
 | 12 | `format.dart` | Utility functions for currency and date formatting. |
+
+
 ## **2\. Database Design**
 
 *\[The database design follows the entity relationships defined in the SRS (§3.1.5 / §3.1.6). The system uses `SQL Server` with ACID transactions and Unicode support (`NVARCHAR`). All primary keys use `UUID` (`VARCHAR(36)`). The diagrams below show the entity relationships with full column definitions, followed by the table descriptions. Every table also carries an `updated_at` column from the shared `BaseEntity` (JPA auditing), omitted from the diagrams for brevity. The live schema is entity-driven (`ddl-auto=update`) — there are **23 tables**; generated names are concatenated-lowercase (e.g. `categorys`, `menuitems`) pending naming normalization under Flyway (P4).\]*
@@ -405,6 +411,7 @@ erDiagram
         NVARCHAR(255) abbreviation
         DATETIME2 created_at
         BIT is_deleted
+        BIT allow_ice_sugar
     }
 
     BRANCH_MENU_STATUS {
@@ -475,6 +482,8 @@ erDiagram
         UNIQUEIDENTIFIER menu_item_id FK
         INT quantity
         DECIMAL(18_2) unit_price
+        INT ice_level
+        INT sugar_level
     }
 
     ORDER_ITEM_TOPPING {
@@ -636,6 +645,7 @@ erDiagram
         NVARCHAR(255) abbreviation
         DATETIME2 created_at
         BIT is_deleted
+        BIT allow_ice_sugar
     }
 
     OPTION_TOPPING {
@@ -709,393 +719,35 @@ erDiagram
 
 ### **2.3. Table Descriptions**
 
-*\[Each table below lists all columns with data types, constraints, and a brief description of its purpose in the system. Every table inherits an `updated_at DATETIME2` column from `BaseEntity` (JPA auditing), omitted below for brevity.\]*
+*\[The table below summarizes the purpose, primary keys, and foreign keys for each of the 23 tables in the database. Every table also inherits an `updated_at DATETIME2` column from `BaseEntity` (JPA auditing).\]*
+
+| No | Table | Description |
+|:---:|---|---|
+| 01 | **stores** | Physical coffee shop branch locations.<br>- **id**: Primary key (UUID).<br>- **name**: Name of the branch.<br>- **address**: Physical address of the branch.<br>- **phone**: Contact phone number.<br>- **is_active**: Active status flag.<br>- **created_at**: Record creation timestamp. |
+| 02 | **users** | Employee accounts with login credentials, RBAC roles, and attendance PIN for check-in/out.<br>- **id**: Primary key (UUID).<br>- **username**: Login username.<br>- **password_hash**: Hashed password.<br>- **role**: User role (e.g., Cashier, Manager).<br>- **full_name**: Full name of the user.<br>- **is_active**: Active status flag.<br>- **email**: Email address.<br>- **phone**: Phone number.<br>- **store_id**: FK to stores.<br>- **employee_id**: Internal employee ID.<br>- **failed_attempts**: Failed login attempts.<br>- **lock_expiry_at**: Account lockout expiry.<br>- **password_last_changed_at**: Last password change time.<br>- **created_at**: Creation timestamp.<br>- **last_login_at**: Last login timestamp.<br>- **must_change_password**: Flag to force password change.<br>- **attendance_pin**: PIN for check-in/out. |
+| 03 | **categories** | Main food and beverage product groupings (e.g., Coffee, Tea, Pastry).<br>- **id**: Primary key (UUID).<br>- **name**: Category name.<br>- **description**: Category description.<br>- **is_active**: Active status flag. |
+| 04 | **menu_items** | Individual beverage/food catalog entries with pricing, barcodes, and chain-wide status.<br>- **id**: Primary key (UUID).<br>- **category_id**: FK to categories.<br>- **parent_item_id**: FK to parent menu_items.<br>- **name**: Item name.<br>- **price**: Base price.<br>- **description**: Item description.<br>- **is_active**: Active status flag.<br>- **image_url**: Image URL.<br>- **barcode**: Item barcode.<br>- **sku**: Stock Keeping Unit.<br>- **size_name**: Size option (e.g., M, L).<br>- **abbreviation**: Short name.<br>- **created_at**: Creation timestamp.<br>- **is_deleted**: Soft delete flag.<br>- **allow_ice_sugar**: Flag to allow custom ice/sugar levels. |
+| 05 | **branch_menu_status** | Per-branch item availability toggle.<br>- **store_id**: PK/FK to stores.<br>- **menu_item_id**: PK/FK to menu_items.<br>- **is_available**: Availability flag at this branch. |
+| 06 | **option_toppings** | Global add-ons (e.g., Extra Shot, Oat Milk) shared across menu items.<br>- **id**: Primary key (UUID).<br>- **name**: Topping name.<br>- **price**: Additional price.<br>- **is_active**: Active status flag. |
+| 07 | **menu_item_topping_mappings** | Join table linking global option_toppings to menu_items.<br>- **id**: Primary key (UUID).<br>- **menu_item_id**: FK to menu_items.<br>- **option_topping_id**: FK to option_toppings. |
+| 08 | **customers** | Loyalty membership registry tracking points balance and PDPA consent.<br>- **id**: Primary key (UUID).<br>- **phone**: Customer phone number.<br>- **full_name**: Customer full name.<br>- **points**: Loyalty points balance.<br>- **email**: Customer email.<br>- **birth_date**: Customer date of birth.<br>- **is_active**: Active status flag.<br>- **created_at**: Creation timestamp.<br>- **consent_at**: PDPA consent timestamp.<br>- **consent_version**: PDPA consent version. |
+| 09 | **shift_sessions** | POS cashier work session records.<br>- **id**: Primary key (UUID).<br>- **store_id**: FK to stores.<br>- **user_id**: FK to users (cashier).<br>- **start_time**: Shift start timestamp.<br>- **end_time**: Shift end timestamp.<br>- **starting_cash**: Cash in drawer at start.<br>- **ending_cash**: Cash in drawer at end.<br>- **status**: Shift status.<br>- **pos_register_id**: POS terminal identifier. |
+| 10 | **orders** | Sales transaction records following a strict 7-state machine.<br>- **id**: Primary key (UUID).<br>- **store_id**: FK to stores.<br>- **order_number**: Unique order reference.<br>- **shift_session_id**: FK to shift_sessions.<br>- **customer_id**: FK to customers.<br>- **voucher_id**: FK to vouchers.<br>- **order_type**: Dine-in, Takeaway, etc.<br>- **subtotal**: Order subtotal.<br>- **discount**: Total discount applied.<br>- **tax_amount**: Total tax applied.<br>- **total**: Final order total.<br>- **payment_method**: Cash, Card, etc.<br>- **payment_status**: Pending, Paid, etc.<br>- **status**: Order status (state machine).<br>- **created_at**: Creation timestamp. |
+| 11 | **order_items** | Line items within each order with snapshot pricing.<br>- **id**: Primary key (UUID).<br>- **order_id**: FK to orders.<br>- **menu_item_id**: FK to menu_items.<br>- **quantity**: Quantity ordered.<br>- **unit_price**: Snapshot price per unit.<br>- **ice_level**: Selected ice percentage.<br>- **sugar_level**: Selected sugar percentage. |
+| 12 | **order_item_toppings** | Toppings applied to specific order line items with snapshot pricing.<br>- **id**: Primary key (UUID).<br>- **order_item_id**: FK to order_items.<br>- **topping_id**: FK to option_toppings.<br>- **quantity**: Quantity applied.<br>- **unit_price**: Snapshot price per topping. |
+| 13 | **order_cancellations** | Immutable audit log for PENDING-state order cancellations.<br>- **id**: Primary key (UUID).<br>- **order_id**: FK to orders.<br>- **cashier_id**: FK to users (cashier).<br>- **reason**: Reason for cancellation.<br>- **notes**: Additional notes.<br>- **created_at**: Cancellation timestamp. |
+| 14 | **order_refunds** | Store-Manager authorized refund/comp audit log for post-PENDING complaints.<br>- **id**: Primary key (UUID).<br>- **order_id**: FK to orders.<br>- **sm_id**: FK to users (store manager).<br>- **cashier_id**: FK to users (cashier).<br>- **shift_session_id**: FK to shift_sessions.<br>- **refund_type**: Type of refund.<br>- **amount**: Refund amount.<br>- **reason**: Reason for refund.<br>- **notes**: Additional notes.<br>- **created_at**: Refund timestamp. |
+| 15 | **vouchers** | Promotional discount codes with usage limits.<br>- **id**: Primary key (UUID).<br>- **code**: Voucher code.<br>- **discount_type**: Percentage or Fixed.<br>- **discount_value**: Discount amount/percent.<br>- **min_order_value**: Minimum required subtotal.<br>- **start_date**: Validity start.<br>- **end_date**: Validity end.<br>- **is_active**: Active status flag.<br>- **usage_limit_per_customer**: Max uses per user.<br>- **total_usage_count**: Current usage count.<br>- **max_total_uses**: Global max uses limit.<br>- **max_discount_amount**: Maximum discount cap. |
+| 16 | **raw_materials** | Chain-wide master catalog of ingredients/materials.<br>- **id**: Primary key (UUID).<br>- **code**: Material code.<br>- **name**: Material name.<br>- **unit**: Unit of measurement.<br>- **suggested_min_threshold**: Suggested minimum stock.<br>- **standard_cost**: Standard cost.<br>- **is_active**: Active status flag.<br>- **category**: Material category. |
+| 17 | **stock_items** | Per-branch on-hand quantity of a master raw material.<br>- **id**: Primary key (UUID).<br>- **store_id**: FK to stores.<br>- **raw_material_id**: FK to raw_materials.<br>- **current_quantity**: Current stock level.<br>- **min_alert_threshold**: Minimum alert threshold. |
+| 18 | **stock_transactions** | Immutable historical ledger (append-only) of all stock movements.<br>- **id**: Primary key (UUID).<br>- **stock_item_id**: FK to stock_items.<br>- **manager_id**: FK to users (manager).<br>- **transaction_type**: IMPORT/EXPORT/etc.<br>- **quantity**: Transaction quantity.<br>- **reason**: Reason for transaction.<br>- **created_at**: Transaction timestamp. |
+| 19 | **recipe_items** | Ingredient formula defining raw material consumption for items/toppings.<br>- **id**: Primary key (UUID).<br>- **menu_item_id**: FK to menu_items.<br>- **option_topping_id**: FK to option_toppings.<br>- **raw_material_id**: FK to raw_materials.<br>- **quantity_required**: Required quantity per unit. |
+| 20 | **staff_schedules** | Assigned employee shift blocks per date and branch.<br>- **id**: Primary key (UUID).<br>- **store_id**: FK to stores.<br>- **user_id**: FK to users (employee).<br>- **shift_date**: Scheduled date.<br>- **shift_type**: Type of shift.<br>- **shift_start_time**: Scheduled start time.<br>- **shift_end_time**: Scheduled end time.<br>- **pos_register_id**: Assigned POS terminal.<br>- **created_at**: Creation timestamp. |
+| 21 | **attendance_logs** | Employee clock-in/out records with snapshot scheduling.<br>- **id**: Primary key (UUID).<br>- **store_id**: FK to stores.<br>- **user_id**: FK to users (employee).<br>- **shift_date**: Associated shift date.<br>- **check_in_at**: Clock-in timestamp.<br>- **check_out_at**: Clock-out timestamp.<br>- **scheduled_start**: Snapshot of scheduled start.<br>- **status**: Attendance status.<br>- **photo_url**: Snapshot photo URL. |
+| 22 | **audit_logs** | Immutable security event log for configuration and access changes.<br>- **id**: Primary key (UUID).<br>- **user_id**: FK to users.<br>- **action_type**: Type of action.<br>- **entity_affected**: Affected entity name.<br>- **old_value_json**: Previous state.<br>- **new_value_json**: New state.<br>- **created_at**: Event timestamp. |
+| 23 | **system_configs** | Central and per-branch runtime configuration.<br>- **id**: Primary key (UUID).<br>- **config_key**: Configuration key.<br>- **config_value**: Configuration value.<br>- **scope**: Scope of config (Global/Branch).<br>- **store_id**: FK to stores.<br>- **updated_by**: User who last updated. |
 
----
 
-#### **Table 01 — `stores`**
-
-Physical coffee shop branch locations. Root entity referenced by most other tables.
-
-| # | Column | Type | Key | Nullable | Description |
-|:---:|---|---|---|---|---|
-| 1 | id | UNIQUEIDENTIFIER | PK | No | Auto-generated UUID. |
-| 2 | name | NVARCHAR(255) | — | No | Branch display name (e.g. "Nguyen Du Branch"). Shown on receipts and reports. |
-| 3 | address | NVARCHAR(255) | — | No | Physical street address. Printed on POS invoices (UC-42/43). |
-| 4 | phone | NVARCHAR(255) | — | No | Branch contact phone number. |
-| 5 | is_active | BIT | — | No | Active flag (default `true`). When `false`, no new orders, shifts, or stock transactions can be created at this branch. Total active branches is capped by `MAX_ACTIVE_BRANCHES` in system_configs (UC-42). |
-| 6 | created_at | DATETIME2 | — | No | Timestamp of branch registration. Auto-set by JPA auditing. |
-
----
-
-#### **Table 02 — `users`**
-
-Employee accounts with login credentials, RBAC roles (6 roles), and attendance PIN for clock-in/out (BR-93). `attendance_pin` must be unique per branch (`store_id`).
-
-| # | Column | Type | Key | Nullable | Description |
-|:---:|---|---|---|---|---|
-| 1 | id | UNIQUEIDENTIFIER | PK | No | Auto-generated UUID. |
-| 2 | username | NVARCHAR(255) | UNIQUE | No | Login name. Auto-suggested from full name per BR-58 (e.g. "anNV43"). |
-| 3 | password_hash | NVARCHAR(255) | — | No | Bcrypt-hashed password. Must meet BR-14 complexity (≥8 chars, upper+lower+digit+special). Temp password auto-generated on account creation (UC-11). |
-| 4 | role | VARCHAR(50) | — | No | RBAC role enum: `CEOVIEWER` (read-only HQ reports), `BUSINESSADMIN` (menu/voucher/CRM CRUD), `SSADMIN` (system config, user provisioning), `STOREMANAGER` (branch ops), `CASHIER` (POS checkout), `BARISTA` (prep queue). See §3.2.0. |
-| 5 | full_name | NVARCHAR(255) | — | No | Employee full name. Displayed on receipts, attendance reports, and management screens. |
-| 6 | is_active | BIT | — | No | Account status. `false` blocks login (BR-10) and terminates all active sessions immediately (BR-18). |
-| 7 | email | NVARCHAR(255) | UNIQUE | No | Work email. Used for temp password delivery (UC-11), OTP recovery (UC-03), and HQ MFA codes (BR-83). |
-| 8 | phone | NVARCHAR(255) | UNIQUE | No | Contact phone. Shown on branch staff list (UC-66) with tap-to-call support. |
-| 9 | store_id | UNIQUEIDENTIFIER | FK → stores(id) | Yes | Assigned branch. `NULL` for HQ roles (ceoviewer/businessadmin/ssadmin). Required for branch roles (storemanager/cashier/barista). Determines data scope (BR-59). |
-| 10 | employee_id | NVARCHAR(255) | UNIQUE | No | Auto-allocated ID with format `EMP-{seq}` (e.g. "EMP-043"). Immutable after creation (BR-57). |
-| 11 | failed_attempts | INT | — | No | Consecutive failed login counter. Resets to 0 on success. At 5 failures, account locks for 15 min (BR-11). Also applies to 3 failed MFA attempts (BR-83). |
-| 12 | lock_expiry_at | DATETIME2 | — | Yes | Lock expiry time after exceeding failed attempts. `NULL` when not locked. Account auto-unlocks after this time, or manually by SM/SSADMIN (UC-01 AT3). |
-| 13 | password_last_changed_at | DATETIME2 | — | Yes | Last password change timestamp. Updated on UC-09 (change), UC-05 (reset), UC-06 (force-change). |
-| 14 | created_at | DATETIME2 | — | No | Account creation timestamp. Auto-set on INSERT. |
-| 15 | last_login_at | DATETIME2 | — | Yes | Most recent successful login timestamp. `NULL` if never logged in. Shown on user detail screen (UC-13). |
-| 16 | must_change_password | BIT | — | No | Forced password change flag. Default `true` on new accounts (BR-22). When `true`, user is redirected to Force Password Change screen (UC-06) and blocked from all other modules (BR-12). Set to `false` after successful change. |
-| 17 | attendance_pin | NVARCHAR(255) | — | Yes | 4-digit PIN for clock-in/out (BR-93). Must be unique within the same branch. Operates independently from login session — entering PIN on the shared POS terminal does not interrupt the active checkout session (BR-53). |
-
----
-
-#### **Table 03 — `categories`**
-
-Product groupings (e.g. Coffee, Tea, Pastry) used to organize the menu catalog chain-wide. Managed by Business Admin (UC-17/19).
-
-| # | Column | Type | Key | Nullable | Description |
-|:---:|---|---|---|---|---|
-| 1 | id | UNIQUEIDENTIFIER | PK | No | Auto-generated UUID. |
-| 2 | name | NVARCHAR(255) | — | No | Category name (e.g. "Coffee", "Tea"). Displayed as filter tabs on POS checkout grid (UC-45) and HQ menu management (UC-15). |
-| 3 | description | NVARCHAR(MAX) | — | Yes | Optional description text for the category. |
-| 4 | is_active | BIT | — | No | Visibility flag. When `false`, category and all its items are hidden from POS and sales channels. |
-
----
-
-#### **Table 04 — `menu_items`**
-
-Individual beverage/food catalog entries with pricing, barcodes, and chain-wide status. Supports soft-delete via `is_deleted`. Managed by Business Admin (UC-16/18). An item is only available for sale at a branch when both `is_active = true` (chain-wide) AND `branch_menu_status.is_available = true` (branch-level) — Two-Level Availability Model (§3.3, BR-25).
-
-| # | Column | Type | Key | Nullable | Description |
-|:---:|---|---|---|---|---|
-| 1 | id | UNIQUEIDENTIFIER | PK | No | Auto-generated UUID. |
-| 2 | category_id | UNIQUEIDENTIFIER | FK → categories(id) | Yes | Parent category. Nullable — set to `NULL` on category deletion (ON DELETE SET NULL) so the item survives. |
-| 3 | parent_item_id | UNIQUEIDENTIFIER | FK → menu_items(id) | Yes | Self-reference for size variants. E.g. "Espresso (S)", "Espresso (M)" both point to the base "Espresso" record. `NULL` for base items. |
-| 4 | name | NVARCHAR(255) | — | No | Product name (e.g. "Espresso", "Peach Tea"). Shown on POS, receipts, and reports. |
-| 5 | price | DECIMAL(18,2) | — | No | Listed retail price in VND (VAT-inclusive). VAT is extracted at checkout: `tax_amount = Total × VAT_Rate / (100 + VAT_Rate)` (§3.6.6.3). Price at time of sale is snapshot into `order_items.unit_price`. |
-| 6 | description | NVARCHAR(MAX) | — | Yes | Optional product description. |
-| 7 | is_active | BIT | — | No | Chain-wide availability (layer 1 of Two-Level model). Default `true`. When `false`, item is hidden from all POS registers chain-wide (BR-25). |
-| 8 | image_url | NVARCHAR(255) | — | Yes | URL to product image. Displayed on POS checkout grid and item detail views. |
-| 9 | barcode | NVARCHAR(255) | UNIQUE | Yes | Barcode/SKU for POS scanner lookup (UC-47). |
-| 10 | sku | NVARCHAR(255) | — | Yes | Supplementary stock keeping unit code. |
-| 11 | size_name | NVARCHAR(255) | — | Yes | Size label (e.g. "S", "M", "L"). Used with `parent_item_id` to distinguish size variants. |
-| 12 | abbreviation | NVARCHAR(255) | — | No | Auto-generated short name (e.g. "cfd"). Printed on barista cup stickers and compact receipts. |
-| 13 | created_at | DATETIME2 | — | No | Item creation timestamp. |
-| 14 | is_deleted | BIT | — | No | Soft-delete flag. Default `false`. When `true`, item is hidden everywhere but retained in DB for order history and recipe integrity. Never hard-deleted. |
-
----
-
-#### **Table 05 — `branch_menu_status`**
-
-Per-branch item availability toggle (layer 2 of Two-Level Availability). Allows Store Manager to temporarily disable items locally without affecting other branches. UNIQUE constraint on `(store_id, menu_item_id)`.
-
-| # | Column | Type | Key | Nullable | Description |
-|:---:|---|---|---|---|---|
-| 1 | store_id | UNIQUEIDENTIFIER | PK, FK → stores(id) | No | Branch where this availability applies. |
-| 2 | menu_item_id | UNIQUEIDENTIFIER | PK, FK → menu_items(id) | No | Menu item being managed. |
-| 3 | is_available | BIT | — | No | Local availability. `true` = on sale, `false` = shows "Out of Stock" at this branch only. Store Manager toggles this; system tracks `last_updated_by` and `last_updated_at`. |
-
----
-
-#### **Table 06 — `option_toppings`**
-
-Global add-ons (e.g. Extra Shot, Oat Milk, Tapioca Pearls) shared across menu items via `menu_item_topping_mappings` (many-to-many, BR-29). Price may be 0 for non-charged options (e.g. "No Ice"). A topping may have its own recipe (BR-65).
-
-| # | Column | Type | Key | Nullable | Description |
-|:---:|---|---|---|---|---|
-| 1 | id | UNIQUEIDENTIFIER | PK | No | Auto-generated UUID. |
-| 2 | name | NVARCHAR(255) | — | No | Topping name (e.g. "Extra Espresso Shot", "Oat Milk"). |
-| 3 | price | DECIMAL(18,2) | — | No | Surcharge in VND. Can be 0 for free options. Added to item price at checkout. Snapshot into `order_item_toppings.unit_price`. |
-| 4 | is_active | BIT | — | No | When `false`, topping is hidden from POS customization options. |
-
----
-
-#### **Table 07 — `menu_item_topping_mappings`**
-
-Join table linking global `option_toppings` to `menu_items` (many-to-many, BR-29). Defines which toppings are offered for which items. UNIQUE constraint on `(menu_item_id, option_topping_id)`.
-
-| # | Column | Type | Key | Nullable | Description |
-|:---:|---|---|---|---|---|
-| 1 | id | UNIQUEIDENTIFIER | PK | No | Auto-generated UUID. |
-| 2 | menu_item_id | UNIQUEIDENTIFIER | FK → menu_items(id) | No | Menu item offering the topping. |
-| 3 | option_topping_id | UNIQUEIDENTIFIER | FK → option_toppings(id) | No | Topping available for this item. |
-
----
-
-#### **Table 08 — `customers`**
-
-Loyalty membership registry tracking points balance. Includes PDPA consent timestamp and version (BR-71). Points expire after 12 months of inactivity (BR-35). PII is anonymized 24 months after the last transaction (BR-72).
-
-| # | Column | Type | Key | Nullable | Description |
-|:---:|---|---|---|---|---|
-| 1 | id | UNIQUEIDENTIFIER | PK | No | Auto-generated UUID. |
-| 2 | phone | NVARCHAR(255) | UNIQUE | No | Primary lookup key (10–11 digits). Used for quick search at POS (UC-50). Read-only after creation. |
-| 3 | full_name | NVARCHAR(255) | — | No | Customer name. Shown when linking to orders and on loyalty reports. |
-| 4 | points | INT | — | No | Current loyalty points balance. Default 0. Increases on completed orders per `LOYALTY_ACCRUAL_PERCENTAGE` (BR-01/69). Decreases on redemption (UC-49, BR-02). Only Business Admin can manually adjust, with mandatory reason (BR-49). Expires after 12 months of inactivity (BR-35). |
-| 5 | email | NVARCHAR(255) | — | Yes | Optional contact email. |
-| 6 | birth_date | DATE | — | Yes | Optional date of birth. |
-| 7 | is_active | BIT | — | No | Membership status. Default `true`. When `false`, customer cannot earn or redeem points. Set `false` on consent withdrawal (BR-72). |
-| 8 | created_at | DATETIME2 | — | No | Membership enrollment timestamp. |
-| 9 | consent_at | DATETIME2 | — | No | Timestamp when customer consented to personal data processing (PDPA/Decree 13/2023). Recorded at registration (UC-25, BR-71). |
-| 10 | consent_version | NVARCHAR(255) | — | No | Version of the consent terms accepted (e.g. "v1.0"). Enables traceability when privacy policies change. |
-
----
-
-#### **Table 09 — `shift_sessions`**
-
-POS cashier work session records. A Shift Session is independent from the User Session — a cashier may log out without closing the shift; the shift stays open for another cashier to continue (BR-95/BR-60).
-
-| # | Column | Type | Key | Nullable | Description |
-|:---:|---|---|---|---|---|
-| 1 | id | UNIQUEIDENTIFIER | PK | No | Auto-generated UUID. |
-| 2 | store_id | UNIQUEIDENTIFIER | FK → stores(id) | No | Branch where the shift operates. |
-| 3 | user_id | UNIQUEIDENTIFIER | FK → users(id) | No | Cashier who opened the shift. Another cashier may continue checkout on the same shift after the opener logs out (BR-95). |
-| 4 | start_time | DATETIME2 | — | No | Shift start timestamp. Recorded when cashier clicks "Start Session" (UC-44). |
-| 5 | end_time | DATETIME2 | — | Yes | Shift close timestamp. `NULL` while shift is open. Set on manual close (UC-53) or nightly auto-close at 23:59 (Non-Screen Function #5). |
-| 6 | starting_cash | DECIMAL(18,2) | — | No | Cash drawer float at shift open (VND). Must be ≥ 0 (BR-33). |
-| 7 | ending_cash | DECIMAL(18,2) | — | Yes | Actual cash counted at shift close (VND). `NULL` while open. If discrepancy with expected cash exceeds 100,000 VND, mandatory notes and auto-alert to Store Manager (BR-04). |
-| 8 | status | VARCHAR(50) | — | No | `OPEN` or `CLOSED`. Cannot close while non-terminal orders exist (BR-03). |
-| 9 | pos_register_id | NVARCHAR(255) | — | No | POS terminal ID (e.g. "POS-01"). Only one open shift allowed per register at a time (UC-44 AT1). |
-
----
-
-#### **Table 10 — `orders`**
-
-Sales transaction records. Follows a strict 7-state machine: PENDING → PREPARING → HOLD → READY → COMPLETED / CANCELLED / ABANDONED (§3.7).
-
-| # | Column | Type | Key | Nullable | Description |
-|:---:|---|---|---|---|---|
-| 1 | id | UNIQUEIDENTIFIER | PK | No | Auto-generated UUID. Also the VietQR gateway idempotency key — gateway accepts at most one settlement per `order_id` (BR-84). |
-| 2 | store_id | UNIQUEIDENTIFIER | FK → stores(id) | No | Branch processing the order. |
-| 3 | order_number | NVARCHAR(255) | — | No | 3-digit daily sequence per branch (e.g. "#001"). Resets daily. Continues past 999 without truncation. Shown on receipts and barista stickers. |
-| 4 | shift_session_id | UNIQUEIDENTIFIER | FK → shift_sessions(id) | Yes | Shift that created the order. `NULL` for online/delivery orders. |
-| 5 | customer_id | UNIQUEIDENTIFIER | FK → customers(id) | Yes | Linked loyalty member. `NULL` for guest orders. When set, loyalty points are earned/redeemed for this customer. |
-| 6 | voucher_id | UNIQUEIDENTIFIER | FK → vouchers(id) | Yes | Applied discount voucher. `NULL` if none. At most one voucher per order (§3.6.6.3). |
-| 7 | order_type | VARCHAR(50) | — | No | `DINE_IN`, `TAKE_AWAY`, or `DELIVERY`. Affects COMPLETED transition trigger (cashier handover vs. delivery API). |
-| 8 | subtotal | DECIMAL(18,2) | — | No | Gross total before discounts (VND). = Σ(unit_price × quantity) of all items + toppings. This is the "Gross Subtotal" in §3.6.6.3 step 1. |
-| 9 | discount | DECIMAL(18,2) | — | No | Total discount amount (VND). = Voucher Discount + Point Redemption Discount. Combined discount capped so total ≥ 0 (BR-50). |
-| 10 | tax_amount | DECIMAL(18,2) | — | No | Extracted VAT (inclusive). Formula: `Final Taxable Subtotal × VAT_Rate / (100 + VAT_Rate)`. For 10% VAT: `= Total × 10/110`. Rate from system_configs `VAT_RATE`. |
-| 11 | total | DECIMAL(18,2) | — | No | Net amount collected (VND) = subtotal − discount. VAT-inclusive. Never negative (BR-50). Base for loyalty point accrual (BR-69). |
-| 12 | payment_method | VARCHAR(50) | — | No | `CASH`, `CARD`, or `VIETQR`. For CASH, cashier enters amount received and system computes change. For VIETQR, payment auto-confirms via gateway callback (BR-84). |
-| 13 | payment_status | VARCHAR(50) | — | No | `PENDING`, `COMPLETED`, `FAILED`, `REFUNDED`, or `PARTIALLY_REFUNDED`. |
-| 14 | status | VARCHAR(50) | — | No | Fulfillment state: `PENDING` (awaiting prep), `PREPARING` (barista started), `HOLD` (prep issue), `READY` (awaiting pickup), `COMPLETED` (delivered), `CANCELLED` (voided from PENDING only — BR-05), `ABANDONED` (uncollected READY after timeout — BR-88). |
-| 15 | created_at | DATETIME2 | — | No | Order creation timestamp. Used for auto-cancel timeout (15 min for PENDING — Non-Screen Function #6). |
-
----
-
-#### **Table 11 — `order_items`**
-
-Line items within each order. Price is snapshot at time of sale so later menu price changes do not affect history.
-
-| # | Column | Type | Key | Nullable | Description |
-|:---:|---|---|---|---|---|
-| 1 | id | UNIQUEIDENTIFIER | PK | No | Auto-generated UUID. |
-| 2 | order_id | UNIQUEIDENTIFIER | FK → orders(id) | No | Parent order. |
-| 3 | menu_item_id | UNIQUEIDENTIFIER | FK → menu_items(id) | No | Menu product ordered. Links to name, image, abbreviation for barista stickers. |
-| 4 | quantity | INT | — | No | Quantity of this item. |
-| 5 | unit_price | DECIMAL(18,2) | — | No | Price per unit at time of sale (VND). Snapshot from `menu_items.price`. |
-
----
-
-#### **Table 12 — `order_item_toppings`**
-
-Toppings applied to specific order line items. Price is snapshot at time of sale.
-
-| # | Column | Type | Key | Nullable | Description |
-|:---:|---|---|---|---|---|
-| 1 | id | UNIQUEIDENTIFIER | PK | No | Auto-generated UUID. |
-| 2 | order_item_id | UNIQUEIDENTIFIER | FK → order_items(id) | No | Parent order line item. |
-| 3 | topping_id | UNIQUEIDENTIFIER | FK → option_toppings(id) | No | Applied topping. |
-| 4 | quantity | INT | — | No | Topping quantity (e.g. 2 extra shots). |
-| 5 | unit_price | DECIMAL(18,2) | — | No | Topping price per unit at time of sale (VND). Snapshot from `option_toppings.price`. |
-
----
-
-#### **Table 13 — `order_cancellations`**
-
-Immutable audit log for PENDING-state order cancellations (BR-05). One record per cancelled order. Since cancellation only happens in PENDING state, no stock was deducted yet (BR-07), so no replenishment is needed. Vouchers/points are rolled back (BR-08).
-
-| # | Column | Type | Key | Nullable | Description |
-|:---:|---|---|---|---|---|
-| 1 | id | UNIQUEIDENTIFIER | PK | No | Auto-generated UUID. |
-| 2 | order_id | UNIQUEIDENTIFIER | FK → orders(id), UNIQUE | No | Cancelled order. UNIQUE — at most one cancellation per order. |
-| 3 | cashier_id | UNIQUEIDENTIFIER | FK → users(id) | No | Cashier who executed the cancellation. Tracked for anomaly detection (UC-82). |
-| 4 | reason | NVARCHAR(255) | — | No | Cancellation reason from dropdown (e.g. "Out of ingredient", "Customer changed mind"). |
-| 5 | notes | NVARCHAR(MAX) | — | No | Detailed free-text notes. Mandatory for audit purposes. |
-| 6 | created_at | DATETIME2 | — | No | Cancellation timestamp. |
-
----
-
-#### **Table 14 — `order_refunds`**
-
-Store-Manager authorized refund/comp audit log for post-PENDING complaints (UC-75, BR-67). Supports `REFUND` (return money) and `COMP_REMAKE` (free replacement) types, including partial refunds. Original order history is preserved — not voided.
-
-| # | Column | Type | Key | Nullable | Description |
-|:---:|---|---|---|---|---|
-| 1 | id | UNIQUEIDENTIFIER | PK | No | Auto-generated UUID. |
-| 2 | order_id | UNIQUEIDENTIFIER | FK → orders(id) | No | Refunded order. One order may have multiple refund records (multiple partial refunds). |
-| 3 | sm_id | UNIQUEIDENTIFIER | FK → users(id) | No | Store Manager who authorized. Authenticated via SM PIN or login (BR-67). Never `NULL`. |
-| 4 | cashier_id | UNIQUEIDENTIFIER | FK → users(id) | No | Cashier who initiated the refund request. |
-| 5 | shift_session_id | UNIQUEIDENTIFIER | FK → shift_sessions(id) | Yes | Open shift at time of refund. Used for cash refunds — money is debited from current shift drawer (BR-09). `NULL` for card/VietQR refunds (routed through payment gateway). |
-| 6 | refund_type | VARCHAR(50) | — | No | `REFUND` (money returned to customer) or `COMP_REMAKE` (free replacement pushed to barista queue, deducts stock again at PREPARING — UC-62). |
-| 7 | amount | DECIMAL(18,2) | — | No | Refunded amount (VND). = 0 for COMP_REMAKE. Supports partial refunds (does not need to equal order total). |
-| 8 | reason | NVARCHAR(255) | — | No | Complaint reason (dropdown: "Wrong item", "Spilled", "Too slow", "Quality", "Other"). |
-| 9 | notes | NVARCHAR(MAX) | — | No | Detailed audit notes. |
-| 10 | created_at | DATETIME2 | — | No | Refund/comp timestamp. |
-
----
-
-#### **Table 15 — `vouchers`**
-
-Promotional discount codes. Managed by Business Admin (UC-21/22/23). At most one voucher per order (§3.6.6.3).
-
-| # | Column | Type | Key | Nullable | Description |
-|:---:|---|---|---|---|---|
-| 1 | id | UNIQUEIDENTIFIER | PK | No | Auto-generated UUID. |
-| 2 | code | NVARCHAR(255) | UNIQUE | No | Alphanumeric coupon code (e.g. "COFFEE20"). Entered or selected by cashier at POS (UC-48). |
-| 3 | discount_type | VARCHAR(50) | — | No | `PERCENTAGE` or `FIXED_AMOUNT`. |
-| 4 | discount_value | DECIMAL(18,2) | — | No | Discount value: percentage (e.g. 10.0 = 10%) for PERCENTAGE, or flat VND amount for FIXED_AMOUNT. |
-| 5 | min_order_value | DECIMAL(18,2) | — | No | Minimum subtotal required to apply (VND). Rejected if subtotal is below this (UC-48 AT1). |
-| 6 | start_date | DATETIME2 | — | No | Validity start. Voucher only applies when `now() ≥ start_date`. |
-| 7 | end_date | DATETIME2 | — | No | Validity end. Voucher only applies when `now() ≤ end_date`. |
-| 8 | is_active | BIT | — | No | Active flag. When `false`, voucher is hidden and cannot be applied regardless of dates. |
-| 9 | usage_limit_per_customer | INT | — | Yes | Max uses per customer. `NULL` = unlimited. When set, guest checkout is blocked. System checks usage history of `customer_id` before allowing. |
-| 10 | total_usage_count | INT | — | No | Running total of redemptions across all customers. Default 0. Incremented on successful apply, decremented on order cancellation rollback (BR-08). |
-| 11 | max_total_uses | INT | — | Yes | Overall cap on total uses. `NULL` = unlimited. When `total_usage_count ≥ max_total_uses`, voucher becomes unavailable. |
-| 12 | max_discount_amount | DECIMAL(18,2) | — | Yes | Maximum discount cap (VND) for PERCENTAGE vouchers. E.g. 20% capped at 50,000 VND. Required when `discount_type = PERCENTAGE`. |
-
----
-
-#### **Table 16 — `raw_materials`**
-
-Chain-wide master catalog of ingredients/materials owned exclusively by Business Admin (UC-74). Canonical source for recipe formulations and branch stock dropdowns. No central warehouse — branches import directly from third-party suppliers.
-
-| # | Column | Type | Key | Nullable | Description |
-|:---:|---|---|---|---|---|
-| 1 | id | UNIQUEIDENTIFIER | PK | No | Auto-generated UUID. |
-| 2 | code | NVARCHAR(255) | UNIQUE | No | Chain-wide material code (e.g. "STK-01"). Immutable after creation. |
-| 3 | name | NVARCHAR(255) | — | No | Display name (e.g. "Coffee Beans", "Fresh Milk", "Paper Cup"). |
-| 4 | unit | NVARCHAR(255) | — | No | Unit of measurement (e.g. "kg", "liter", "ml", "piece"). Locked once any stock transaction references this material — cannot change unit after first use. |
-| 5 | suggested_min_threshold | DECIMAL(18,2) | — | Yes | Default low-stock threshold proposed to branches. Each branch may override locally in `stock_items.min_alert_threshold`. |
-| 6 | standard_cost | DECIMAL(18,2) | — | Yes | Standard unit cost (VND), maintained by Business Admin. Used to compute COGS: `Σ(recipe_item.quantity_required × raw_material.standard_cost)` (BR-66). Not a per-branch purchase price. |
-| 7 | is_active | BIT | — | No | Active flag. Soft-delete: when `false`, hidden from new recipe/import selections but retained in history and existing recipes (BR-64). |
-| 8 | category | NVARCHAR(255) | — | No | Material classification: `INGREDIENTS` (prep materials) or `PACKAGING` (cups, lids, etc.). |
-
----
-
-#### **Table 17 — `stock_items`**
-
-Per-branch on-hand quantity of a master raw material. Scoped to one store. UNIQUE constraint on `(store_id, raw_material_id)`. Name and unit are inherited from the master `raw_materials` table (BR-63).
-
-| # | Column | Type | Key | Nullable | Description |
-|:---:|---|---|---|---|---|
-| 1 | id | UNIQUEIDENTIFIER | PK | No | Auto-generated UUID. |
-| 2 | store_id | UNIQUEIDENTIFIER | FK → stores(id) | No | Branch owning this stock record. |
-| 3 | raw_material_id | UNIQUEIDENTIFIER | FK → raw_materials(id) | No | Master material reference. Branches cannot create new material types — only transact quantities of materials defined in the master (BR-63). |
-| 4 | current_quantity | DECIMAL(18,2) | — | No | Current stock level (in the material's master unit). Increases on IMPORT, decreases on EXPORT / RECIPE_DEDUCTION (auto at PREPARING — BR-07), adjusted on AUDIT_ADJUSTMENT. |
-| 5 | min_alert_threshold | DECIMAL(18,2) | — | No | Branch-local low-stock alert threshold. Defaults from `raw_materials.suggested_min_threshold`, overridable by Store Manager. When `current_quantity ≤ threshold`, shows "LOW" badge (UC-31) and triggers nightly alert email at 22:00 (Non-Screen Function #4). |
-
----
-
-#### **Table 18 — `stock_transactions`**
-
-Immutable historical ledger (append-only) of all stock movements. System-triggered transactions (RECIPE_DEDUCTION, PHANTOM_USAGE) have `NULL` manager_id.
-
-| # | Column | Type | Key | Nullable | Description |
-|:---:|---|---|---|---|---|
-| 1 | id | UNIQUEIDENTIFIER | PK | No | Auto-generated UUID. |
-| 2 | stock_item_id | UNIQUEIDENTIFIER | FK → stock_items(id) | No | Affected branch stock record. |
-| 3 | manager_id | UNIQUEIDENTIFIER | FK → users(id) | Yes | Store Manager who performed the transaction. `NULL` for system-triggered: RECIPE_DEDUCTION (auto-deducted when barista starts prep — UC-62/BR-07) and PHANTOM_USAGE (unexplained discrepancy from audit). |
-| 4 | transaction_type | VARCHAR(50) | — | No | `IMPORT` (supplier delivery, UC-32), `EXPORT` (wastage/damage, UC-33), `AUDIT_ADJUSTMENT` (physical count reconciliation, UC-34), `RECIPE_DEDUCTION` (auto-deducted per recipe at PREPARING), `PHANTOM_USAGE` (unexplained shrinkage found during audit). |
-| 5 | quantity | DECIMAL(18,2) | — | No | Movement amount (in material's master unit). Positive = inflow, negative = outflow. |
-| 6 | reason | NVARCHAR(MAX) | — | Yes | Notes (e.g. "Weekly restock", "Spoiled milk disposal"). Required for EXPORT and AUDIT_ADJUSTMENT, optional for IMPORT. |
-| 7 | created_at | DATETIME2 | — | No | Transaction timestamp. |
-
----
-
-#### **Table 19 — `recipe_items`**
-
-Ingredient formula defining how much of a raw material is consumed to produce one unit of a menu item or topping. Exactly one of `menu_item_id` or `option_topping_id` must be non-null (XOR constraint). Recipes reference chain-wide master materials, not branch stock (BR-63).
-
-| # | Column | Type | Key | Nullable | Description |
-|:---:|---|---|---|---|---|
-| 1 | id | UNIQUEIDENTIFIER | PK | No | Auto-generated UUID. |
-| 2 | menu_item_id | UNIQUEIDENTIFIER | FK → menu_items(id) | Yes | Menu item owning this recipe line. `NULL` if the recipe belongs to a topping. XOR: exactly one of this or `option_topping_id` is non-null. |
-| 3 | option_topping_id | UNIQUEIDENTIFIER | FK → option_toppings(id) | Yes | Topping owning this recipe line (BR-65 — toppings can have recipes, e.g. Extra Shot needs 18g coffee beans). `NULL` if the recipe belongs to a menu item. |
-| 4 | raw_material_id | UNIQUEIDENTIFIER | FK → raw_materials(id) | No | Raw material consumed. References chain-wide master (BR-63). Quantity must be expressed in the material's master unit. |
-| 5 | quantity_required | DECIMAL(18,2) | — | No | Amount of raw material needed to produce one unit (e.g. 18g coffee beans for 1 Espresso). Used for auto stock deduction at PREPARING (BR-07) and COGS calculation (BR-66). |
-
----
-
-#### **Table 20 — `staff_schedules`**
-
-Assigned employee shift blocks (MORNING / AFTERNOON / FULL_DAY) per date and branch. Managed by Store Manager (UC-36/37/38). Supports cross-branch assignment (BR-90).
-
-| # | Column | Type | Key | Nullable | Description |
-|:---:|---|---|---|---|---|
-| 1 | id | UNIQUEIDENTIFIER | PK | No | Auto-generated UUID. |
-| 2 | store_id | UNIQUEIDENTIFIER | FK → stores(id) | No | Branch where the shift is worked. May differ from the employee's home branch for cross-branch assignments (BR-90). |
-| 3 | user_id | UNIQUEIDENTIFIER | FK → users(id) | No | Scheduled employee. System checks for conflicts — no overlapping shifts on the same date (MSG12). |
-| 4 | shift_date | DATE | — | No | Date of the shift. Past schedules cannot be modified or deleted (BR-36). |
-| 5 | shift_type | VARCHAR(50) | — | No | `MORNING` (06:00–14:00), `AFTERNOON` (14:00–22:00), or `FULL_DAY` (06:00–22:00). |
-| 6 | shift_start_time | TIME | — | No | Actual shift start time. May differ from shift_type defaults if customized by SM. Used as the baseline for lateness calculation (BR-39). |
-| 7 | shift_end_time | TIME | — | No | Actual shift end time. Used to derive overtime and early-leave (BR-91). |
-| 8 | pos_register_id | NVARCHAR(255) | — | Yes | Allocated POS register. Mandatory when employee role = CASHIER, optional for BARISTA and STOREMANAGER. |
-| 9 | created_at | DATETIME2 | — | No | Schedule creation timestamp. |
-
----
-
-#### **Table 21 — `attendance_logs`**
-
-Employee clock-in/out records. One row per attendance pairing (check_in + check_out). At check-in, the system snapshots the scheduled shift start time so lateness can be calculated historically even if the schedule is later edited (BR-38). Mandatory check-in photo; URL is auto-nulled after 90 days for PDPA compliance (BR-72) while the row is retained for payroll.
-
-| # | Column | Type | Key | Nullable | Description |
-|:---:|---|---|---|---|---|
-| 1 | id | UNIQUEIDENTIFIER | PK | No | Auto-generated UUID. |
-| 2 | store_id | UNIQUEIDENTIFIER | FK → stores(id) | No | Branch where the clock-in/out happened (not necessarily the employee's home branch — cross-branch case). |
-| 3 | user_id | UNIQUEIDENTIFIER | FK → users(id) | No | Employee who clocked in/out. |
-| 4 | shift_date | DATE | — | No | Attendance date. Used to pair with schedule and compute daily worked hours. |
-| 5 | check_in_at | DATETIME2 | — | Yes | Actual check-in timestamp. `NULL` if absent (scheduled but no check-in). |
-| 6 | check_out_at | DATETIME2 | — | Yes | Actual check-out timestamp. `NULL` if still on shift or missing checkout. Missing checkout days are flagged and excluded from worked-hours calculations (BR-77). |
-| 7 | scheduled_start | DATETIME2 | — | Yes | Snapshot of the scheduled shift start time, captured at check-in (BR-38). `NULL` for walk-in employees with no schedule. Lateness = `check_in_at − scheduled_start` (BR-39); both times converted to branch timezone before calculation. |
-| 8 | status | VARCHAR(50) | — | No | `ON_TIME` (check-in ≤ scheduled start), `LATE` (check-in after scheduled start), or `ABSENT` (scheduled but no check-in). Derived from check_in_at vs. scheduled_start (BR-91). |
-| 9 | photo_url | NVARCHAR(255) | — | Yes | Camera snapshot URL taken at check-in. Mandatory at clock-in (BR-93); if camera is unavailable, action is queued for SM confirmation. URL auto-nulled 90 days after capture (BR-72 PDPA purge) while the attendance row is preserved for payroll. |
-
----
-
-#### **Table 22 — `audit_logs`**
-
-Immutable security event log (append-only — no UPDATE or DELETE permitted). Records: price changes, voucher mutations, user account changes (BR-81), checkout voucher/point usage (BR-80). Feeds the CEO Viewer access review (UC-83) and cashier anomaly report (UC-82).
-
-| # | Column | Type | Key | Nullable | Description |
-|:---:|---|---|---|---|---|
-| 1 | id | UNIQUEIDENTIFIER | PK | No | Auto-generated UUID. |
-| 2 | user_id | UNIQUEIDENTIFIER | FK → users(id) | No | User who performed the action. For checkout events = cashier_id; for account management = ssadmin_id. |
-| 3 | action_type | VARCHAR(50) | — | No | `CREATE`, `UPDATE`, or `DELETE`. |
-| 4 | entity_affected | NVARCHAR(255) | — | No | Database table name affected (e.g. "users", "menu_items", "vouchers", "orders"). |
-| 5 | old_value_json | NVARCHAR(MAX) | — | Yes | State before change (JSON). `NULL` for CREATE actions. Enables before/after comparison. |
-| 6 | new_value_json | NVARCHAR(MAX) | — | Yes | State after change (JSON). `NULL` for DELETE actions. For checkout audit (BR-80): contains order_id, voucher code, redeemed points, discount amount. |
-| 7 | created_at | DATETIME2 | — | No | Log timestamp. Immutable — never updated after insertion. |
-
----
-
-#### **Table 23 — `system_configs`**
-
-Central (scope `GLOBAL`) and per-branch (scope `BRANCH`) runtime configuration stored as key/value rows. Managed by System Admin for GLOBAL (UC-30) and Store Manager for BRANCH (UC-42). Branch-scoped configs override global configs for that branch.
-
-| # | Column | Type | Key | Nullable | Description |
-|:---:|---|---|---|---|---|
-| 1 | id | UNIQUEIDENTIFIER | PK | No | Auto-generated UUID. |
-| 2 | config_key | NVARCHAR(255) | — | No | Configuration key. Main keys: `VAT_RATE` (0–20%), `LOYALTY_ACCRUAL_PERCENTAGE`, `LOYALTY_REDEMPTION_VALUE_PER_POINT` (default 100 VND/point), `LOYALTY_MAX_REDEMPTION_PERCENT`, `LOYALTY_MAX_REDEMPTION_LIMIT`, `MAX_ACTIVE_BRANCHES`, `HQ_MFA_REQUIRED`, `CANCEL_REFUND_ALERT_THRESHOLD`, VietQR credentials, branch timezone/hardware overrides. |
-| 3 | config_value | NVARCHAR(255) | — | No | Configuration value (stored as string, e.g. "10.0" for VAT_RATE, "true" for HQ_MFA_REQUIRED). |
-| 4 | scope | NVARCHAR(255) | — | No | `GLOBAL` (system-wide) or `BRANCH` (specific branch). BRANCH configs override GLOBAL for that branch. |
-| 5 | store_id | UNIQUEIDENTIFIER | FK → stores(id) | Yes | Target branch. `NULL` for GLOBAL scope. Required for BRANCH scope. |
-| 6 | updated_by | NVARCHAR(255) | — | No | Username or user ID of last updater. For audit trail. Config changes (VAT/loyalty) apply to new orders only — in-progress orders retain the parameters active when they were created (BR-46). |
 ## **3\. Detailed Design**
 
 ### **3.1 System Access & Security**
@@ -1432,6 +1084,8 @@ stateDiagram-v2
     INACTIVE_BY_ADMIN --> ACTIVE : reactivate() [isSSAdmin == true] / activateAccount()
 ```
 
+
+
 ### **3.2 User Account Management**
 
 *\[Provide the detailed design for User Account Management, covering UC-10→UC-14 (View User List, Add User, Update User, View User Detail, Deactivate/Reactivate User) plus UC-83 (User Account Change & Access Review Report). Primary actor: **ssadmin**. In addition, a **Store Manager** may **unlock and view their own branch's staff accounts** (the BR-11 / BR-59 branch-scoped exception); **ceoviewer** has read-only access to the review report (UC-83, BR-81). The class diagram covers all user management use cases. Sequence diagrams cover the Add User and Update/Deactivate User flows.\]*
@@ -1617,6 +1271,8 @@ sequenceDiagram
     ReviewView-->>ceoviewer: display review report (no edit actions)
 ```
 
+
+
 ### **3.3 Menu & Category Management**
 
 *\[Provide the detailed design for Menu & Category Management, covering UC-15→UC-19, UC-68→UC-74 (View/Add/Update/Delete Menu Items, Categories, Toppings, Raw Material Master, Recipe Management, Branch Availability Toggle). Actors: businessadmin (chain-wide catalog CRUD), storemanager (local branch availability toggle via branch_menu_status), cashier/POS (read-only list view of items available at their branch). For features with the same class structure, the class diagram is provided once.\]*
@@ -1639,6 +1295,7 @@ classDiagram
         +categoryId: UUID
         +price: Decimal
         +barcode: String
+        +allowIceSugar: Boolean
         +recipeLines: List~RecipeLineDto~
         +submitForm()
     }
@@ -1690,6 +1347,7 @@ classDiagram
         +abbreviation: String
         +isActive: Boolean
         +isDeleted: Boolean
+        +allowIceSugar: Boolean
     }
     class Category {
         <<entity>>
@@ -1805,7 +1463,7 @@ sequenceDiagram
     CatalogCoord->>RawMatDB: verifyMaterialsExist(recipeLines)
     RawMatDB-->>CatalogCoord: materials validated
     Note over CatalogCoord: Validate units match master (BR-73)
-    CatalogCoord->>MenuDB: createMenuItem(name, sku, price, barcode, abbreviation, description, imageUrl)
+    CatalogCoord->>MenuDB: createMenuItem(name, sku, price, barcode, abbreviation, description, imageUrl, allowIceSugar)
     MenuDB-->>CatalogCoord: baseMenuItem
     opt size variants (S/M/L) provided
         loop for each size variant
@@ -1944,6 +1602,8 @@ sequenceDiagram
     MenuView-->>bizadmin: refreshMenuGrid()
 ```
 
+
+
 ### **3.4 Voucher Management**
 
 *\[Provide the detailed design for Voucher Management, covering UC-20→UC-23 (View/Add/Update/Delete Voucher). Voucher application at checkout is described in Section 3.7 POS Transaction (UC-48). Actor: businessadmin (CRUD). The class diagram covers the voucher lifecycle; the sequence diagram covers the add/update flow. The VOUCHER statechart documents the full lifecycle — status is computed dynamically over 3 states (SCHEDULED / ACTIVE / EXPIRED) per BR-52, and deactivation is terminal.\]*
@@ -2065,6 +1725,8 @@ stateDiagram-v2
 
     EXPIRED --> [*] : archive()
 ```
+
+
 
 ### **3.5 Customer & Membership Management**
 
@@ -2212,6 +1874,8 @@ sequenceDiagram
     CustomerCoord->>AuditDB: writeAuditLog(POINT_ADJUSTMENT, customer, N, N + delta, reason)
     CustomerCoord-->>bizadmin: showSuccess(newBalance)
 ```
+
+
 
 ### **3.6 Inventory & Stock Management**
 
@@ -2478,6 +2142,8 @@ sequenceDiagram
         end
     end
 ```
+
+
 
 ### **3.7 POS Transaction**
 
@@ -2797,6 +2463,8 @@ stateDiagram-v2
     CLOSED --> [*] : archive()
 ```
 
+
+
 ### **3.8 Order Management**
 
 *\[Provide the detailed design for Order Management, covering the barista queue (View Order Queue, Barista Update Status), UC-55 (Request Transaction Refund & Cancellation — cancel PENDING orders by cashier), UC-73 (View Order Detail), UC-75 (SM-Authorized Refund/Comp), plus the system Auto-Abandon of READY orders (a scheduled behavior governed by BR-88, not a numbered UC). Actors: cashier (cancel PENDING only), storemanager (refund/comp authorization + force-close READY at shift close), barista (queue display + status transitions), system scheduler (auto-abandon after `READY_ABANDON_TIMEOUT`). The ORDER statechart documents all 7 valid states and their transitions. Stock model (BR-07/BR-88): stock is deducted only at PREPARING; cancellation is PENDING-only (BR-05), so a cancel never reverses stock.\]*
@@ -3046,6 +2714,8 @@ stateDiagram-v2
     CANCELLED --> [*] : archive()
     ABANDONED --> [*] : archive()
 ```
+
+
 
 ### **3.9 Staff Management**
 
@@ -3404,6 +3074,8 @@ sequenceDiagram
     end
 ```
 
+
+
 ### **3.10 Reports & Analytics**
 
 *\[Provide the detailed design for Reports & Analytics, covering UC-28→UC-29 (HQ Consolidated Revenue Dashboard), UC-40→UC-41 (Branch Sales Report, Export Store Reports), UC-76→UC-83 (COGS/Margin & Ingredient Shrinkage, Price & Voucher Change History, Loyalty Liability, Labour Hours vs Revenue, Anomaly Detection, daily Z-Report UC-81). Actors: ceoviewer/businessadmin/ssadmin (HQ reports), storemanager (branch-level reports). Data sources: Order, StockTransaction, AuditLog, ShiftSession tables (read-only).\]*
@@ -3631,6 +3303,8 @@ sequenceDiagram
     ReportCoord-->>PriceHistView: List~PriceChangeDto~
     PriceHistView-->>viewer: displayPriceChangeTimeline()
 ```
+
+
 
 ### **3.11 System Configuration & Branch Management**
 

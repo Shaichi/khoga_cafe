@@ -1,4 +1,25 @@
-# Software Requirements Specification (SRS)
+# Glossary of Terms
+
+| Term | Definition |
+|---|---|
+| **Branch** | A physical store location of the coffee shop chain. |
+| **Shift Session** | A continuous period of work assigned to an employee at a specific branch, e.g., Morning Shift, Afternoon Shift. |
+| **Z-Report** | An end-of-day financial report summarizing all POS transactions, cash counts, and discrepancies for a specific branch. |
+| **COGS** | Cost of Goods Sold; the direct costs attributable to the production of the goods sold in a company. |
+| **Net Total Payable** | The final amount a customer pays after all discounts (vouchers, loyalty points) and taxes (VAT) have been applied. |
+| **Gross Subtotal** | The total price of all items in an order before any discounts or taxes are applied. |
+| **Loyalty Points** | Reward points earned by customers based on their purchases, which can be redeemed for discounts on future orders. |
+| **PDPA** | Personal Data Protection Act; governs the collection, use, and disclosure of personal data. |
+| **VietQR** | A standardized QR code payment method used in Vietnam for quick bank transfers. |
+| **Base Staff** | A general term for employees like Cashiers and Baristas who operate the daily functions of the coffee shop. |
+| **Store Manager** | The manager responsible for overseeing operations, staff, and inventory at a specific branch. |
+| **Business Admin** | An administrative role responsible for managing chain-wide settings, catalog, vouchers, and customer loyalty. |
+| **System Admin (`ssadmin`)** | The highest-level administrative role responsible for system configuration, user access, and branch lifecycle management. |
+| **CEO Viewer** | An executive role with read-only access to chain-wide consolidated reports and analytics. |
+| **Topping** | An optional or mandatory modifier that can be added to a menu item (e.g., Extra Shot, Boba, No Ice). |
+| **Recipe** | The formulation of raw materials required to produce a specific saleable menu item. |
+| **Raw Material** | Basic inventory items used in recipes (e.g., Coffee Beans, Milk, Sugar). |
+
 
 # 1. Product Overview
 
@@ -87,8 +108,6 @@ graph LR
     SYS --> |"Queue Display Data"| BARISTA
 ```
 
-
----
 
 # 2. User Requirements
 
@@ -643,8 +662,6 @@ This part describes the use cases & their main flow (the list of the user action
 
 
 
-
----
 
 # 3.1 Functional Overview
 
@@ -1269,8 +1286,6 @@ Central security audit logs for critical database updates.
 
 
 
-
----
 
 # 3.2 System Access & Security
 
@@ -2304,8 +2319,6 @@ The system defines six user roles with strictly separated permissions. The table
 
 
 
----
-
 # 3.3 Menu Management
 
 This section details specifications for viewing, adding, updating, and deactivating menu items and optional toppings.
@@ -2446,6 +2459,7 @@ An item is only available for sale at a specific branch if **both** the chain-wi
 |  +---------------------------------------------------------------------------+  |
 |                                                                                 |
 |  [ ] Active (Show on POS)                                                       |
+|  [x] Allow custom Ice/Sugar levels                                              |
 |  Image Upload:  [ Choose File ] (No file chosen)                                |
 |                                                                                 |
 |  Linked Toppings:                                                               |
@@ -2465,9 +2479,10 @@ An item is only available for sale at a specific branch if **both** the chain-wi
 | 5 | Description | Text | No | 500 | Description of the item. |
 | 6 | Available | Checkbox | Yes | | Flag indicating if item is active for sale (Default: Checked). |
 | 7 | Image Upload | File | No | | Upload item thumbnail (formats: png, jpg; max 2MB). |
-| 8 | Linked Toppings | Checkboxes | No | | Selection list of modifiers allowed for this item. |
-| 9 | Save Item | Button | | | Submits details and adds product to central catalog. |
-| 10 | Cancel | Button | | | Returns to Menu Item List without saving. |
+| 8 | Allow Ice/Sugar | Checkbox | Yes | | Flag indicating if item allows custom ice/sugar percentages. |
+| 9 | Linked Toppings | Checkboxes | No | | Selection list of modifiers allowed for this item. |
+| 10 | Save Item | Button | | | Submits details and adds product to central catalog. |
+| 11 | Cancel | Button | | | Returns to Menu Item List without saving. |
 
 ### 3.3.3.2 Use Case Description
 
@@ -2532,6 +2547,7 @@ An item is only available for sale at a specific branch if **both** the chain-wi
 |  +---------------------------------------------------------------------------+  |
 |                                                                                 |
 |  [x] Active (Show on POS)                                                       |
+|  [x] Allow custom Ice/Sugar levels                                              |
 |  Image Upload:  [ Choose File ] (espresso.png)                                  |
 |                                                                                 |
 |  Linked Toppings:                                                               |
@@ -2551,9 +2567,10 @@ An item is only available for sale at a specific branch if **both** the chain-wi
 | 5 | Description | Text | No | 500 | Description. |
 | 6 | Active | Checkbox | Yes | | Active status globally (Business Admin only). Branch availability status toggle (Store Manager only - updates `branch_menu_status` mapping). |
 | 7 | Image Upload | File | No | | Upload/replace image. |
-| 8 | Linked Toppings | Checkboxes | No | | Modifier selections. |
-| 9 | Save Changes | Button | | | Saves modified properties. |
-| 10 | Cancel | Button | | | Discards edits. |
+| 8 | Allow Ice/Sugar | Checkbox | Yes | | Flag indicating if item allows custom ice/sugar percentages. |
+| 9 | Linked Toppings | Checkboxes | No | | Modifier selections. |
+| 10 | Save Changes | Button | | | Saves modified properties. |
+| 11 | Cancel | Button | | | Discards edits. |
 
 ### 3.3.4.2 Use Case Description
 
@@ -2702,8 +2719,6 @@ An item is only available for sale at a specific branch if **both** the chain-wi
 | BR-65 | **Topping Recipe & Deduction**: A topping/option may carry its own recipe (`RECIPE_ITEM` linked via `option_topping_id` → `RAW_MATERIAL`). When an order enters `PREPARING`, UC-62 deducts the recipes of the base item **and** of every selected topping. Toppings with material cost therefore consume stock and contribute to COGS (BR-66); only truly material-free options (e.g. "No Ice") may have an empty recipe. |
 
 
-
----
 
 # 3.4 Category Management
 
@@ -2933,8 +2948,6 @@ This section details specifications for managing product categories.
 
 
 
-
----
 
 # 3.5 Inventory & Stock Management
 
@@ -3373,8 +3386,6 @@ This section details specifications for the chain-wide raw-material master catal
 
 
 
----
-
 # 3.6 POS Transaction
 
 This section details specifications for cashier POS checkout sessions, order processing, and cash reconciliation.
@@ -3460,7 +3471,7 @@ This section details specifications for cashier POS checkout sessions, order pro
 | +--------------------------------+ |
 |                                    |
 | Items Cart:                        |
-| - Espresso x 1 (No sugar)      30k |
+| - Espresso x 1 (50% Đá, 30% Đường) 30k |
 |                                    |
 | Subtotal:                   30,000 |
 | Discount:                        0 |
@@ -3474,7 +3485,7 @@ This section details specifications for cashier POS checkout sessions, order pro
 | # | Field Name | Type | Mandatory | Max Length | Description |
 |---|---|---|---|---|---|
 | 1 | Search/SKU | Text | No | 100 | Fast search autocomplete or barcode scan lookup. |
-| 2 | Plus [+] | Button | | | Adds selected item to checkout cart. |
+| 2 | Plus [+] | Button | | | Adds selected item to checkout cart. If `allowIceSugar` is true for the item, a dialog prompts for Ice and Sugar percentage before adding. |
 | 3 | Customer | Button | | | Opens Customer Search modal. |
 | 4 | Promo | Button | | | Opens Apply Voucher modal. |
 | 5 | PAY | Button | | | Navigates to Payment screen. |
@@ -3497,8 +3508,8 @@ This section details specifications for cashier POS checkout sessions, order pro
 #### Main Flows
 | Step | Actor | Action |
 |---|---|---|
-| 1 | Cashier | Selects product, sets customizations/modifiers, and adds to cart. |
-| 2 | Portal | Validates availability, updates cart contents, and recalculates totals. |
+| 1 | Cashier | Selects product. If prompted, selects Ice and Sugar levels, then adds to cart. |
+| 2 | Portal | Validates availability, updates cart contents with selected ice/sugar levels and toppings, and recalculates totals. |
 
 ---
 
@@ -3939,8 +3950,6 @@ Every **voucher application** and every **loyalty-point redemption** applied at 
 
 
 
----
-
 # 3.7 Order Management
 
 This section details specifications for tracking orders, barista queue controls, stickers printing, and cancellation flows.
@@ -4312,8 +4321,6 @@ To support refund/comp auditing, the system must record:
 
 
 
----
-
 # 3.8 Customer & Membership Management
 
 This section details specifications for loyalty membership profiles search, enrollment, and history views.
@@ -4574,8 +4581,6 @@ This section details specifications for loyalty membership profiles search, enro
 | BR-34 | **[RESERVED / DELETED]** (Previously: Real-Time Membership Tier Levels). |
 | BR-35 | **Loyalty Points Expiry**: Loyalty points expire after 12 months of customer inactivity (no new transactions made by the customer). |
 
-
----
 
 # 3.9 Staff Management
 
@@ -4975,8 +4980,6 @@ To support attendance logging, fraud prevention, and compliance, the system must
 
 
 
----
-
 # 3.10 Promotion & Campaign Management
 
 This section details specifications for managing discount codes and promotional campaigns.
@@ -5178,8 +5181,6 @@ The loyalty program parameters are managed globally by the System Admin via cent
 - **LOYALTY_MAX_REDEMPTION_AMOUNT_PER_ORDER**: The maximum absolute cash discount in VND that can be redeemed using points per order (e.g. capped at 100,000 VND discount).
 
 
-
----
 
 # 3.12 Dashboard & Reporting
 
@@ -5734,8 +5735,6 @@ This section details specifications for business reports views, sales analytics 
 
 
 
----
-
 # 3.13 System Configuration
 
 This section details specifications for system settings, store branding profiles, taxation rules, invoice layouts, and local hardware connections.
@@ -6171,8 +6170,6 @@ This section specifies the branch lifecycle management functionality available e
 
 
 
----
-
 # 4. Non-Functional Requirements
 
 This section describes system behaviors, attributes, constraints, and external interface properties that the Coffee Shop Management System must satisfy.
@@ -6297,8 +6294,6 @@ The system's performance characteristics, transaction response times, and capaci
   - Tablet (Landscape): 1280×800px.
   - Desktop Terminal: 1366×768px.
 
-
----
 
 # 5. Requirement Appendix & Mapping
 
@@ -6492,33 +6487,4 @@ The matrix below maps operational modules and system features to employee roles,
 
 
 
-
-
-
----
-
-# Glossary of Terms
-
-| Term | Definition |
-|---|---|
-| **Branch** | A physical store location of the coffee shop chain. |
-| **Shift Session** | A continuous period of work assigned to an employee at a specific branch, e.g., Morning Shift, Afternoon Shift. |
-| **Z-Report** | An end-of-day financial report summarizing all POS transactions, cash counts, and discrepancies for a specific branch. |
-| **COGS** | Cost of Goods Sold; the direct costs attributable to the production of the goods sold in a company. |
-| **Net Total Payable** | The final amount a customer pays after all discounts (vouchers, loyalty points) and taxes (VAT) have been applied. |
-| **Gross Subtotal** | The total price of all items in an order before any discounts or taxes are applied. |
-| **Loyalty Points** | Reward points earned by customers based on their purchases, which can be redeemed for discounts on future orders. |
-| **PDPA** | Personal Data Protection Act; governs the collection, use, and disclosure of personal data. |
-| **VietQR** | A standardized QR code payment method used in Vietnam for quick bank transfers. |
-| **Base Staff** | A general term for employees like Cashiers and Baristas who operate the daily functions of the coffee shop. |
-| **Store Manager** | The manager responsible for overseeing operations, staff, and inventory at a specific branch. |
-| **Business Admin** | An administrative role responsible for managing chain-wide settings, catalog, vouchers, and customer loyalty. |
-| **System Admin (`ssadmin`)** | The highest-level administrative role responsible for system configuration, user access, and branch lifecycle management. |
-| **CEO Viewer** | An executive role with read-only access to chain-wide consolidated reports and analytics. |
-| **Topping** | An optional or mandatory modifier that can be added to a menu item (e.g., Extra Shot, Boba, No Ice). |
-| **Recipe** | The formulation of raw materials required to produce a specific saleable menu item. |
-| **Raw Material** | Basic inventory items used in recipes (e.g., Coffee Beans, Milk, Sugar). |
-
-
----
 
