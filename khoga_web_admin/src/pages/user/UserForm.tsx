@@ -49,7 +49,7 @@ export default function UserForm() {
     setSubmitting(true);
     try {
       if (isEdit && id) {
-        await updateUser(id, { role, storeId: storeId || null, email, phone });
+        await updateUser(id, { fullName, role, storeId: storeId || null, email, phone });
       } else {
         await createUser({ fullName, role, email, phone: phone || undefined, storeId: storeId || null });
       }
@@ -76,7 +76,7 @@ export default function UserForm() {
         <div className="field">
           <label className="label">Họ và tên *</label>
           <input className="input" value={fullName} onChange={(e) => setFullName(e.target.value)}
-            placeholder="Nhập họ và tên" required disabled={isEdit} />
+            placeholder="Nhập họ và tên" required />
         </div>
 
         {isEdit && (

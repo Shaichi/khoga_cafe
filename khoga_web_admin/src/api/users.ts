@@ -37,6 +37,7 @@ export interface CreateUserInput {
 
 /** UpdateUserRequest — role/branch/contact only (status via activate/deactivate). */
 export interface UpdateUserInput {
+  fullName?: string;
   role?: Role;
   storeId?: string | null;
   email?: string;

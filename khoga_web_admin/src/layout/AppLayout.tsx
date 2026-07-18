@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ROLE_LABELS } from '../api/types';
 import CupIcon from '../components/CupIcon';
@@ -7,6 +7,7 @@ import { navForRole } from '../auth/rbac';
 export default function AppLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = async () => {
     await logout();
@@ -23,6 +24,8 @@ export default function AppLayout() {
   // Lọc nav theo role hiện tại
   const navItems = user ? navForRole(user.role) : [];
   const roleLabel = user ? ROLE_LABELS[user.role] : '';
+
+  const isHome = location.pathname === '/';
 
   return (
     <div className="layout">
@@ -52,6 +55,16 @@ export default function AppLayout() {
 
       <div className="main">
         <header className="topbar">
+          {!isHome && (
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={() => navigate(-1)}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '14px', fontWeight: 600 }}
+            >
+              ← Quay lại
+            </button>
+          )}
           <div className="topbar__spacer" />
           <div className="topbar__user">
             <Link to="/profile" className="topbar__user-link" title="Thông tin cá nhân">
