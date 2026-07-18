@@ -28,7 +28,7 @@ export default function HqConsolidated() {
     <div>
       <div className="page-head">
         <h1 className="page-title">Doanh thu hợp nhất toàn chuỗi</h1>
-        <p className="page-subtitle">Tổng hợp doanh thu, so sánh chi nhánh & bán chạy (UC-28/29).</p>
+        <p className="page-subtitle">Tổng hợp doanh thu, so sánh chi nhánh & bán chạy.</p>
       </div>
 
       <DateRangeBar initial={range} onApply={setRange}>

@@ -40,7 +40,7 @@ export default function MenuItemList() {
       <div className="page-head page-head--row">
         <div>
           <h1 className="page-title">Thực Đơn</h1>
-          <p className="page-subtitle">Quản lý món & công thức (UC-14–18).</p>
+          <p className="page-subtitle">Quản lý món & công thức.</p>
         </div>
         <div className="actions-cell">
           <Link to="/catalog/categories" className="btn btn--ghost">Quản lý danh mục</Link>

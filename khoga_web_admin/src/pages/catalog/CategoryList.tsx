@@ -63,7 +63,7 @@ export default function CategoryList() {
         <div>
           <Link to="/catalog" className="back-link">← Thực đơn</Link>
           <h1 className="page-title">Quản Lý Danh Mục</h1>
-          <p className="page-subtitle">Nhóm món trong thực đơn (UC-16/17/70).</p>
+          <p className="page-subtitle">Nhóm món trong thực đơn.</p>
         </div>
         {editingId === null && (
           <button className="btn btn--primary" onClick={startCreate}>+ Thêm Danh Mục</button>

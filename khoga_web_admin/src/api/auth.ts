@@ -31,3 +31,19 @@ export async function forcePasswordChange(newPassword: string): Promise<LoginRes
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
   await apiClient.post('/auth/change-password', { currentPassword, newPassword });
 }
+
+/** UC-03: request password reset OTP */
+export async function forgotPassword(email: string): Promise<void> {
+  await apiClient.post('/auth/forgot-password', { email });
+}
+
+/** UC-04: verify password reset OTP */
+export async function verifyOtp(email: string, otp: string): Promise<void> {
+  await apiClient.post('/auth/verify-otp', { email, otp });
+}
+
+/** UC-05: reset password using email, otp, and newPassword */
+export async function resetPassword(email: string, otp: string, newPassword: string): Promise<void> {
+  await apiClient.post('/auth/reset-password', { email, otp, newPassword });
+}
+

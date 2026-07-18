@@ -23,7 +23,7 @@ export default function CogsReport() {
     <div>
       <div className="page-head">
         <h1 className="page-title">Giá vốn / Biên lợi nhuận & Hao hụt</h1>
-        <p className="page-subtitle">Biên lợi nhuận theo món (giá vốn chuẩn) + hao hụt nguyên liệu (UC-76).</p>
+        <p className="page-subtitle">Biên lợi nhuận theo món (giá vốn chuẩn) + hao hụt nguyên liệu.</p>
       </div>
 
       <DateRangeBar initial={range} onApply={setRange} />
@@ -33,14 +33,30 @@ export default function CogsReport() {
         <div className="empty-state">Đang tải…</div>
       ) : data ? (
         <>
+          <h2 className="section-title">Tổng quan Giá vốn</h2>
+          <div className="summary-grid" style={{ display: 'flex', gap: '2rem', marginBottom: '1.5rem' }}>
+            <div className="summary-card">
+              <p className="muted">Tổng doanh thu kỳ</p>
+              <h3 style={{ margin: 0 }}>{formatVnd(data.totalRevenue)}</h3>
+            </div>
+            <div className="summary-card">
+              <p className="muted">Tổng giá vốn (COGS)</p>
+              <h3 style={{ margin: 0 }}>{formatVnd(data.totalCogs)}</h3>
+            </div>
+            <div className="summary-card">
+              <p className="muted">Biên lợi nhuận gộp</p>
+              <h3 style={{ margin: 0 }}>{data.totalMarginPercent}%</h3>
+            </div>
+          </div>
+
           <h2 className="section-title">Biên lợi nhuận theo món</h2>
           <div className="table-wrap">
             <table className="table">
               <thead><tr><th>Mặt hàng</th><th>Loại</th><th>Giá bán</th><th>Giá vốn</th><th>Lợi nhuận</th><th>Biên %</th></tr></thead>
               <tbody>
-                {data.margins.length === 0 ? (
+                {data.items.length === 0 ? (
                   <tr><td colSpan={6} className="table__empty">Chưa có món nào.</td></tr>
-                ) : data.margins.map((m) => (
+                ) : data.items.map((m) => (
                   <tr key={m.itemId}>
                     <td style={{ fontWeight: 600 }}>{m.name}</td>
                     <td className="muted">{m.kind === 'TOPPING' ? 'Topping' : 'Món'}</td>

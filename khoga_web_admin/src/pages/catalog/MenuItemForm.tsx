@@ -136,7 +136,7 @@ export default function MenuItemForm() {
             <label className="label">Công thức (định lượng nguyên liệu)</label>
             <button type="button" className="btn btn--ghost btn--sm" onClick={addLine}>+ Thêm nguyên liệu</button>
           </div>
-          {recipe.length === 0 && <p className="hint">Chưa có dòng công thức. Đơn vị tự khớp với nguyên liệu (BR-73).</p>}
+          {recipe.length === 0 && <p className="hint">Chưa có dòng công thức. Đơn vị tự khớp với nguyên liệu.</p>}
           {recipe.map((line, i) => (
             <div className="recipe-line" key={i}>
               <select className="input" value={line.rawMaterialId} onChange={(e) => pickMaterial(i, e.target.value)}>

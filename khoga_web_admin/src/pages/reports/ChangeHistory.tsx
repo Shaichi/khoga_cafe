@@ -27,7 +27,7 @@ export default function ChangeHistory() {
     <div>
       <div className="page-head">
         <h1 className="page-title">Lịch sử đổi giá & voucher</h1>
-        <p className="page-subtitle">Nhật ký bất biến mọi thay đổi giá menu và voucher (UC-77, BR-68).</p>
+        <p className="page-subtitle">Nhật ký bất biến mọi thay đổi giá menu và voucher.</p>
       </div>
 
       <DateRangeBar initial={range} onApply={(r) => { setPage(0); setRange(r); }}>

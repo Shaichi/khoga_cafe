@@ -11,7 +11,7 @@ export default function ReportsHome() {
     <div>
       <div className="page-head">
         <h1 className="page-title">Báo cáo & Phân tích</h1>
-        <p className="page-subtitle">Báo cáo vận hành & kinh doanh (P3 — UC-28…83).</p>
+        <p className="page-subtitle">Báo cáo vận hành & kinh doanh.</p>
       </div>
       {visible.length === 0 ? (
         <div className="empty-state">Vai trò của bạn chưa có báo cáo nào.</div>

@@ -62,7 +62,7 @@ export default function VoucherForm() {
     setError('');
     if (!discountType) { setError('Vui lòng chọn loại chiết khấu'); return; }
     if (isPercentage && maxDiscount.trim() === '') {
-      setError('Voucher giảm theo phần trăm phải có mức giảm tối đa (BR-42)');
+      setError('Voucher giảm theo phần trăm phải có mức giảm tối đa');
       return;
     }
     const base = {
@@ -108,7 +108,7 @@ export default function VoucherForm() {
           <label className="label">Mã Voucher (Alphanumeric) *</label>
           <input className="input" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())}
             placeholder="Ví dụ: SUMMER50K" required disabled={isEdit} />
-          {isEdit && <p className="hint">Mã voucher là bất biến sau khi tạo (BR-40).</p>}
+          {isEdit && <p className="hint">Mã voucher là bất biến sau khi tạo.</p>}
         </div>
 
         <div className="field">
@@ -131,7 +131,7 @@ export default function VoucherForm() {
             <label className="label">Mức giảm tối đa (VND) *</label>
             <input className="input" type="number" step="any" min="0" value={maxDiscount}
               onChange={(e) => setMaxDiscount(e.target.value)} placeholder="Ví dụ: 30000" />
-            <p className="hint">Bắt buộc với voucher giảm theo phần trăm (BR-42).</p>
+            <p className="hint">Bắt buộc với voucher giảm theo phần trăm.</p>
           </div>
         )}
 

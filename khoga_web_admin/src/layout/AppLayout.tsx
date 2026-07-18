@@ -2,18 +2,7 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ROLE_LABELS } from '../api/types';
 import CupIcon from '../components/CupIcon';
-
-const NAV = [
-  { to: '/', label: 'Tổng quan', end: true },
-  { to: '/branches', label: 'Chi nhánh' },
-  { to: '/users', label: 'Tài khoản' },
-  { to: '/catalog', label: 'Thực đơn & Danh mục' },
-  { to: '/raw-materials', label: 'Nguyên liệu' },
-  { to: '/vouchers', label: 'Voucher' },
-  { to: '/customers', label: 'Khách hàng' },
-  { to: '/reports', label: 'Báo cáo' },
-  { to: '/settings', label: 'Cấu hình hệ thống' },
-];
+import { navForRole } from '../auth/rbac';
 
 export default function AppLayout() {
   const { user, logout } = useAuth();
@@ -31,6 +20,10 @@ export default function AppLayout() {
     .join('')
     .toUpperCase();
 
+  // Lọc nav theo role hiện tại
+  const navItems = user ? navForRole(user.role) : [];
+  const roleLabel = user ? ROLE_LABELS[user.role] : '';
+
   return (
     <div className="layout">
       <aside className="sidebar">
@@ -43,9 +36,9 @@ export default function AppLayout() {
           </span>
         </div>
         <nav className="sidebar__nav">
-          {NAV.map((item) => (
+          {navItems.map((item) => (
             <NavLink
-              key={item.to}
+              key={item.to + (item.label)}
               to={item.to}
               end={item.end}
               className={({ isActive }) => `nav-link${isActive ? ' nav-link--active' : ''}`}
@@ -54,7 +47,7 @@ export default function AppLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="sidebar__footer">HQ Admin · Khoga Café</div>
+        <div className="sidebar__footer">{roleLabel} · Khoga Café</div>
       </aside>
 
       <div className="main">
@@ -64,7 +57,7 @@ export default function AppLayout() {
             <Link to="/profile" className="topbar__user-link" title="Thông tin cá nhân">
               <div className="topbar__user-meta">
                 <span className="topbar__user-name">{user?.fullName || user?.username}</span>
-                <span className="topbar__user-role">{user ? ROLE_LABELS[user.role] : ''}</span>
+                <span className="topbar__user-role">{roleLabel}</span>
               </div>
               <div className="avatar">{initials}</div>
             </Link>

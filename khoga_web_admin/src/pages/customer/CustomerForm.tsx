@@ -62,13 +62,13 @@ export default function CustomerForm() {
     setError('');
 
     if (!isEdit && !consent) {
-      setError('Cần xác nhận khách hàng đồng ý xử lý dữ liệu (PDPA) trước khi tạo hồ sơ (BR-71).');
+      setError('Cần xác nhận khách hàng đồng ý xử lý dữ liệu (PDPA) trước khi tạo hồ sơ.');
       return;
     }
 
     const pointsChanged = isEdit && canAdjustPoints && Number(newPoints) !== currentPoints;
     if (pointsChanged && reason.trim() === '') {
-      setError('Phải nhập lý do khi điều chỉnh điểm tích lũy (BR-49).');
+      setError('Phải nhập lý do khi điều chỉnh điểm tích lũy.');
       return;
     }
 
@@ -107,7 +107,7 @@ export default function CustomerForm() {
 
         <div className="info-panel">
           <div className="info-panel__stat">
-            <span className="info-panel__label">{isEdit ? 'Hạng thành viên' : 'Hạng mặc định (UC-25)'}</span>
+            <span className="info-panel__label">{isEdit ? 'Hạng thành viên' : 'Hạng mặc định'}</span>
             <span className={`badge ${tierBadgeClass(tier)}`} style={{ alignSelf: 'flex-start' }}>{tier}</span>
           </div>
           <div className="info-panel__stat">
@@ -142,7 +142,7 @@ export default function CustomerForm() {
         {!isEdit && (
           <label className="checkbox-row">
             <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-            <span>Khách hàng đồng ý cho phép thu thập & xử lý dữ liệu cá nhân (PDPA — BR-71).</span>
+            <span>Khách hàng đồng ý cho phép thu thập & xử lý dữ liệu cá nhân (PDPA).</span>
           </label>
         )}
 

@@ -43,7 +43,7 @@ public class CategoryController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('SSADMIN')")
+    @PreAuthorize("hasAnyRole('BUSINESSADMIN','SSADMIN')")
     public ResponseEntity<ApiResponse<CategoryResponse>> create(@Valid @RequestBody CategoryRequest request) {
         CategoryResponse created = categoryService.create(request, SecurityUtil.currentUserId());
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -51,7 +51,7 @@ public class CategoryController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('SSADMIN')")
+    @PreAuthorize("hasAnyRole('BUSINESSADMIN','SSADMIN')")
     public ResponseEntity<ApiResponse<CategoryResponse>> update(
             @PathVariable UUID id, @Valid @RequestBody CategoryRequest request) {
         CategoryResponse updated = categoryService.update(id, request, SecurityUtil.currentUserId());
@@ -59,7 +59,7 @@ public class CategoryController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('SSADMIN')")
+    @PreAuthorize("hasAnyRole('BUSINESSADMIN','SSADMIN')")
     public ResponseEntity<ApiResponse<Void>> archive(@PathVariable UUID id) {
         categoryService.archive(id, SecurityUtil.currentUserId());
         return ResponseEntity.ok(ApiResponse.success(null, "Đã lưu trữ danh mục"));

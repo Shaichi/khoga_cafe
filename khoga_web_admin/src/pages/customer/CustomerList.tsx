@@ -29,7 +29,7 @@ export default function CustomerList() {
       <div className="page-head page-head--row">
         <div>
           <h1 className="page-title">Đăng Ký Thành Viên & Khách Hàng</h1>
-          <p className="page-subtitle">Hồ sơ khách hàng & điểm tích lũy (UC-24–27).</p>
+          <p className="page-subtitle">Hồ sơ khách hàng & điểm tích lũy.</p>
         </div>
         <Link to="/customers/new" className="btn btn--primary">+ Thêm Khách Hàng</Link>
       </div>

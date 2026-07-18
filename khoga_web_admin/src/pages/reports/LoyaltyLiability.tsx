@@ -23,7 +23,7 @@ export default function LoyaltyLiability() {
     <div>
       <div className="page-head">
         <h1 className="page-title">Nợ điểm thưởng & Biến động</h1>
-        <p className="page-subtitle">Điểm tồn toàn chuỗi + biến động phát hành/đổi/hết hạn (UC-78).</p>
+        <p className="page-subtitle">Điểm tồn toàn chuỗi + biến động phát hành/đổi/hết hạn.</p>
       </div>
 
       <DateRangeBar initial={range} onApply={setRange} />

@@ -49,7 +49,7 @@ export default function VoucherList() {
   }, [items, search]);
 
   const deactivate = async (v: Voucher) => {
-    if (!window.confirm(`Vô hiệu hóa voucher "${v.code}"? (ngừng áp dụng ngay lập tức — BR-41)`)) return;
+    if (!window.confirm(`Vô hiệu hóa voucher "${v.code}"? (ngừng áp dụng ngay lập tức)`)) return;
     setError('');
     try { await deactivateVoucher(v.id); load(); }
     catch (err) { setError(errorMessage(err)); }
@@ -60,7 +60,7 @@ export default function VoucherList() {
       <div className="page-head page-head--row">
         <div>
           <h1 className="page-title">Chương Trình Khuyến Mãi & Vouchers</h1>
-          <p className="page-subtitle">Quản lý mã giảm giá toàn hệ thống (UC-20–23).</p>
+          <p className="page-subtitle">Quản lý mã giảm giá toàn hệ thống.</p>
         </div>
         <Link to="/vouchers/new" className="btn btn--primary">+ Tạo Voucher Mới</Link>
       </div>

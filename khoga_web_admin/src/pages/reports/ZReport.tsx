@@ -40,7 +40,7 @@ export default function ZReport() {
     <div>
       <div className="page-head">
         <h1 className="page-title">Z-Report cuối ngày</h1>
-        <p className="page-subtitle">Tổng kết toàn bộ ca của một chi nhánh trong một ngày (UC-81).</p>
+        <p className="page-subtitle">Tổng kết toàn bộ ca của một chi nhánh trong một ngày.</p>
       </div>
 
       <div className="toolbar" style={{ alignItems: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
