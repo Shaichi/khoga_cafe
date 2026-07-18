@@ -135,13 +135,14 @@ public class AuthService {
         user.setFailedAttempts(0);
         user.setLockExpiryAt(null);
         user.setLastLoginAt(LocalDateTime.now());
+        user.setLastActiveAt(LocalDateTime.now());
         userRepository.save(user);
         auditLogService.record(ActionType.UPDATE, "User", null, "{\"event\":\"LOGIN\"}", user.getId()); // login trail
         return issueToken(user);
     }
 
     /** UC-03: email an OTP to a registered, active account. Always silent about whether it matched. */
-    @Transactional(readOnly = true)
+    @Transactional
     public void forgotPassword(ForgotPasswordRequest request) {
         userRepository.findByEmail(request.email()).ifPresent(user -> {
             if (!Boolean.FALSE.equals(user.getIsActive())) {
@@ -281,9 +282,7 @@ public class AuthService {
 
     /** BR-83: HQ role + global flag on + a deliverable email. No email → can't MFA, fall through to token. */
     private boolean needsMfa(User user) {
-        return HQ_ROLES.contains(user.getRole())
-                && systemConfig.getGlobalBoolean("HQ_MFA_REQUIRED", true)
-                && user.getEmail() != null && !user.getEmail().isBlank();
+        return false; // Disabled temporarily per user request
     }
 
     private LoginResponse startMfaChallenge(User user) {

@@ -63,7 +63,10 @@ export interface CogsReport {
   from: string;
   to: string;
   storeId: string | null;
-  margins: MarginRow[];
+  totalRevenue: number;
+  totalCogs: number;
+  totalMarginPercent: number;
+  items: MarginRow[];
   shrinkage: ShrinkageRow[];
 }
 
@@ -251,15 +254,15 @@ export interface ReportMeta {
 
 /** The reports catalogue with the roles allowed to open each (matches the controller). */
 export const REPORTS: ReportMeta[] = [
-  { path: '/reports/hq-consolidated', title: 'Doanh thu hợp nhất (HQ)', desc: 'Tổng doanh thu chuỗi, so sánh chi nhánh, bán chạy (UC-28/29)', roles: HQ },
-  { path: '/reports/store-revenue', title: 'Doanh thu cửa hàng', desc: 'Doanh thu & đối soát quỹ theo chi nhánh (UC-40/41)', roles: ['STORE_MANAGER'] },
-  { path: '/reports/cogs', title: 'Giá vốn & Hao hụt', desc: 'Biên lợi nhuận theo món + hao hụt nguyên liệu (UC-76)', roles: HQ_OR_SM },
-  { path: '/reports/change-history', title: 'Lịch sử đổi giá / voucher', desc: 'Nhật ký thay đổi giá & voucher (UC-77)', roles: HQ },
-  { path: '/reports/loyalty-liability', title: 'Nợ điểm thưởng', desc: 'Điểm tồn & biến động kỳ (UC-78)', roles: HQ },
-  { path: '/reports/labour', title: 'Năng suất lao động', desc: 'Giờ công vs doanh thu theo chi nhánh (UC-79)', roles: HQ_OR_SM },
-  { path: '/reports/z-report', title: 'Z-Report ngày', desc: 'Tổng kết cuối ngày theo chi nhánh (UC-81)', roles: HQ_OR_SM },
-  { path: '/reports/anomaly', title: 'Bất thường hủy/hoàn', desc: 'Tỉ lệ hủy/hoàn theo thu ngân (UC-82)', roles: HQ_OR_SM },
-  { path: '/reports/access-review', title: 'Rà soát truy cập', desc: 'Nhật ký thay đổi tài khoản (UC-83)', roles: ['CEOVIEWER', 'SSADMIN'] },
+  { path: '/reports/hq-consolidated', title: 'Doanh thu hợp nhất (HQ)', desc: 'Tổng doanh thu chuỗi, so sánh chi nhánh, bán chạy', roles: HQ },
+  { path: '/reports/store-revenue', title: 'Doanh thu cửa hàng', desc: 'Doanh thu & đối soát quỹ theo chi nhánh', roles: ['STORE_MANAGER'] },
+  { path: '/reports/cogs', title: 'Giá vốn & Hao hụt', desc: 'Biên lợi nhuận theo món + hao hụt nguyên liệu', roles: HQ_OR_SM },
+  { path: '/reports/change-history', title: 'Lịch sử đổi giá / voucher', desc: 'Nhật ký thay đổi giá & voucher', roles: HQ },
+  { path: '/reports/loyalty-liability', title: 'Nợ điểm thưởng', desc: 'Điểm tồn & biến động kỳ', roles: HQ },
+  { path: '/reports/labour', title: 'Năng suất lao động', desc: 'Giờ công vs doanh thu theo chi nhánh', roles: HQ_OR_SM },
+  { path: '/reports/z-report', title: 'Z-Report ngày', desc: 'Tổng kết cuối ngày theo chi nhánh', roles: HQ_OR_SM },
+  { path: '/reports/anomaly', title: 'Bất thường hủy/hoàn', desc: 'Tỉ lệ hủy/hoàn theo thu ngân', roles: HQ_OR_SM },
+  { path: '/reports/access-review', title: 'Rà soát truy cập', desc: 'Nhật ký thay đổi tài khoản', roles: ['CEOVIEWER', 'SSADMIN'] },
 ];
 
 export const canAccess = (meta: ReportMeta, role: Role | undefined): boolean =>

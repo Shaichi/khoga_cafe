@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './auth/ProtectedRoute';
+import RoleRoute from './auth/RoleRoute';
 import AppLayout from './layout/AppLayout';
 import Login from './pages/Login';
 import ForcePasswordChange from './pages/ForcePasswordChange';
@@ -44,43 +45,59 @@ export default function App() {
         <Route path="/force-password-change" element={<ForcePasswordChange />} />
 
         <Route element={<AppLayout />}>
+          {/* Dashboard — tất cả role */}
           <Route path="/" element={<Dashboard />} />
-          <Route path="/branches" element={<BranchList />} />
-          <Route path="/branches/new" element={<BranchForm />} />
-          <Route path="/branches/:id" element={<BranchForm />} />
-          <Route path="/branches/:id/settings" element={<BranchSettings />} />
-          <Route path="/users" element={<UserList />} />
-          <Route path="/users/new" element={<UserForm />} />
-          <Route path="/users/:id" element={<UserDetail />} />
-          <Route path="/users/:id/edit" element={<UserForm />} />
-          <Route path="/catalog" element={<MenuItemList />} />
-          <Route path="/catalog/new" element={<MenuItemForm />} />
-          <Route path="/catalog/categories" element={<CategoryList />} />
-          <Route path="/catalog/:id/edit" element={<MenuItemForm />} />
-          <Route path="/raw-materials" element={<RawMaterialList />} />
-          <Route path="/raw-materials/new" element={<RawMaterialForm />} />
-          <Route path="/raw-materials/:id/edit" element={<RawMaterialForm />} />
-          <Route path="/vouchers" element={<VoucherList />} />
-          <Route path="/vouchers/new" element={<VoucherForm />} />
-          <Route path="/vouchers/:id/edit" element={<VoucherForm />} />
-          <Route path="/customers" element={<CustomerList />} />
-          <Route path="/customers/new" element={<CustomerForm />} />
-          <Route path="/customers/:id/edit" element={<CustomerForm />} />
-          <Route path="/customers/:id/history" element={<CustomerHistory />} />
+
+          {/* Profile — tất cả role đã đăng nhập */}
           <Route path="/profile" element={<ProfileView />} />
           <Route path="/profile/edit" element={<ProfileEdit />} />
           <Route path="/profile/password" element={<ChangePassword />} />
-          <Route path="/settings" element={<CentralSettings />} />
-          <Route path="/reports" element={<ReportsHome />} />
-          <Route path="/reports/hq-consolidated" element={<HqConsolidated />} />
-          <Route path="/reports/store-revenue" element={<StoreRevenue />} />
-          <Route path="/reports/cogs" element={<CogsReport />} />
-          <Route path="/reports/change-history" element={<ChangeHistory />} />
-          <Route path="/reports/access-review" element={<AccessReview />} />
-          <Route path="/reports/loyalty-liability" element={<LoyaltyLiability />} />
-          <Route path="/reports/labour" element={<LabourReport />} />
-          <Route path="/reports/z-report" element={<ZReport />} />
-          <Route path="/reports/anomaly" element={<AnomalyReport />} />
+
+          {/* Tất cả routes còn lại bảo vệ bằng RoleRoute */}
+          <Route element={<RoleRoute />}>
+            {/* SSADMIN */}
+            <Route path="/branches" element={<BranchList />} />
+            <Route path="/branches/new" element={<BranchForm />} />
+            <Route path="/branches/:id" element={<BranchForm />} />
+
+            {/* SSADMIN + STORE_MANAGER */}
+            <Route path="/branches/:id/settings" element={<BranchSettings />} />
+
+            {/* SSADMIN */}
+            <Route path="/users" element={<UserList />} />
+            <Route path="/users/new" element={<UserForm />} />
+            <Route path="/users/:id" element={<UserDetail />} />
+            <Route path="/users/:id/edit" element={<UserForm />} />
+
+            {/* SSADMIN + BUSINESSADMIN */}
+            <Route path="/catalog" element={<MenuItemList />} />
+            <Route path="/catalog/new" element={<MenuItemForm />} />
+            <Route path="/catalog/categories" element={<CategoryList />} />
+            <Route path="/catalog/:id/edit" element={<MenuItemForm />} />
+            <Route path="/raw-materials" element={<RawMaterialList />} />
+            <Route path="/raw-materials/new" element={<RawMaterialForm />} />
+            <Route path="/raw-materials/:id/edit" element={<RawMaterialForm />} />
+            <Route path="/vouchers" element={<VoucherList />} />
+            <Route path="/vouchers/new" element={<VoucherForm />} />
+            <Route path="/vouchers/:id/edit" element={<VoucherForm />} />
+            <Route path="/customers" element={<CustomerList />} />
+            <Route path="/customers/new" element={<CustomerForm />} />
+            <Route path="/customers/:id/edit" element={<CustomerForm />} />
+            <Route path="/customers/:id/history" element={<CustomerHistory />} />
+            <Route path="/settings" element={<CentralSettings />} />
+
+            {/* Reports: HQ + STORE_MANAGER */}
+            <Route path="/reports" element={<ReportsHome />} />
+            <Route path="/reports/hq-consolidated" element={<HqConsolidated />} />
+            <Route path="/reports/store-revenue" element={<StoreRevenue />} />
+            <Route path="/reports/cogs" element={<CogsReport />} />
+            <Route path="/reports/change-history" element={<ChangeHistory />} />
+            <Route path="/reports/access-review" element={<AccessReview />} />
+            <Route path="/reports/loyalty-liability" element={<LoyaltyLiability />} />
+            <Route path="/reports/labour" element={<LabourReport />} />
+            <Route path="/reports/z-report" element={<ZReport />} />
+            <Route path="/reports/anomaly" element={<AnomalyReport />} />
+          </Route>
         </Route>
       </Route>
 
@@ -88,3 +105,4 @@ export default function App() {
     </Routes>
   );
 }
+

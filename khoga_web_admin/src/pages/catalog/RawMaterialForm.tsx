@@ -80,7 +80,7 @@ export default function RawMaterialForm() {
         <div className="field">
           <label className="label">Mã nguyên liệu *</label>
           <input className="input" value={code} onChange={(e) => setCode(e.target.value)} placeholder="VD: RM-MILK" required disabled={isEdit} />
-          {isEdit && <p className="hint">Mã nguyên liệu là bất biến (BR-63).</p>}
+          {isEdit && <p className="hint">Mã nguyên liệu là bất biến.</p>}
         </div>
         <div className="field">
           <label className="label">Tên nguyên liệu *</label>
@@ -89,7 +89,7 @@ export default function RawMaterialForm() {
         <div className="field">
           <label className="label">Đơn vị *</label>
           <input className="input" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="VD: ml, g, cái" required />
-          <p className="hint">Đơn vị bị khóa khi nguyên liệu đã có giao dịch/công thức (BR-64).</p>
+          <p className="hint">Đơn vị bị khóa khi nguyên liệu đã có giao dịch/công thức.</p>
         </div>
         <div className="field">
           <label className="label">Định mức tồn tối thiểu</label>

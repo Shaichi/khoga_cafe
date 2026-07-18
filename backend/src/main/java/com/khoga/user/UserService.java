@@ -112,17 +112,16 @@ public class UserService {
         }
         requireUniqueContact(request.email(), request.phone(), id);
         String oldJson = userSnapshot(user);        // BR-81 before-image
+        if (StringUtils.hasText(request.fullName())) {
+            user.setFullName(request.fullName());
+        }
         if (request.role() != null) {
             user.setRole(request.role());
         }
-        if (request.storeId() != null) {
-            user.setStore(resolveStore(request.storeId()));
-        }
+        user.setStore(resolveStore(request.storeId()));
+        user.setPhone(StringUtils.hasText(request.phone()) ? request.phone() : null);
         if (StringUtils.hasText(request.email())) {
             user.setEmail(request.email());
-        }
-        if (StringUtils.hasText(request.phone())) {
-            user.setPhone(request.phone());
         }
         userRepository.save(user);
         auditLogService.record(ActionType.UPDATE, "User", oldJson, userSnapshot(user), actorId);
@@ -213,6 +212,7 @@ public class UserService {
     /** BR-81 before/after image of the mutable account fields. */
     private String userSnapshot(User user) {
         return AuditJson.snapshot()
+                .put("fullName", user.getFullName())
                 .put("role", user.getRole() == null ? null : user.getRole().name())
                 .put("storeId", user.getStore() == null ? null : user.getStore().getId().toString())
                 .put("email", user.getEmail())

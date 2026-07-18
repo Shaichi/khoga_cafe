@@ -25,7 +25,7 @@ export default function AnomalyReport() {
     <div>
       <div className="page-head">
         <h1 className="page-title">Bất thường hủy / hoàn theo thu ngân</h1>
-        <p className="page-subtitle">Phát hiện tỉ lệ hủy/hoàn vượt ngưỡng cảnh báo (UC-82, BR-79).</p>
+        <p className="page-subtitle">Phát hiện tỉ lệ hủy/hoàn vượt ngưỡng cảnh báo.</p>
       </div>
 
       <DateRangeBar initial={range} onApply={setRange}>

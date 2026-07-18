@@ -32,7 +32,8 @@ import java.util.UUID;
 
 /**
  * Menu, recipe, topping and availability endpoints (UC-15/18/19/68/71/72). Reads are open to any
- * authenticated staff; HQ (SSADMIN) manages the catalog; availability also allows a store manager.
+ * authenticated staff; businessadmin manages the catalog (RDS §3.3); availability toggle also
+ * allows a store manager (BR-25).
  */
 @RestController
 @RequestMapping("/api/v1/menu-items")
@@ -60,7 +61,7 @@ public class MenuItemController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('SSADMIN')")
+    @PreAuthorize("hasAnyRole('BUSINESSADMIN','SSADMIN')")
     public ResponseEntity<ApiResponse<MenuItemDetailResponse>> create(
             @Valid @RequestBody CreateMenuItemRequest request) {
         MenuItemDetailResponse created = menuItemService.create(request, SecurityUtil.currentUserId());
@@ -69,7 +70,7 @@ public class MenuItemController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('SSADMIN')")
+    @PreAuthorize("hasAnyRole('BUSINESSADMIN','SSADMIN')")
     public ResponseEntity<ApiResponse<MenuItemDetailResponse>> update(
             @PathVariable UUID id, @Valid @RequestBody UpdateMenuItemRequest request) {
         MenuItemDetailResponse updated = menuItemService.update(id, request, SecurityUtil.currentUserId());
@@ -77,14 +78,14 @@ public class MenuItemController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('SSADMIN')")
+    @PreAuthorize("hasAnyRole('BUSINESSADMIN','SSADMIN')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         menuItemService.softDelete(id, SecurityUtil.currentUserId());
         return ResponseEntity.ok(ApiResponse.success(null, "Đã xóa món (ẩn khỏi danh mục)"));
     }
 
     @PutMapping("/{id}/availability")
-    @PreAuthorize("hasAnyRole('SSADMIN','STORE_MANAGER')")
+    @PreAuthorize("hasAnyRole('BUSINESSADMIN','SSADMIN','STORE_MANAGER')")
     public ResponseEntity<ApiResponse<Void>> setAvailability(
             @PathVariable UUID id, @Valid @RequestBody AvailabilityRequest request) {
         menuItemService.toggleAvailability(id, request, SecurityUtil.currentUserId());
@@ -97,7 +98,7 @@ public class MenuItemController {
     }
 
     @PostMapping("/{id}/toppings")
-    @PreAuthorize("hasRole('SSADMIN')")
+    @PreAuthorize("hasAnyRole('BUSINESSADMIN','SSADMIN')")
     public ResponseEntity<ApiResponse<ToppingResponse>> addTopping(
             @PathVariable UUID id, @Valid @RequestBody ToppingRequest request) {
         ToppingResponse created = menuItemService.addTopping(id, request, SecurityUtil.currentUserId());
@@ -106,7 +107,7 @@ public class MenuItemController {
     }
 
     @PutMapping("/{id}/toppings/{toppingId}")
-    @PreAuthorize("hasRole('SSADMIN')")
+    @PreAuthorize("hasAnyRole('BUSINESSADMIN','SSADMIN')")
     public ResponseEntity<ApiResponse<ToppingResponse>> updateTopping(
             @PathVariable UUID id, @PathVariable UUID toppingId, @Valid @RequestBody ToppingRequest request) {
         ToppingResponse updated = menuItemService.updateTopping(toppingId, request, SecurityUtil.currentUserId());
@@ -114,7 +115,7 @@ public class MenuItemController {
     }
 
     @DeleteMapping("/{id}/toppings/{toppingId}")
-    @PreAuthorize("hasRole('SSADMIN')")
+    @PreAuthorize("hasAnyRole('BUSINESSADMIN','SSADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteTopping(
             @PathVariable UUID id, @PathVariable UUID toppingId) {
         menuItemService.deactivateTopping(toppingId, SecurityUtil.currentUserId());

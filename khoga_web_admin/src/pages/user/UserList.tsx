@@ -57,7 +57,7 @@ export default function UserList() {
       <div className="page-head page-head--row">
         <div>
           <h1 className="page-title">Danh Sách Tài Khoản Nhân Sự</h1>
-          <p className="page-subtitle">Quản lý nhân sự & phân quyền (UC-10–14).</p>
+          <p className="page-subtitle">Quản lý nhân sự & phân quyền.</p>
         </div>
         <Link to="/users/new" className="btn btn--primary">+ Thêm Nhân Viên</Link>
       </div>

@@ -8,6 +8,7 @@ import java.util.UUID;
 
 /** UC-12: role/branch/contact edits. Status changes go through the activate/deactivate endpoints. */
 public record UpdateUserRequest(
+        @jakarta.validation.constraints.NotBlank(message = "Họ tên không được để trống") String fullName,
         Role role,
         UUID storeId,
         @Email(message = "Email không hợp lệ") String email,

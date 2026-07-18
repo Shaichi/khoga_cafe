@@ -35,7 +35,7 @@ export default function RawMaterialList() {
       <div className="page-head page-head--row">
         <div>
           <h1 className="page-title">Nguyên Liệu</h1>
-          <p className="page-subtitle">Master nguyên liệu — mã bất biến, đơn vị khóa khi đã dùng (UC-74/BR-63/64).</p>
+          <p className="page-subtitle">Master nguyên liệu — mã bất biến, đơn vị khóa khi đã dùng.</p>
         </div>
         <Link to="/raw-materials/new" className="btn btn--primary">+ Thêm Nguyên Liệu</Link>
       </div>

@@ -36,7 +36,7 @@ export default function BranchList() {
       <div className="page-head page-head--row">
         <div>
           <h1 className="page-title">Quản Lý Chi Nhánh</h1>
-          <p className="page-subtitle">Danh sách chi nhánh trong chuỗi (UC-63/64/65).</p>
+          <p className="page-subtitle">Danh sách chi nhánh trong chuỗi.</p>
         </div>
         <Link to="/branches/new" className="btn btn--primary">+ Thêm Chi Nhánh</Link>
       </div>

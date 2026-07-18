@@ -26,7 +26,7 @@ export default function AccessReview() {
     <div>
       <div className="page-head">
         <h1 className="page-title">Rà soát truy cập</h1>
-        <p className="page-subtitle">Nhật ký bất biến mọi thay đổi tài khoản (UC-83, BR-81).</p>
+        <p className="page-subtitle">Nhật ký bất biến mọi thay đổi tài khoản.</p>
       </div>
 
       <DateRangeBar initial={range} onApply={(r) => { setPage(0); setRange(r); }} />

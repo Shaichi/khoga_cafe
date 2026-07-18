@@ -33,7 +33,7 @@ export default function LabourReport() {
     <div>
       <div className="page-head">
         <h1 className="page-title">Năng suất lao động vs Doanh thu</h1>
-        <p className="page-subtitle">Giờ công / 1 triệu VND và VND / giờ theo chi nhánh (UC-79).</p>
+        <p className="page-subtitle">Giờ công / 1 triệu VND và VND / giờ theo chi nhánh.</p>
       </div>
 
       <DateRangeBar initial={range} onApply={setRange} />
@@ -55,7 +55,7 @@ export default function LabourReport() {
         </div>
       ) : null}
       <p className="hint" style={{ marginTop: '0.75rem' }}>
-        Chỉ số năng suất — không quy đổi ra lương (BR-76; tiền lương do kế toán ngoài hệ thống).
+        Chỉ số năng suất — không quy đổi ra lương (tiền lương do kế toán ngoài hệ thống).
       </p>
     </div>
   );

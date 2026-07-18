@@ -1,31 +1,38 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-
-const MODULES = [
-  { to: '/branches', title: 'Chi nhánh', desc: 'Quản lý chuỗi cửa hàng (UC-63/64/65)' },
-  { to: '/users', title: 'Tài khoản', desc: 'Nhân sự & phân quyền (UC-10–14)' },
-  { to: '/catalog', title: 'Thực đơn & Danh mục', desc: 'Món, danh mục, topping (UC-14–18)' },
-  { to: '/raw-materials', title: 'Nguyên liệu', desc: 'Master nguyên liệu (UC-74)' },
-  { to: '/vouchers', title: 'Voucher', desc: 'Khuyến mãi (UC-19–23)' },
-  { to: '/customers', title: 'Khách hàng', desc: 'Loyalty & lịch sử (UC-22–27)' },
-];
+import { dashModulesForRole } from '../auth/rbac';
+import { ROLE_LABELS } from '../api/types';
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const modules = user ? dashModulesForRole(user.role) : [];
+  const roleLabel = user ? ROLE_LABELS[user.role] : '';
+
   return (
     <div>
       <div className="page-head">
         <h1 className="page-title">Xin chào, {user?.fullName || user?.username}</h1>
-        <p className="page-subtitle">Bảng điều khiển quản trị trung tâm Khoga Café.</p>
+        <p className="page-subtitle">
+          {roleLabel} · Bảng điều khiển Khoga Café.
+        </p>
       </div>
-      <div className="card-grid">
-        {MODULES.map((m) => (
-          <Link key={m.to} to={m.to} className="module-card">
-            <h3>{m.title}</h3>
-            <p>{m.desc}</p>
-          </Link>
-        ))}
-      </div>
+
+      {modules.length > 0 ? (
+        <div className="card-grid">
+          {modules.map((m) => (
+            <Link key={m.to} to={m.to} className="module-card">
+              <h3>{m.title}</h3>
+              <p>{m.desc}</p>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <div style={{ marginTop: '2rem', color: 'var(--color-text-muted)' }}>
+          <p>Bạn chưa được cấp quyền truy cập module nào trên web admin.</p>
+          <p>Vui lòng liên hệ quản trị viên hệ thống nếu cần hỗ trợ.</p>
+        </div>
+      )}
     </div>
   );
 }
+

@@ -64,7 +64,7 @@ export default function CentralSettings() {
     <div>
       <div className="page-head">
         <h1 className="page-title">Cấu hình &amp; bảo mật hệ thống</h1>
-        <p className="page-subtitle">UC-24 · Cấu hình toàn chuỗi</p>
+        <p className="page-subtitle">Cấu hình toàn chuỗi</p>
       </div>
 
       <div className="settings-grid">
@@ -101,7 +101,7 @@ export default function CentralSettings() {
             hoặc tạm đóng cửa khi cần.
           </p>
           <p className="info-note">
-            Giới hạn tối đa <strong>MAX_ACTIVE_BRANCHES</strong> chi nhánh hoạt động (BR-54).
+            Giới hạn tối đa <strong>MAX_ACTIVE_BRANCHES</strong> chi nhánh hoạt động.
           </p>
           <Link to="/branches" className="btn btn--primary">Đi tới quản lý chi nhánh</Link>
         </section>

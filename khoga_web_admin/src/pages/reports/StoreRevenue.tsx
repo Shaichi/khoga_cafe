@@ -28,7 +28,7 @@ export default function StoreRevenue() {
     <div>
       <div className="page-head">
         <h1 className="page-title">Doanh thu cửa hàng</h1>
-        <p className="page-subtitle">Doanh thu thuần, đối soát quỹ & cơ cấu thanh toán chi nhánh (UC-40/41).</p>
+        <p className="page-subtitle">Doanh thu thuần, đối soát quỹ & cơ cấu thanh toán chi nhánh.</p>
       </div>
 
       <DateRangeBar initial={range} onApply={setRange}>

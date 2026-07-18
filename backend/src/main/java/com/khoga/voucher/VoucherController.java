@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
-/** Voucher management (UC-20/21/22/23). Reads open to authenticated staff; mutations HQ-only. */
+/** Voucher management (UC-20/21/22/23). Reads open to authenticated staff; mutations by businessadmin (RDS §3.4). */
 @RestController
 @RequestMapping("/api/v1/vouchers")
 public class VoucherController {
@@ -47,7 +47,7 @@ public class VoucherController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('SSADMIN')")
+    @PreAuthorize("hasAnyRole('BUSINESSADMIN','SSADMIN')")
     public ResponseEntity<ApiResponse<VoucherResponse>> create(@Valid @RequestBody CreateVoucherRequest request) {
         VoucherResponse created = voucherService.create(request, SecurityUtil.currentUserId());
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -55,7 +55,7 @@ public class VoucherController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('SSADMIN')")
+    @PreAuthorize("hasAnyRole('BUSINESSADMIN','SSADMIN')")
     public ResponseEntity<ApiResponse<VoucherResponse>> update(
             @PathVariable UUID id, @Valid @RequestBody UpdateVoucherRequest request) {
         VoucherResponse updated = voucherService.update(id, request, SecurityUtil.currentUserId());
@@ -63,7 +63,7 @@ public class VoucherController {
     }
 
     @PostMapping("/{id}/deactivate")
-    @PreAuthorize("hasRole('SSADMIN')")
+    @PreAuthorize("hasAnyRole('BUSINESSADMIN','SSADMIN')")
     public ResponseEntity<ApiResponse<Void>> deactivate(@PathVariable UUID id) {
         voucherService.deactivate(id, SecurityUtil.currentUserId());
         return ResponseEntity.ok(ApiResponse.success(null, "Đã vô hiệu hóa voucher"));

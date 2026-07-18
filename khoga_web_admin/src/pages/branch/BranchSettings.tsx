@@ -84,7 +84,7 @@ export default function BranchSettings() {
         </div>
 
         <p className="hint">
-          Cấu hình vận hành theo chi nhánh (UC-42). Email &amp; máy in khu pha chế sẽ bổ sung khi backend hỗ trợ.
+          Cấu hình vận hành theo chi nhánh. Email &amp; máy in khu pha chế sẽ bổ sung khi backend hỗ trợ.
         </p>
 
         <div className="form-actions">

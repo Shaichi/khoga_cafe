@@ -31,7 +31,7 @@ public class SystemConfigController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SSADMIN','BUSINESSADMIN')")
+    @PreAuthorize("hasRole('SSADMIN')")
     public ResponseEntity<ApiResponse<List<SystemConfigResponse>>> list() {
         return ResponseEntity.ok(ApiResponse.success(systemConfigService.listGlobal()));
     }

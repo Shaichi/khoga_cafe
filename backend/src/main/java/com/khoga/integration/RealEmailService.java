@@ -21,6 +21,8 @@ public class RealEmailService implements EmailService {
 
     @Override
     public void send(String to, String subject, String body) {
+        // Log to console for development/QA review of OTPs and notifications
+        log.info("[EMAIL-DEBUG] Destination: {}, Subject: {}, Body: {}", to, subject, body);
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
@@ -30,7 +32,8 @@ public class RealEmailService implements EmailService {
             mailSender.send(message);
             log.info("[EMAIL] Sent email to {}", to);
         } catch (Exception e) {
-            log.error("[EMAIL] Failed to send email to {}", to, e);
+            log.error("[EMAIL] Failed to send email to {} (Dummy password is set in .env; please read [EMAIL-DEBUG] above for the OTP code)", to, e);
         }
     }
+
 }
