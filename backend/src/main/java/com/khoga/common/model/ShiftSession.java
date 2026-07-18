@@ -32,4 +32,6 @@ public class ShiftSession extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private ShiftStatus status;
     private String posRegisterId;
+    @Column(length = 1000)
+    private String discrepancyNotes;
 }

@@ -9,3 +9,10 @@ String formatVnd(num amount) {
   final sign = amount < 0 ? '-' : '';
   return '$sign$buf';
 }
+
+/// Formats a DateTime as DD/MM/YYYY.
+String formatDate(DateTime d) {
+  final dStr = d.day.toString().padLeft(2, '0');
+  final mStr = d.month.toString().padLeft(2, '0');
+  return '$dStr/$mStr/${d.year}';
+}

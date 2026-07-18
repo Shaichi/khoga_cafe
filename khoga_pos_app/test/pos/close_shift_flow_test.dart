@@ -23,19 +23,28 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('closing-cash')), findsOneWidget);
 
-    // Count the drawer exactly -> close.
+    // Count the drawer exactly, confirm orders -> close.
     await tester.enterText(find.byKey(const Key('closing-cash')), '1200000');
+    await tester.tap(find.byKey(const Key('orders-confirmed')));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.byKey(const Key('close-shift-button')));
     await tester.tap(find.byKey(const Key('close-shift-button')));
+    await tester.pumpAndSettle();
+
+    // Confirm dialog
+    await tester.tap(find.text('XÁC NHẬN ĐÓNG CA'));
     await tester.pumpAndSettle();
 
     // Z-report reconciliation shown, no discrepancy.
     expect(find.byKey(const Key('z-report')), findsOneWidget);
     expect(find.textContaining('Khớp tiền'), findsOneWidget);
 
-    // Finish -> shift cleared, routes back to open-shift (34).
+    // Finish -> shift cleared, routes back to home screen.
+    await tester.ensureVisible(find.byKey(const Key('z-report-done')));
     await tester.tap(find.byKey(const Key('z-report-done')));
     await tester.pumpAndSettle();
-    expect(find.text('BẮT ĐẦU CA LÀM'), findsOneWidget);
+    expect(find.text('Màn hình bán hàng (POS)'), findsOneWidget);
   });
 
   testWidgets('close shift surfaces a discrepancy when the drawer is short (41)', (tester) async {
@@ -51,7 +60,18 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byKey(const Key('closing-cash')), '1150000');
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('discrepancy-notes')));
+    await tester.enterText(find.byKey(const Key('discrepancy-notes')), 'Khách đưa thiếu'); // missing from original test
+    await tester.tap(find.byKey(const Key('orders-confirmed')));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.byKey(const Key('close-shift-button')));
     await tester.tap(find.byKey(const Key('close-shift-button')));
+    await tester.pumpAndSettle();
+
+    // Confirm dialog
+    await tester.tap(find.text('XÁC NHẬN ĐÓNG CA'));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('z-report')), findsOneWidget);
@@ -70,6 +90,7 @@ void main() {
     await tester.tap(find.byKey(const Key('close-shift-action')));
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.byKey(const Key('close-shift-button')));
     await tester.tap(find.byKey(const Key('close-shift-button')));
     await tester.pumpAndSettle();
 

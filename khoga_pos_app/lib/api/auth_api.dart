@@ -29,4 +29,20 @@ class AuthApi {
       'newPassword': newPassword,
     });
   }
+
+  Future<void> forgotPassword(String email) async {
+    await _client.post('/auth/forgot-password', {'email': email});
+  }
+
+  Future<void> verifyOtp(String email, String otp) async {
+    await _client.post('/auth/verify-otp', {'email': email, 'otp': otp});
+  }
+
+  Future<void> resetPassword(String email, String otp, String newPassword) async {
+    await _client.post('/auth/reset-password', {
+      'email': email,
+      'otp': otp,
+      'newPassword': newPassword,
+    });
+  }
 }

@@ -36,7 +36,7 @@ final class CatalogMapper {
                 m.getId(), m.getName(), m.getPrice(),
                 m.getCategory() != null ? m.getCategory().getId() : null,
                 m.getCategory() != null ? m.getCategory().getName() : null,
-                m.getAbbreviation(), m.getBarcode(),
+                m.getAbbreviation(), m.getBarcode(), m.getParentItemId(), m.getSizeName(),
                 Boolean.TRUE.equals(m.getIsActive()), Boolean.TRUE.equals(m.getIsDeleted()),
                 available);
     }
@@ -48,6 +48,7 @@ final class CatalogMapper {
                 m.getCategory() != null ? m.getCategory().getId() : null,
                 m.getCategory() != null ? m.getCategory().getName() : null,
                 m.getAbbreviation(), m.getBarcode(), m.getDescription(), m.getImageUrl(),
+                m.getParentItemId(), m.getSizeName(),
                 Boolean.TRUE.equals(m.getIsActive()), Boolean.TRUE.equals(m.getIsDeleted()),
                 recipe, toppings);
     }

@@ -218,20 +218,28 @@ class ZReport {
   final String posRegisterId;
   final num openingCash;
   final num totalCashSales;
+  final num totalCardSales;
+  final num totalVietQrSales;
   final num expectedCash;
   final num closingCash;
   final num discrepancy;
   final bool discrepancyFlagged;
+  final int totalOrders;
+  final int cancelledOrders;
 
   ZReport({
     required this.sessionId,
     required this.posRegisterId,
     required this.openingCash,
     required this.totalCashSales,
+    required this.totalCardSales,
+    required this.totalVietQrSales,
     required this.expectedCash,
     required this.closingCash,
     required this.discrepancy,
     required this.discrepancyFlagged,
+    required this.totalOrders,
+    required this.cancelledOrders,
   });
 
   factory ZReport.fromJson(Map<String, dynamic> j) => ZReport(
@@ -239,10 +247,14 @@ class ZReport {
         posRegisterId: j['posRegisterId'] as String? ?? '',
         openingCash: (j['openingCash'] as num?) ?? 0,
         totalCashSales: (j['totalCashSales'] as num?) ?? 0,
+        totalCardSales: (j['totalCardSales'] as num?) ?? 0,
+        totalVietQrSales: (j['totalVietQrSales'] as num?) ?? 0,
         expectedCash: (j['expectedCash'] as num?) ?? 0,
         closingCash: (j['closingCash'] as num?) ?? 0,
         discrepancy: (j['discrepancy'] as num?) ?? 0,
         discrepancyFlagged: j['discrepancyFlagged'] as bool? ?? false,
+        totalOrders: (j['totalOrders'] as int?) ?? 0,
+        cancelledOrders: (j['cancelledOrders'] as int?) ?? 0,
       );
 }
 
@@ -480,8 +492,22 @@ class MenuItem {
   final num price;
   final String? categoryId;
   final String? categoryName;
+  final String? abbreviation;
+  final String? barcode;
+  final String? parentItemId;
+  final String? sizeName;
 
-  MenuItem({required this.id, required this.name, required this.price, this.categoryId, this.categoryName});
+  MenuItem({
+    required this.id,
+    required this.name,
+    required this.price,
+    this.categoryId,
+    this.categoryName,
+    this.abbreviation,
+    this.barcode,
+    this.parentItemId,
+    this.sizeName,
+  });
 
   factory MenuItem.fromJson(Map<String, dynamic> j) => MenuItem(
         id: j['id'] as String,
@@ -489,6 +515,10 @@ class MenuItem {
         price: (j['price'] as num?) ?? 0,
         categoryId: j['categoryId'] as String?,
         categoryName: j['categoryName'] as String?,
+        abbreviation: j['abbreviation'] as String?,
+        barcode: j['barcode'] as String?,
+        parentItemId: j['parentItemId'] as String?,
+        sizeName: j['sizeName'] as String?,
       );
 }
 
@@ -551,5 +581,51 @@ class CheckoutResult {
         changeDue: (j['changeDue'] as num?) ?? 0,
         qrContent: j['qrContent'] as String?,
         breakdown: CheckoutBreakdown.fromJson((j['breakdown'] as Map<String, dynamic>?) ?? const {}),
+      );
+}
+
+class VoucherLite {
+  final String id;
+  final String code;
+  final String? description;
+  final String discountType;
+  final num discountValue;
+
+  VoucherLite({
+    required this.id,
+    required this.code,
+    this.description,
+    required this.discountType,
+    required this.discountValue,
+  });
+
+  factory VoucherLite.fromJson(Map<String, dynamic> json) => VoucherLite(
+        id: json["id"] as String,
+        code: json["code"] as String,
+        description: json["description"] as String?,
+        discountType: json["discountType"] as String,
+        discountValue: json["discountValue"] as num,
+      );
+}
+
+/// Mirrors com.khoga.catalog.dto.ToppingResponse
+class Topping {
+  final String id;
+  final String name;
+  final num price;
+  final bool active;
+
+  Topping({
+    required this.id,
+    required this.name,
+    required this.price,
+    this.active = true,
+  });
+
+  factory Topping.fromJson(Map<String, dynamic> j) => Topping(
+        id: j['id'] as String,
+        name: j['name'] as String,
+        price: (j['price'] as num?) ?? 0,
+        active: j['active'] as bool? ?? true,
       );
 }

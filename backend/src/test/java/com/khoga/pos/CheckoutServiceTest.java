@@ -142,7 +142,7 @@ class CheckoutServiceTest {
         });
         when(orderItemRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        CheckoutRequest req = new CheckoutRequest(null, null, 0, PaymentMethod.CASH,
+        CheckoutRequest req = new CheckoutRequest(null, null, 0, PaymentMethod.CASH, com.khoga.common.model.enums.OrderType.TAKEAWAY,
                 new BigDecimal("50000"), List.of(new CartLineRequest(menuItemId, 1, null)));
         CheckoutResponse res = service.submitOrder(req, actorId);
 
@@ -159,7 +159,7 @@ class CheckoutServiceTest {
         when(orderRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(orderItemRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        CheckoutRequest req = new CheckoutRequest(null, null, 0, PaymentMethod.CASH,
+        CheckoutRequest req = new CheckoutRequest(null, null, 0, PaymentMethod.CASH, com.khoga.common.model.enums.OrderType.TAKEAWAY,
                 new BigDecimal("10000"), List.of(new CartLineRequest(menuItemId, 1, null)));
 
         assertThrows(AppException.class, () -> service.submitOrder(req, actorId));
@@ -176,7 +176,7 @@ class CheckoutServiceTest {
         when(customerRepository.findById(customerId)).thenReturn(Optional.of(customer));
         when(menuItemRepository.findById(menuItemId)).thenReturn(Optional.of(latte()));
 
-        CheckoutRequest req = new CheckoutRequest(customerId, null, 150, PaymentMethod.CASH,
+        CheckoutRequest req = new CheckoutRequest(customerId, null, 150, PaymentMethod.CASH, com.khoga.common.model.enums.OrderType.TAKEAWAY,
                 new BigDecimal("50000"), List.of(new CartLineRequest(menuItemId, 1, null)));
 
         assertThrows(AppException.class, () -> service.submitOrder(req, actorId)); // BR-74 / MSG14
@@ -196,7 +196,7 @@ class CheckoutServiceTest {
         stubConfig(); // valuePerPoint=100, cap=min(50% of 30000=15000, 100000)=15000
 
         // 1000 pts × 100 = 100,000 value > 15,000 cap → reject, don't silently clamp
-        CheckoutRequest req = new CheckoutRequest(customerId, null, 1000, PaymentMethod.CASH,
+        CheckoutRequest req = new CheckoutRequest(customerId, null, 1000, PaymentMethod.CASH, com.khoga.common.model.enums.OrderType.TAKEAWAY,
                 new BigDecimal("100000"), List.of(new CartLineRequest(menuItemId, 1, null)));
 
         assertThrows(AppException.class, () -> service.submitOrder(req, actorId));

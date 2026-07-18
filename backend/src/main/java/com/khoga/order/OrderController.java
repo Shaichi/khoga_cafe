@@ -55,8 +55,10 @@ public class OrderController {
     @GetMapping("/orders")
     public ResponseEntity<ApiResponse<PageResponse<OrderSummaryResponse>>> history(
             @RequestParam(required = false) OrderStatus status,
+            @RequestParam(required = false) java.time.LocalDate startDate,
+            @RequestParam(required = false) java.time.LocalDate endDate,
             @PageableDefault(size = 20) Pageable pageable) {
-        Page<OrderSummaryResponse> page = orderService.getHistory(status, SecurityUtil.currentUserId(), pageable);
+        Page<OrderSummaryResponse> page = orderService.getHistory(status, startDate, endDate, SecurityUtil.currentUserId(), pageable);
         return ResponseEntity.ok(ApiResponse.success(PageResponse.of(page)));
     }
 

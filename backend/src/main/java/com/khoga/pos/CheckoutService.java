@@ -144,7 +144,7 @@ public class CheckoutService {
         order.setShiftSession(shift);
         order.setCustomer(customer);
         order.setVoucher(voucher);
-        order.setOrderType(OrderType.TAKEAWAY);
+        order.setOrderType(req.orderType() != null ? req.orderType() : OrderType.TAKEAWAY);
         order.setOrderNumber("OD-" + System.currentTimeMillis());
         order.setSubtotal(b.grossSubtotal());
         order.setDiscount(b.voucherDiscount().add(b.pointDiscount()));

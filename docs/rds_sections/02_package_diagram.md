@@ -124,11 +124,13 @@ graph TB
 
 ---
 
-#### **1.2.3 Package Diagram - Mobile POS (Flutter / Dart)**
+#### **1.2.3 Package Diagram - Mobile App (Flutter / Dart)**
+
+*\[Single cross-platform Flutter application shared by 3 in-store roles: Store Manager (storemanager), Cashier (cashier), and Barista (barista). Role-based routing determines which screens each role can access.\]*
 
 ```mermaid
 graph TB
-    subgraph FLUTTER["khoga_pos_app/lib"]
+    subgraph FLUTTER["khoga_cafe_app/lib"]
         MAIN_F["main.dart<br/>(entry point)"]
         APP_F["app.dart<br/>(MaterialApp, router)"]
         THEME["theme.dart<br/>(color/typography)"]
@@ -158,9 +160,11 @@ graph TB
     end
 ```
 
-*Figure 1.2.3 Package Diagram - Mobile POS*
+*Figure 1.2.3 Package Diagram - Mobile App (Flutter)*
 
 ##### **Mobile Package Descriptions**
+
+*\[This app serves 3 roles: Store Manager (inventory logistics, shift scheduling, store revenue reports), Cashier (POS checkout, payment processing), and Barista (queue monitor, label printing). Role-based routing in `app.dart` determines which modules are accessible after login.\]*
 
 | No | Package | Description |
 |:---:|---|---|

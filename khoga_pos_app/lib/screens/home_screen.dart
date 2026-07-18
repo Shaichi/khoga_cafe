@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../auth/auth_controller.dart';
+import '../format.dart';
 import '../inventory/stock_list_screen.dart';
 import '../orders/barista_queue_screen.dart';
 import '../orders/order_history_screen.dart';
 import '../pos/close_shift_screen.dart';
+import '../pos/open_shift_screen.dart';
 import '../pos/pos_screen.dart';
 import '../pos/shift_controller.dart';
 import '../profile/profile_screen.dart';
-import '../staff/attendance_screen.dart';
 import '../staff/schedule_screen.dart';
 import '../theme.dart';
 
@@ -54,7 +55,7 @@ class HomeScreen extends StatelessWidget {
                 child: ListTile(
                   leading: const Icon(Icons.point_of_sale, color: kBrown),
                   title: Text('Ca đang mở · ${shift.posRegisterId}'),
-                  subtitle: Text('Tiền đầu ca: ${shift.startingCash} đ'),
+                  subtitle: Text('Tiền đầu ca: ${formatVnd(shift.startingCash)} đ'),
                   trailing: TextButton.icon(
                     key: const Key('close-shift-action'),
                     onPressed: () => Navigator.of(context).push(
@@ -64,17 +65,35 @@ class HomeScreen extends StatelessWidget {
                     label: const Text('Đóng ca'),
                   ),
                 ),
+              )
+            else if (!isManager)
+              Card(
+                color: const Color(0xFFFFF9E6),
+                child: const ListTile(
+                  leading: Icon(Icons.warning_amber_rounded, color: kGold),
+                  title: Text('Chưa mở ca làm việc'),
+                  subtitle: Text('Bấm vào POS bên dưới để bắt đầu ca mới'),
+                ),
               ),
             const SizedBox(height: 8),
             Card(
               child: ListTile(
+                key: const Key('pos-action'),
                 leading: const Icon(Icons.shopping_cart_outlined, color: kBrown),
                 title: const Text('Màn hình bán hàng (POS)'),
                 subtitle: const Text('Lưới món & giỏ hàng'),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => const PosScreen()),
-                ),
+                onTap: () {
+                  if (shift != null) {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(builder: (_) => const PosScreen()),
+                    );
+                  } else {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(builder: (_) => const OpenShiftScreen()),
+                    );
+                  }
+                },
               ),
             ),
             Card(
@@ -97,22 +116,12 @@ class HomeScreen extends StatelessWidget {
                 subtitle: const Text('Đơn đang chờ & cập nhật trạng thái'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => const BaristaQueueScreen()),
+                  MaterialPageRoute<void>(builder: (_) => const BaristaQueueScreen(isStandalone: false)),
                 ),
               ),
             ),
-            Card(
-              child: ListTile(
-                key: const Key('attendance-action'),
-                leading: const Icon(Icons.badge_outlined, color: kBrown),
-                title: const Text('Chấm công'),
-                subtitle: const Text('Vào ca / tan ca bằng mã PIN'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => const AttendanceScreen()),
-                ),
-              ),
-            ),
+            // NOTE: Attendance check-in UI removed from POS (P2.4 → future device integration).
+            // Backend APIs at /api/v1/attendance/* are retained for external timekeeping devices.
             if (isManager) ...[
               const SizedBox(height: 16),
               const Text('Quản lý chi nhánh', style: TextStyle(color: kMuted, fontSize: 13, fontWeight: FontWeight.bold)),

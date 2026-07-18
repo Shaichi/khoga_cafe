@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'auth/auth_controller.dart';
-import 'orders/barista_portal_screen.dart';
-import 'pos/open_shift_screen.dart';
+import 'orders/barista_queue_screen.dart';
+
 import 'pos/shift_controller.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
@@ -35,7 +35,7 @@ class AuthGate extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
     if (!auth.isAuthenticated) return const LoginScreen();
-    if (auth.profile?.role == 'BARISTA') return const BaristaPortalScreen();
+    if (auth.profile?.role == 'BARISTA') return const BaristaQueueScreen();
     return const ShiftGate();
   }
 }
@@ -64,6 +64,8 @@ class _ShiftGateState extends State<ShiftGate> {
     if (!shift.loaded) {
       return const Scaffold(body: Center(child: Text('Đang tải…')));
     }
-    return shift.hasOpenShift ? const HomeScreen() : const OpenShiftScreen();
+    // All authenticated users route to the HomeScreen (Staff Portal).
+    // From there, if they need POS, the HomeScreen routes to OpenShiftScreen.
+    return const HomeScreen();
   }
 }

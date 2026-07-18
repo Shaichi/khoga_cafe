@@ -426,6 +426,23 @@ MockClient authBackend({
         'qrReference': method == 'VIETQR' ? 'REF-1' : null,
       }, message: 'Tạo đơn thành công', status: 201);
     }
+    
+    final toppingsMatch = RegExp(r'/menu-items/([\w-]+)/toppings$').firstMatch(path);
+    if (toppingsMatch != null) {
+      if (toppingsMatch.group(1) == 'm1') {
+        return apiOk([
+          {'id': 't1', 'name': 'Shot thêm', 'price': 5000, 'active': true},
+        ]);
+      }
+      return apiOk([]); // no toppings
+    }
+
+    if (path.endsWith('/vouchers')) {
+      return apiOk([
+        {'id': 'v1', 'code': 'GIAM10', 'discountType': 'FIXED', 'discountValue': 10000, 'description': 'Giảm 10K', 'status': 'ACTIVE'}
+      ]);
+    }
+    
     return apiError('Not mocked: $path', 404);
   });
 }

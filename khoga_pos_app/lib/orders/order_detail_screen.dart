@@ -6,7 +6,9 @@ import '../api/models.dart';
 import '../api/order_api.dart';
 import '../format.dart';
 import '../theme.dart';
+import 'cancel_order_screen.dart';
 import 'order_labels.dart';
+import 'refund_order_dialog.dart';
 
 /// Screen 40/48 — full order detail (UC-73): header, line items with toppings,
 /// and the payment summary. Reachable from the history list (49).
@@ -46,6 +48,57 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
   }
 
+  Future<void> _cancelOrder() async {
+    final order = _order;
+    if (order == null) return;
+
+    final result = await Navigator.of(context).push<Map<String, String>>(
+      MaterialPageRoute(
+        builder: (_) => CancelOrderScreen(
+          orderNumber: order.orderNumber,
+          refundAmount: order.total,
+          status: order.status,
+        ),
+      ),
+    );
+    if (result == null) return;
+
+    setState(() => _loading = true);
+    try {
+      await _api.cancel(widget.orderId, result['reason']!, notes: result['notes']);
+      await _load();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã hủy đơn thành công')));
+    } catch (e) {
+      setState(() => _loading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e is ApiException ? e.message : 'Lỗi hủy đơn')));
+      }
+    }
+  }
+
+  Future<void> _refundOrder() async {
+    final order = _order;
+    if (order == null) return;
+    
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (ctx) => RefundOrderDialog(amount: order.total),
+    );
+    if (result == null) return;
+    
+    setState(() => _loading = true);
+    try {
+      await _api.refund(widget.orderId, result['type'], result['reason'], result['smPin']);
+      await _load();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã hoàn tiền / làm lại thành công')));
+    } catch (e) {
+      setState(() => _loading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e is ApiException ? e.message : 'Lỗi xử lý')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final order = _order;
@@ -63,6 +116,55 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 : order == null
                     ? const SizedBox.shrink()
                     : _body(order),
+      ),
+      bottomNavigationBar: (order != null && !_loading) ? _buildActionButtons(order) : null,
+    );
+  }
+
+  Widget _buildActionButtons(OrderDetail o) {
+    final canCancel = o.status == 'PENDING';
+    final canRefund = o.paymentStatus == 'PAID' && o.status != 'PENDING' && o.status != 'CANCELLED';
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: kBorder)),
+      ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.print),
+                label: const Text('In HĐ (Sắp có)'),
+                onPressed: null,
+              ),
+            ),
+            if (canCancel) ...[
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.cancel),
+                  label: const Text('Hủy Đơn'),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  onPressed: _cancelOrder,
+                ),
+              ),
+            ],
+            if (canRefund) ...[
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.undo),
+                  label: const Text('Hoàn Tiền'),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                  onPressed: _refundOrder,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

@@ -126,9 +126,24 @@ public class OrderService {
 
     /** UC-54 — order history for the actor's branch, newest first, optional status filter. */
     @Transactional(readOnly = true)
-    public Page<OrderSummaryResponse> getHistory(OrderStatus status, UUID actorId, Pageable pageable) {
-        UUID storeId = currentUser(actorId).getStore().getId();
-        return orderRepository.findHistory(storeId, status, pageable).map(this::toSummary);
+    public Page<OrderSummaryResponse> getHistory(OrderStatus status, java.time.LocalDate startDate, java.time.LocalDate endDate, UUID actorId, Pageable pageable) {
+        User user = currentUser(actorId);
+        UUID storeId = user.getStore().getId();
+        
+        if ("CASHIER".equals(user.getRole().name())) {
+            var activeShift = shiftSessionRepository.findFirstByUserIdAndStatus(actorId, com.khoga.common.model.enums.ShiftStatus.OPEN).orElse(null);
+            if (activeShift != null) {
+                return orderRepository.findHistoryByShift(storeId, activeShift.getId(), status, pageable).map(this::toSummary);
+            }
+        }
+        
+        java.time.LocalDate start = startDate != null ? startDate : java.time.LocalDate.now();
+        java.time.LocalDate end = endDate != null ? endDate : java.time.LocalDate.now();
+        
+        java.time.LocalDateTime from = start.atStartOfDay();
+        java.time.LocalDateTime to = end.plusDays(1).atStartOfDay();
+        
+        return orderRepository.findHistoryByDate(storeId, from, to, status, pageable).map(this::toSummary);
     }
 
     /** UC-73 — full order detail (header + lines + toppings), branch-scoped. */

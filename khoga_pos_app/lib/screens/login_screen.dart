@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../api/api_client.dart';
 import '../auth/auth_controller.dart';
 import '../theme.dart';
+import 'forgot_password_screen.dart';
 
 /// Screen 01 — "Staff Portal" login. Submits credentials to AuthController; on
 /// success the AuthGate swaps to the home screen.
@@ -103,7 +104,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   TextButton(
-                    onPressed: () {},
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+                    ),
                     child: const Text('Quên mật khẩu?', style: TextStyle(color: kGold, fontWeight: FontWeight.bold)),
                   ),
                 ],
