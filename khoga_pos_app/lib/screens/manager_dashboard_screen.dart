@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
+import '../api/api_client.dart';
+import '../api/stock_api.dart';
 import '../auth/auth_controller.dart';
 import '../inventory/stock_list_screen.dart';
 import '../screens/reports_hub_screen.dart';
@@ -8,6 +9,8 @@ import '../staff/attendance_screen.dart';
 import '../staff/schedule_screen.dart';
 import '../staff/staff_list_screen.dart';
 import '../theme.dart';
+import 'branch_settings_screen.dart';
+import 'manager_order_history_screen.dart';
 
 class ManagerDashboardScreen extends StatelessWidget {
   const ManagerDashboardScreen({super.key});
@@ -106,9 +109,11 @@ class ManagerDashboardScreen extends StatelessWidget {
                     context: context,
                     icon: Icons.receipt_long_outlined,
                     label: 'Lịch Sử Đơn',
-                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Tính năng Lịch Sử Đơn đang phát triển')),
-                    ),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const ManagerOrderHistoryScreen()),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -119,20 +124,18 @@ class ManagerDashboardScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 children: [
-                  _buildInfoCard(
-                    icon: Icons.warning_amber_rounded,
-                    iconColor: kDanger,
-                    title: 'Cảnh báo tồn kho',
-                    subtitle: '3 nguyên liệu sắp hết kho',
-                    onTap: () {},
-                  ),
+                  const LowStockAlertWidget(),
                   const SizedBox(height: 12),
                   _buildInfoCard(
                     icon: Icons.settings_outlined,
                     iconColor: kMuted,
                     title: 'Cấu hình chi nhánh',
-                    subtitle: 'Cài đặt máy in POS & Ca kíp',
-                    onTap: () {},
+                    subtitle: 'Cài đặt máy in POS',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const BranchSettingsScreen()),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -293,6 +296,102 @@ class ManagerDashboardScreen extends StatelessWidget {
             child: const Text('ĐĂNG XUẤT', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class LowStockAlertWidget extends StatefulWidget {
+  const LowStockAlertWidget({super.key});
+
+  @override
+  State<LowStockAlertWidget> createState() => _LowStockAlertWidgetState();
+}
+
+class _LowStockAlertWidgetState extends State<LowStockAlertWidget> {
+  late final StockApi _api;
+  int _lowStockCount = 0;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _api = StockApi(context.read<ApiClient>());
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (!mounted) return;
+    setState(() => _loading = true);
+    try {
+      final list = await _api.list(lowStock: true);
+      if (mounted) {
+        setState(() {
+          _lowStockCount = list.length;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = _loading
+        ? 'Đang kiểm tra...'
+        : _lowStockCount > 0
+            ? '$_lowStockCount nguyên liệu sắp hết kho'
+            : 'Kho nguyên liệu ổn định';
+
+    return InkWell(
+      onTap: () async {
+        if (_loading) return;
+        await Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const StockListScreen(initialLowOnly: true)),
+        );
+        _load(); // Refresh on back
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: kBorder),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: _lowStockCount > 0 ? kDanger : kSuccess, size: 28),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Cảnh báo tồn kho',
+                    style: TextStyle(
+                      fontFamily: 'Segoe UI',
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: kBrownDark,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontFamily: 'Segoe UI',
+                      fontSize: 12,
+                      color: kMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: kMuted),
+          ],
+        ),
       ),
     );
   }

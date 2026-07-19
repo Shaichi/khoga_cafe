@@ -12,7 +12,8 @@ import 'stock_audit_screen.dart';
 import 'stock_transactions_screen.dart';
 
 class StockListScreen extends StatefulWidget {
-  const StockListScreen({super.key});
+  final bool initialLowOnly;
+  const StockListScreen({super.key, this.initialLowOnly = false});
 
   @override
   State<StockListScreen> createState() => _StockListScreenState();
@@ -29,6 +30,7 @@ class _StockListScreenState extends State<StockListScreen> {
   @override
   void initState() {
     super.initState();
+    _lowOnly = widget.initialLowOnly;
     _api = StockApi(context.read<ApiClient>());
     _load();
   }

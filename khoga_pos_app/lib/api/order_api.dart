@@ -9,9 +9,11 @@ class OrderApi {
 
   /// Branch order history, newest first, optionally filtered by [status]
   /// (e.g. 'COMPLETED', 'CANCELLED'). Returns the page's content.
-  Future<List<OrderSummary>> history({String? status, int page = 0}) async {
+  Future<List<OrderSummary>> history({String? status, String? from, String? to, int page = 0}) async {
     final q = <String>['page=$page'];
     if (status != null) q.add('status=$status');
+    if (from != null) q.add('from=$from');
+    if (to != null) q.add('to=$to');
     final data = await _client.get('/orders?${q.join('&')}');
     final content = (data as Map<String, dynamic>)['content'] as List? ?? const [];
     return content.map((j) => OrderSummary.fromJson(j as Map<String, dynamic>)).toList();
