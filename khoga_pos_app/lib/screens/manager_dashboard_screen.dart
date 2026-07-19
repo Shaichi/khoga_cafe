@@ -11,13 +11,13 @@ import '../staff/staff_list_screen.dart';
 import '../theme.dart';
 import 'branch_settings_screen.dart';
 import 'manager_order_history_screen.dart';
+import '../profile/profile_screen.dart';
 
 class ManagerDashboardScreen extends StatelessWidget {
   const ManagerDashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: kBg,
       body: SafeArea(
@@ -53,7 +53,8 @@ class ManagerDashboardScreen extends StatelessWidget {
                 crossAxisCount: 2,
                 mainAxisSpacing: 16,
                 crossAxisSpacing: 16,
-                childAspectRatio: 1.6, // Adjusted to match the visual proportion (156x94 from Figma)
+                childAspectRatio:
+                    1.6, // Adjusted to match the visual proportion (156x94 from Figma)
                 children: [
                   _buildMenuCard(
                     context: context,
@@ -61,7 +62,9 @@ class ManagerDashboardScreen extends StatelessWidget {
                     label: 'Kho Hàng',
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const StockListScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const StockListScreen(),
+                        ),
                       );
                     },
                   ),
@@ -71,7 +74,9 @@ class ManagerDashboardScreen extends StatelessWidget {
                     label: 'Nhân Viên',
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const StaffListScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const StaffListScreen(),
+                        ),
                       );
                     },
                   ),
@@ -81,7 +86,9 @@ class ManagerDashboardScreen extends StatelessWidget {
                     label: 'Lịch Làm Việc',
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const ScheduleScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const ScheduleScreen(),
+                        ),
                       );
                     },
                   ),
@@ -91,7 +98,9 @@ class ManagerDashboardScreen extends StatelessWidget {
                     label: 'Điểm Danh',
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const AttendanceScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const AttendanceScreen(),
+                        ),
                       );
                     },
                   ),
@@ -101,7 +110,9 @@ class ManagerDashboardScreen extends StatelessWidget {
                     label: 'Báo Cáo',
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const ReportsHubScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const ReportsHubScreen(),
+                        ),
                       );
                     },
                   ),
@@ -111,7 +122,9 @@ class ManagerDashboardScreen extends StatelessWidget {
                     label: 'Lịch Sử Đơn',
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const ManagerOrderHistoryScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const ManagerOrderHistoryScreen(),
+                        ),
                       );
                     },
                   ),
@@ -127,13 +140,29 @@ class ManagerDashboardScreen extends StatelessWidget {
                   const LowStockAlertWidget(),
                   const SizedBox(height: 12),
                   _buildInfoCard(
+                    icon: Icons.person_outline,
+                    iconColor: kMuted,
+                    title: 'Tài khoản & Bảo mật',
+                    subtitle: 'Đổi email, số điện thoại, mật khẩu',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ProfileScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _buildInfoCard(
                     icon: Icons.settings_outlined,
                     iconColor: kMuted,
                     title: 'Cấu hình chi nhánh',
                     subtitle: 'Cài đặt máy in POS',
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const BranchSettingsScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const BranchSettingsScreen(),
+                        ),
                       );
                     },
                   ),
@@ -158,10 +187,7 @@ class ManagerDashboardScreen extends StatelessWidget {
                 ),
                 child: const Text(
                   'ĐĂNG XUẤT',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -281,7 +307,10 @@ class ManagerDashboardScreen extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('HỦY', style: TextStyle(color: kMuted, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'HỦY',
+              style: TextStyle(color: kMuted, fontWeight: FontWeight.bold),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -291,9 +320,14 @@ class ManagerDashboardScreen extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: kDanger,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
-            child: const Text('ĐĂNG XUẤT', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              'ĐĂNG XUẤT',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -341,14 +375,16 @@ class _LowStockAlertWidgetState extends State<LowStockAlertWidget> {
     final subtitle = _loading
         ? 'Đang kiểm tra...'
         : _lowStockCount > 0
-            ? '$_lowStockCount nguyên liệu sắp hết kho'
-            : 'Kho nguyên liệu ổn định';
+        ? '$_lowStockCount nguyên liệu sắp hết kho'
+        : 'Kho nguyên liệu ổn định';
 
     return InkWell(
       onTap: () async {
         if (_loading) return;
         await Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const StockListScreen(initialLowOnly: true)),
+          MaterialPageRoute(
+            builder: (_) => const StockListScreen(initialLowOnly: true),
+          ),
         );
         _load(); // Refresh on back
       },
@@ -362,7 +398,11 @@ class _LowStockAlertWidgetState extends State<LowStockAlertWidget> {
         ),
         child: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: _lowStockCount > 0 ? kDanger : kSuccess, size: 28),
+            Icon(
+              Icons.warning_amber_rounded,
+              color: _lowStockCount > 0 ? kDanger : kSuccess,
+              size: 28,
+            ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
