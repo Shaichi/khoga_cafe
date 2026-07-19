@@ -25,12 +25,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   static const _filters = [
     (null, 'Tất cả'),
     ('COMPLETED', 'Hoàn tất'),
-    ('PENDING', 'Chờ xử lý'),
-    ('PREPARING', 'Đang pha'),
-    ('READY', 'Sẵn sàng'),
-    ('HOLD', 'Tạm giữ'),
     ('CANCELLED', 'Đã hủy'),
-    ('ABANDONED', 'Bị bỏ rơi'),
   ];
 
   late final OrderApi _api;

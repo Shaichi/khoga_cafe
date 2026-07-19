@@ -77,6 +77,7 @@ public class UserService {
     @Transactional
     public UserResponse create(CreateUserRequest request, UUID actorId) {
         requireUniqueContact(request.email(), request.phone(), null);
+        requireValidStoreAssignment(request.role(), request.storeId());
         long sequence = nextEmployeeSequence();
         String employeeId = String.format("EMP-%03d", sequence);
         String username = allocateUsername(request.fullName(), sequence);
@@ -111,6 +112,13 @@ public class UserService {
             throw AppException.of("err.081");   // BR-82
         }
         requireUniqueContact(request.email(), request.phone(), id);
+        
+        Role targetRole = request.role() != null ? request.role() : user.getRole();
+        UUID targetStoreId = request.storeId(); // Assuming storeId is passed even if not changed, or UI sends the same storeId
+        // Wait, if request doesn't include storeId, it might be null. 
+        // We should check the store assignment if either role or storeId changes.
+        requireValidStoreAssignment(targetRole, targetStoreId);
+
         String oldJson = userSnapshot(user);        // BR-81 before-image
         if (StringUtils.hasText(request.fullName())) {
             user.setFullName(request.fullName());
@@ -175,6 +183,19 @@ public class UserService {
             if (taken) {
                 throw AppException.of("err.091");
             }
+        }
+    }
+
+    /**
+     * BR-59: Cashier and Store Manager must be assigned to a specific branch. HQ roles must have a null branch.
+     */
+    private void requireValidStoreAssignment(Role role, UUID storeId) {
+        boolean isHq = role == Role.CEOVIEWER || role == Role.BUSINESSADMIN || role == Role.SSADMIN;
+        if (isHq && storeId != null) {
+            throw new AppException("Chức danh HQ không được gán vào chi nhánh.");
+        }
+        if (!isHq && storeId == null) {
+            throw new AppException("Chức danh cửa hàng (Cashier/Store Manager) bắt buộc phải chọn chi nhánh.");
         }
     }
 

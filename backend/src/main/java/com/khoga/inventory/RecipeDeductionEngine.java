@@ -61,7 +61,10 @@ public class RecipeDeductionEngine {
         for (OrderItem item : orderItemRepository.findByOrderId(order.getId())) {
             int itemQty = item.getQuantity() == null ? 1 : item.getQuantity();
             if (item.getMenuItem() != null) {
-                for (RecipeItem ri : recipeItemRepository.findByMenuItemId(item.getMenuItem().getId())) {
+                UUID recipeSourceId = item.getMenuItem().getParentItemId() != null 
+                        ? item.getMenuItem().getParentItemId() 
+                        : item.getMenuItem().getId();
+                for (RecipeItem ri : recipeItemRepository.findByMenuItemId(recipeSourceId)) {
                     accumulate(required, ri, itemQty);
                 }
             }

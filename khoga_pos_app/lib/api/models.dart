@@ -1,4 +1,4 @@
-/// Mirrors com.khoga.auth.dto.LoginResponse.
+﻿/// Mirrors com.khoga.auth.dto.LoginResponse.
 class LoginResponse {
   final String token;
   final String role;
@@ -629,3 +629,52 @@ class Topping {
         active: j['active'] as bool? ?? true,
       );
 }
+class AttendanceReportRow {
+  final String userId;
+  final String employeeName;
+  final String shiftDate;
+  final String? scheduledStart;
+  final String? scheduledEnd;
+  final String? checkInAt;
+  final String? checkOutAt;
+  final String status;
+  final String? shiftType;
+  final int lateMinutes;
+  final int earlyLeaveMinutes;
+  final int overtimeMinutes;
+  final int workedMinutes;
+
+  AttendanceReportRow({
+    required this.userId,
+    required this.employeeName,
+    required this.shiftDate,
+    this.scheduledStart,
+    this.scheduledEnd,
+    this.checkInAt,
+    this.checkOutAt,
+    required this.status,
+    this.shiftType,
+    required this.lateMinutes,
+    required this.earlyLeaveMinutes,
+    required this.overtimeMinutes,
+    required this.workedMinutes,
+  });
+
+  factory AttendanceReportRow.fromJson(Map<String, dynamic> j) =>
+      AttendanceReportRow(
+        userId: j['userId'] as String,
+        employeeName: j['employeeName'] as String? ?? 'Unknown',
+        shiftDate: j['shiftDate'] as String,
+        scheduledStart: j['scheduledStart'] as String?,
+        scheduledEnd: j['scheduledEnd'] as String?,
+        checkInAt: j['checkInAt'] as String?,
+        checkOutAt: j['checkOutAt'] as String?,
+        status: j['status'] as String? ?? 'ABSENT',
+        shiftType: j['shiftType'] as String?,
+        lateMinutes: (j['lateMinutes'] as num?)?.toInt() ?? 0,
+        earlyLeaveMinutes: (j['earlyLeaveMinutes'] as num?)?.toInt() ?? 0,
+        overtimeMinutes: (j['overtimeMinutes'] as num?)?.toInt() ?? 0,
+        workedMinutes: (j['workedMinutes'] as num?)?.toInt() ?? 0,
+      );
+}
+
