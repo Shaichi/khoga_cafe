@@ -305,12 +305,20 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label, style: const TextStyle(color: kMuted)),
-          Text(value, style: TextStyle(
-            fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-            color: color ?? Colors.black87,
-          )),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+                color: color ?? Colors.black87,
+              ),
+            ),
+          ),
         ],
       ),
     );
