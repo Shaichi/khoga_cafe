@@ -31,9 +31,9 @@ class AttendanceReportRow {
   });
 
   factory AttendanceReportRow.fromJson(Map<String, dynamic> j) => AttendanceReportRow(
-        userId: j['userId'] as String,
+        userId: j['userId']?.toString() ?? '',
         employeeName: j['employeeName'] as String? ?? 'Unknown',
-        shiftDate: j['shiftDate'] as String,
+        shiftDate: j['shiftDate'] as String? ?? '',
         scheduledStart: j['scheduledStart'] as String?,
         scheduledEnd: j['scheduledEnd'] as String?,
         checkInAt: j['checkInAt'] as String?,

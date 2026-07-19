@@ -47,18 +47,19 @@ class _WorkedHoursReportScreenState extends State<WorkedHoursReportScreen> {
       final toStr = _toDate.toIso8601String().substring(0, 10);
       final rows = await _api.report(from: fromStr, to: toStr);
 
-      // Group by user
-      Map<String, Map<String, dynamic>> summary = {};
+      // Group by employee name
+      final Map<String, Map<String, dynamic>> summary = {};
       for (var r in rows) {
-        if (!summary.containsKey(r.employeeName)) {
-          summary[r.employeeName] = {
+        summary.putIfAbsent(
+          r.employeeName,
+          () => {
             'workedMinutes': 0,
             'lateMinutes': 0,
             'earlyLeaveMinutes': 0,
             'overtimeMinutes': 0,
             'shifts': 0,
-          };
-        }
+          },
+        );
         summary[r.employeeName]!['workedMinutes'] += r.workedMinutes;
         summary[r.employeeName]!['lateMinutes'] += r.lateMinutes;
         summary[r.employeeName]!['earlyLeaveMinutes'] += r.earlyLeaveMinutes;
@@ -73,10 +74,11 @@ class _WorkedHoursReportScreenState extends State<WorkedHoursReportScreen> {
           _loading = false;
         });
       }
-    } catch (e) {
+    } catch (e, stack) {
       if (mounted) {
         setState(() {
-          _error = 'Lỗi tải dữ liệu: $e';
+          _error =
+              'Lỗi: $e\n\n${stack.toString().substring(0, stack.toString().length.clamp(0, 300))}';
           _loading = false;
         });
       }
