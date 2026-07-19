@@ -1,6 +1,6 @@
-# Khoga Coffee Shop - Backend API
+# Khoga Coffee Shop 
 
-Chào mừng các thành viên đến với dự án **Khoga Coffee Shop**. Đây là kho lưu trữ mã nguồn Backend API của dự án, được thiết kế theo chuẩn nguyên khối module hóa (Modular Monolith) dựa trên nguyên tắc **COMET Information Hiding**.
+Chào mừng các thành viên đến với dự án **Khoga Coffee Shop**. Đây là kho lưu trữ mã nguồn của dự án, được thiết kế theo chuẩn nguyên khối module hóa (Modular Monolith) dựa trên nguyên tắc **COMET Information Hiding**.
 
 Dưới đây là các hướng dẫn chi tiết để toàn team cài đặt môi trường và tuân thủ quy trình code đồng nhất.
 
