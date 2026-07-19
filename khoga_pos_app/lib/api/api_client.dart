@@ -3,11 +3,10 @@ import 'package:flutter/foundation.dart';
 
 import 'package:http/http.dart' as http;
 
-/// Default backend base URL. `10.0.2.2` is the Android emulator's alias for the
-/// host machine's `localhost`; for Chrome/desktop dev override with `localhost`.
-const String kApiBaseUrl = kIsWeb
-    ? 'http://localhost:8080/api/v1'
-    : 'http://10.0.2.2:8080/api/v1';
+// Instead of checking Platform.isWindows (which breaks Web), we can just use 
+// localhost by default and let developers override it if they use Android Emulator.
+const String kApiBaseUrl = String.fromEnvironment('API_URL', defaultValue: kIsWeb ? 'http://localhost:8080/api/v1' : 'http://localhost:8080/api/v1');
+
 
 /// Thrown when the backend returns an error envelope or a non-2xx status. Carries
 /// the human-readable message from `ApiResponse.message` when available.
