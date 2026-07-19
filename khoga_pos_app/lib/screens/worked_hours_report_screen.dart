@@ -154,7 +154,7 @@ class _WorkedHoursReportScreenState extends State<WorkedHoursReportScreen> {
                   onTap: _selectDateRange,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      vertical: 8,
+                      vertical: 10,
                       horizontal: 12,
                     ),
                     decoration: BoxDecoration(
@@ -163,13 +163,25 @@ class _WorkedHoursReportScreenState extends State<WorkedHoursReportScreen> {
                     ),
                     child: Text(
                       '${_fromDate.day}/${_fromDate.month}/${_fromDate.year}  -  ${_toDate.day}/${_toDate.month}/${_toDate.year}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: kBrownDark,
-                      ),
+                      style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                   ),
                 ),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton(
+                onPressed: _loadReport,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kBrownDark,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Icon(Icons.refresh, color: Colors.white, size: 20),
               ),
               const SizedBox(width: 8),
               ElevatedButton.icon(
@@ -248,7 +260,7 @@ class _WorkedHoursReportScreenState extends State<WorkedHoursReportScreen> {
             border: Border.all(color: kBorder),
           ),
           child: DataTable(
-            headingRowColor: MaterialStateProperty.all(kBg),
+            headingRowColor: WidgetStateProperty.all(kBg),
             columns: const [
               DataColumn(
                 label: Text(
