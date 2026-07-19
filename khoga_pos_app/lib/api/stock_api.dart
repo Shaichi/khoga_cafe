@@ -43,10 +43,12 @@ class StockApi {
     return (data as List).map((j) => StockAuditResult.fromJson(j as Map<String, dynamic>)).toList();
   }
 
-  /// Stock movement ledger (UC-61), optionally filtered by transaction [type].
-  Future<List<StockTransaction>> transactions({String? type, int page = 0}) async {
+  /// Stock movement ledger (UC-61), optionally filtered by transaction [type] and date range.
+  Future<List<StockTransaction>> transactions({String? type, DateTime? from, DateTime? to, int page = 0}) async {
     final q = <String>['page=$page'];
     if (type != null) q.add('type=$type');
+    if (from != null) q.add('from=${from.toIso8601String()}');
+    if (to != null) q.add('to=${to.toIso8601String()}');
     final data = await _client.get('/stock/transactions?${q.join('&')}');
     final content = (data as Map<String, dynamic>)['content'] as List? ?? const [];
     return content.map((j) => StockTransaction.fromJson(j as Map<String, dynamic>)).toList();

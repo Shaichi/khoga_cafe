@@ -19,12 +19,16 @@ public class SystemConfig extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(columnDefinition = "nvarchar(255)")
     private String configKey;
+    @Column(columnDefinition = "nvarchar(255)")
     private String configValue;
+    @Column(columnDefinition = "nvarchar(255)")
     private String scope;
     @ManyToOne
     @JoinColumn(name = "store_id")
     private Store store;
+    @Column(columnDefinition = "nvarchar(255)")
     private String updatedBy;
     // updatedAt/createdAt are inherited from BaseEntity (JPA auditing) — do not redeclare.
 }

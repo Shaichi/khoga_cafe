@@ -7,14 +7,23 @@ import '../api/models.dart';
 import '../api/stock_api.dart';
 import '../format.dart';
 import '../theme.dart';
-import 'export_stock_screen.dart';
 
-/// Screen 32 — record a stock delivery (UC-32) for one material. On success it
-/// pops with `true` so the dashboard can refresh. The app-bar action switches to
-/// the export screen (28) for the same material (wastage/withdrawal, UC-33).
+class ImportStockItemModel {
+  final StockItem stockItem;
+  final TextEditingController qtyController = TextEditingController();
+  final TextEditingController noteController = TextEditingController();
+  String? error;
+
+  ImportStockItemModel(this.stockItem);
+
+  void dispose() {
+    qtyController.dispose();
+    noteController.dispose();
+  }
+}
+
 class ImportStockScreen extends StatefulWidget {
-  final StockItem item;
-  const ImportStockScreen({super.key, required this.item});
+  const ImportStockScreen({super.key});
 
   @override
   State<ImportStockScreen> createState() => _ImportStockScreenState();
@@ -22,40 +31,117 @@ class ImportStockScreen extends StatefulWidget {
 
 class _ImportStockScreenState extends State<ImportStockScreen> {
   late final StockApi _api;
-  final _qty = TextEditingController();
-  final _note = TextEditingController();
+  
+  List<StockItem> _availableItems = [];
+  bool _loadingItems = true;
+  String? _globalError;
   bool _submitting = false;
-  String? _error;
-  StockTransaction? _result;
+  
+  final List<ImportStockItemModel> _importList = [];
+  StockItem? _selectedDropdownItem;
+  
+  bool _success = false;
+  int _successCount = 0;
 
   @override
   void initState() {
     super.initState();
     _api = StockApi(context.read<ApiClient>());
+    _loadItems();
+  }
+
+  Future<void> _loadItems() async {
+    try {
+      final list = await _api.list();
+      if (mounted) {
+        setState(() {
+          _availableItems = list;
+          _loadingItems = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _globalError = 'Không tải được danh sách nguyên liệu';
+          _loadingItems = false;
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
-    _qty.dispose();
-    _note.dispose();
+    for (var item in _importList) {
+      item.dispose();
+    }
     super.dispose();
   }
 
-  Future<void> _submit() async {
-    final qty = num.tryParse(_qty.text.trim());
-    if (qty == null || qty <= 0) {
-      setState(() => _error = 'Vui lòng nhập số lượng hợp lệ');
+  void _addItem(StockItem item) {
+    if (_importList.any((i) => i.stockItem.id == item.id)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nguyên liệu này đã có trong danh sách nhập')),
+      );
       return;
     }
     setState(() {
-      _error = null;
+      _importList.add(ImportStockItemModel(item));
+      _selectedDropdownItem = null;
+    });
+  }
+
+  void _removeItem(int index) {
+    setState(() {
+      final item = _importList.removeAt(index);
+      item.dispose();
+    });
+  }
+
+  Future<void> _submit() async {
+    if (_importList.isEmpty) {
+      setState(() => _globalError = 'Vui lòng chọn ít nhất 1 nguyên liệu để nhập');
+      return;
+    }
+
+    bool hasValidationErrors = false;
+    for (var item in _importList) {
+      final qty = num.tryParse(item.qtyController.text.trim());
+      if (qty == null || qty <= 0) {
+        item.error = 'Số lượng không hợp lệ';
+        hasValidationErrors = true;
+      } else {
+        item.error = null;
+      }
+    }
+
+    if (hasValidationErrors) {
+      setState(() {});
+      return;
+    }
+
+    setState(() {
+      _globalError = null;
       _submitting = true;
     });
+
     try {
-      final tx = await _api.import(widget.item.id, qty, note: _note.text.trim());
-      if (mounted) setState(() => _result = tx);
+      final futures = _importList.map((item) async {
+        final qty = num.parse(item.qtyController.text.trim());
+        return _api.import(item.stockItem.id, qty, note: item.noteController.text.trim());
+      });
+      
+      await Future.wait(futures);
+      
+      if (mounted) {
+        setState(() {
+          _successCount = _importList.length;
+          _success = true;
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Nhập kho thất bại');
+      if (mounted) {
+        setState(() => _globalError = e is ApiException ? e.message : 'Có lỗi xảy ra khi nhập kho');
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -63,89 +149,194 @@ class _ImportStockScreenState extends State<ImportStockScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final item = widget.item;
-    final result = _result;
     return Scaffold(
+      backgroundColor: kBg,
       appBar: AppBar(
-        backgroundColor: kBrown,
-        foregroundColor: Colors.white,
-        title: const Text('Nhập kho'),
-        actions: [
-          IconButton(
-            key: const Key('to-export-action'),
-            tooltip: 'Xuất kho',
-            icon: const Icon(Icons.outbox_outlined),
-            onPressed: () async {
-              final nav = Navigator.of(context);
-              final exported = await nav.push<bool>(
-                MaterialPageRoute<bool>(builder: (_) => ExportStockScreen(item: item)),
-              );
-              if (exported == true) nav.pop(true);
-            },
-          ),
-        ],
+        backgroundColor: Colors.white,
+        foregroundColor: kBrownDark,
+        elevation: 1,
+        title: const Text(
+          'Nhập kho (Bulk Import)',
+          style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 18),
+        ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: result != null
-              ? _success(result)
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(item.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kBrown)),
-                    Text('${item.code} · tồn hiện tại ${formatVnd(item.currentQuantity)} ${item.unit}',
-                        style: const TextStyle(color: kMuted, fontSize: 13)),
-                    const SizedBox(height: 24),
-                    if (_error != null) ...[
-                      Text(_error!, key: const Key('import-error'), style: const TextStyle(color: kDanger)),
-                      const SizedBox(height: 12),
-                    ],
-                    Text('Số lượng nhập (${item.unit}) *',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: kBrown)),
-                    const SizedBox(height: 8),
-                    TextField(
-                      key: const Key('import-quantity'),
-                      controller: _qty,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
-                    ),
-                    const SizedBox(height: 16),
-                    const Text('Ghi chú', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: kBrown)),
-                    const SizedBox(height: 8),
-                    TextField(key: const Key('import-note'), controller: _note),
-                    const SizedBox(height: 28),
-                    ElevatedButton(
-                      key: const Key('import-submit'),
-                      onPressed: _submitting ? null : _submit,
-                      child: _submitting
-                          ? const SizedBox(
-                              height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Text('XÁC NHẬN NHẬP KHO'),
-                    ),
-                  ],
-                ),
-        ),
+        child: _success ? _buildSuccess() : _buildForm(),
       ),
     );
   }
 
-  Widget _success(StockTransaction tx) => Column(
-        key: const Key('import-success'),
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.check_circle, color: kSuccess, size: 64),
-          const SizedBox(height: 12),
-          const Text('Nhập kho thành công', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: kBrown)),
-          const SizedBox(height: 8),
-          Text('${tx.materialName}: ${formatVnd(tx.quantityBefore)} → ${formatVnd(tx.quantityAfter)}',
-              style: const TextStyle(color: kMuted)),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            key: const Key('import-done'),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('XONG'),
-          ),
-        ],
+  Widget _buildSuccess() => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle, color: kSuccess, size: 64),
+            const SizedBox(height: 12),
+            const Text('Nhập kho thành công', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: kBrown)),
+            const SizedBox(height: 8),
+            Text('Đã nhập thành công $_successCount mặt hàng', style: const TextStyle(color: kMuted)),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kBrown,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              ),
+              child: const Text('XONG'),
+            ),
+          ],
+        ),
       );
+
+  Widget _buildForm() {
+    return Column(
+      children: [
+        if (_globalError != null)
+          Container(
+            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: kDanger.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: kDanger),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.error_outline, color: kDanger),
+                const SizedBox(width: 12),
+                Expanded(child: Text(_globalError!, style: const TextStyle(color: kDanger, fontWeight: FontWeight.bold))),
+              ],
+            ),
+          ),
+          
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: _loadingItems
+              ? const Center(child: CircularProgressIndicator())
+              : DropdownButtonFormField<StockItem>(
+                  decoration: InputDecoration(
+                    labelText: 'Chọn nguyên liệu để thêm...',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
+                  ),
+                  value: _selectedDropdownItem,
+                  items: _availableItems.map((item) {
+                    return DropdownMenuItem<StockItem>(
+                      value: item,
+                      child: Text('${item.name} (${item.code})'),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) _addItem(val);
+                  },
+                ),
+        ),
+        
+        Expanded(
+          child: _importList.isEmpty
+              ? const Center(
+                  child: Text(
+                    'Chưa có mặt hàng nào.\nVui lòng chọn từ danh sách trên.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: kMuted, fontFamily: 'Segoe UI'),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _importList.length,
+                  itemBuilder: (context, index) {
+                    final itemModel = _importList[index];
+                    final stock = itemModel.stockItem;
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: kBorder),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  stock.name,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, color: kBrownDark, fontSize: 16),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close, color: kDanger),
+                                onPressed: () => _removeItem(index),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text('Tồn hiện tại: ${formatVnd(stock.currentQuantity)} ${stock.unit}', style: const TextStyle(color: kMuted, fontSize: 13)),
+                          const SizedBox(height: 12),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: TextField(
+                                  controller: itemModel.qtyController,
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                                  decoration: InputDecoration(
+                                    labelText: 'SL (${stock.unit}) *',
+                                    errorText: itemModel.error,
+                                    border: const OutlineInputBorder(),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                flex: 3,
+                                child: TextField(
+                                  controller: itemModel.noteController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Ghi chú (Tùy chọn)',
+                                    border: OutlineInputBorder(),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ),
+        
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(top: BorderSide(color: kBorder)),
+          ),
+          child: ElevatedButton(
+            onPressed: _submitting || _importList.isEmpty ? null : _submit,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kBrown,
+              foregroundColor: Colors.white,
+              minimumSize: const Size.fromHeight(50),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: _submitting
+                ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : Text('XÁC NHẬN NHẬP KHO (${_importList.length} MÓN)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ),
+        ),
+      ],
+    );
+  }
 }

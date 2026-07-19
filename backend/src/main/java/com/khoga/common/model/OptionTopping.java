@@ -20,6 +20,7 @@ public class OptionTopping extends BaseEntity {
     private UUID id;
 
     // Global Topping doesn't have menuItem link anymore
+    @Column(columnDefinition = "nvarchar(255)")
     private String name;
     private BigDecimal price;
     private Boolean isActive;

@@ -17,13 +17,13 @@ import java.util.UUID;
 public class OtpEntity {
 
     @Id
-    @Column(name = "id", nullable = false)
+    @Column(name = "id", nullable = false, columnDefinition = "nvarchar(255)")
     private String id; // This will map to the "key" (e.g. email or username) used in OtpStore
 
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    @Column(name = "code", nullable = false, length = 6)
+    @Column(name = "code", nullable = false, length = 6, columnDefinition = "nvarchar(6)")
     private String code;
 
     @Column(name = "expires_at", nullable = false)

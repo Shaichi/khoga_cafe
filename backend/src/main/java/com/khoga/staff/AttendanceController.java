@@ -64,6 +64,15 @@ public class AttendanceController {
         return ResponseEntity.ok(ApiResponse.success(res, "Đã xác nhận chấm công"));
     }
 
+    /** Manager manually updates attendance for today. */
+    @org.springframework.web.bind.annotation.PutMapping("/manual")
+    @PreAuthorize("hasRole('STORE_MANAGER')")
+    public ResponseEntity<ApiResponse<AttendanceResponse>> manualUpdate(
+            @RequestBody com.khoga.staff.dto.ManualAttendanceRequest req) {
+        AttendanceResponse res = attendanceService.manualUpdate(req, SecurityUtil.currentUserId());
+        return ResponseEntity.ok(ApiResponse.success(res, "Đã cập nhật điểm danh"));
+    }
+
     /** UC-39 — attendance report with derived metrics (BR-91). */
     @GetMapping
     @PreAuthorize("hasRole('STORE_MANAGER')")

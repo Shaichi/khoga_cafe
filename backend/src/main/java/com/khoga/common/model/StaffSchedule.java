@@ -30,5 +30,6 @@ public class StaffSchedule extends BaseEntity {
     private ShiftType shiftType;
     private java.time.LocalTime shiftStartTime;
     private java.time.LocalTime shiftEndTime;
+    @Column(columnDefinition = "nvarchar(255)")
     private String posRegisterId;
 }

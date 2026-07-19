@@ -61,6 +61,11 @@ class ScheduleApi {
     });
     return ScheduleShift.fromJson(data as Map<String, dynamic>);
   }
+
+  /// Delete a shift (UC-38)
+  Future<void> delete(String id) async {
+    await _client.delete('/schedules/$id');
+  }
 }
 
 /// Attendance terminal (UC-67). Operated at the branch by any staff; the PIN
@@ -80,5 +85,25 @@ class AttendanceApi {
   Future<Attendance> checkOut(String pin) async {
     final data = await _client.post('/attendance/check-out', {'pin': pin});
     return Attendance.fromJson(data as Map<String, dynamic>);
+  }
+
+  Future<List<AttendanceReportRow>> report({String? from, String? to}) async {
+    final q = <String>[];
+    if (from != null) q.add('from=$from');
+    if (to != null) q.add('to=$to');
+    final data = await _client.get('/attendance${q.isEmpty ? '' : '?${q.join('&')}'}');
+    return (data as List).map((j) => AttendanceReportRow.fromJson(j as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> manualUpdate({
+    required String userId,
+    String? checkInAt,
+    String? checkOutAt,
+  }) async {
+    await _client.put('/attendance/manual', {
+      'userId': userId,
+      'checkInAt': checkInAt,
+      'checkOutAt': checkOutAt,
+    });
   }
 }
