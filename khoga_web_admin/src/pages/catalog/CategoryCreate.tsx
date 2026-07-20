@@ -1,25 +1,55 @@
-import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { createCategory } from '../../api/catalog';
-import { errorMessage } from '../../api/client';
+import {
+    useState,
+    type FormEvent,
+} from 'react';
+
+import {
+    useNavigate,
+} from 'react-router-dom';
+
+import {
+    createCategory,
+} from '../../api/catalog';
+
+import {
+    errorMessage,
+} from '../../api/client';
+
 import './CategoryCreate.css';
 
 export default function CategoryCreate() {
     const navigate = useNavigate();
 
-    const [name, setName] = useState('');
-    const [description, setDescription] = useState('');
-    const [saving, setSaving] = useState(false);
-    const [error, setError] = useState('');
+    const [name, setName] =
+        useState('');
 
-    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    const [
+        description,
+        setDescription,
+    ] = useState('');
+
+    const [saving, setSaving] =
+        useState(false);
+
+    const [error, setError] =
+        useState('');
+
+    const handleSubmit = async (
+        event: FormEvent<HTMLFormElement>,
+    ) => {
         event.preventDefault();
 
-        const normalizedName = name.trim();
-        const normalizedDescription = description.trim();
+        const normalizedName =
+            name.trim();
+
+        const normalizedDescription =
+            description.trim();
 
         if (!normalizedName) {
-            setError('Tên danh mục không được để trống.');
+            setError(
+                'Tên danh mục không được để trống.',
+            );
+
             return;
         }
 
@@ -29,21 +59,27 @@ export default function CategoryCreate() {
         try {
             await createCategory({
                 name: normalizedName,
-                description: normalizedDescription,
+                description:
+                    normalizedDescription,
             });
 
             navigate('/catalog', {
                 replace: true,
             });
         } catch (err) {
-            setError(errorMessage(err));
+            setError(
+                errorMessage(err),
+            );
         } finally {
             setSaving(false);
         }
     };
 
     const handleCancel = () => {
-        if (saving) return;
+        if (saving) {
+            return;
+        }
+
         navigate('/catalog');
     };
 
@@ -65,6 +101,8 @@ export default function CategoryCreate() {
                 className="category-create-card"
                 onSubmit={handleSubmit}
             >
+                {/* Tên danh mục */}
+
                 <div className="category-create-field">
                     <label
                         className="category-create-field__label"
@@ -75,17 +113,25 @@ export default function CategoryCreate() {
 
                     <input
                         id="category-name"
+                        name="category-name"
                         className="category-create-field__input"
                         type="text"
                         value={name}
                         disabled={saving}
                         maxLength={255}
                         placeholder="Nhập tên danh mục (ví dụ: Trà trái cây)"
-                        onChange={(event) => setName(event.target.value)}
+                        autoComplete="off"
                         autoFocus
                         required
+                        onChange={(event) =>
+                            setName(
+                                event.target.value,
+                            )
+                        }
                     />
                 </div>
+
+                {/* Mô tả chi tiết */}
 
                 <div className="category-create-field">
                     <label
@@ -97,32 +143,35 @@ export default function CategoryCreate() {
 
                     <textarea
                         id="category-description"
+                        name="category-description"
                         className="category-create-field__textarea"
                         value={description}
                         disabled={saving}
                         maxLength={255}
                         placeholder="Nhập mô tả danh mục"
-                        onChange={(event) => setDescription(event.target.value)}
+                        autoComplete="off"
+                        onChange={(event) =>
+                            setDescription(
+                                event.target.value,
+                            )
+                        }
                     />
                 </div>
+
+                {/* Trạng thái hiển thị */}
 
                 <div className="category-create-field">
-                    <label
-                        className="category-create-field__label"
-                        htmlFor="category-status"
-                    >
+                    <div className="category-create-field__label">
                         Trạng thái hiển thị
-                    </label>
+                    </div>
 
-                    <input
-                        id="category-status"
-                        className="category-create-field__input category-create-field__input--readonly"
-                        type="text"
-                        value="Đang hiển thị"
-                        disabled
-                        readOnly
+                    <div
+                        className="category-create-field__status-box"
+                        aria-label="Trạng thái hiển thị"
                     />
                 </div>
+
+                {/* Nút chức năng */}
 
                 <div className="category-create-actions">
                     <button
@@ -130,7 +179,9 @@ export default function CategoryCreate() {
                         className="category-create-button category-create-button--primary"
                         disabled={saving}
                     >
-                        {saving ? 'ĐANG TẠO…' : 'TẠO DANH MỤC'}
+                        {saving
+                            ? 'ĐANG TẠO…'
+                            : 'TẠO DANH MỤC'}
                     </button>
 
                     <button

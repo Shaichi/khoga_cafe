@@ -1,46 +1,91 @@
+/* ======================================================
+   CATEGORY CREATE / EDIT PAGE
+   ====================================================== */
+
 .category-create-page {
     width: 100%;
     min-width: 0;
     color: #422819;
 }
 
+/* ======================================================
+   HEADER
+   ====================================================== */
+
 .category-create-page__header {
     min-height: 44px;
-    padding-bottom: 15px;
     margin-bottom: 35px;
+    padding-bottom: 15px;
+
     border-bottom: 1px solid #ead9cc;
+
     display: flex;
     align-items: flex-start;
 }
 
 .category-create-page__title {
     margin: 2px 0 0;
+
     color: #2f2019;
+
     font-size: 24px;
     line-height: 31px;
     font-weight: 700;
 }
 
+/* ======================================================
+   ERROR
+   ====================================================== */
+
 .category-create-page__error {
     width: min(100%, 662px);
+
     margin: -17px 0 17px;
     padding: 11px 14px;
+
+    box-sizing: border-box;
+
     border: 1px solid #f1b8b8;
     border-radius: 8px;
+
     background: #fff4f4;
     color: #c52b2b;
+
     font-size: 14px;
     line-height: 20px;
 }
 
+/* ======================================================
+   FORM CARD
+   ====================================================== */
+
 .category-create-card {
     width: min(100%, 662px);
+
     padding: 31px 30px 30px;
+
+    box-sizing: border-box;
+
     border: 1px solid #ead9cc;
     border-radius: 12px;
+
     background: #ffffff;
-    box-sizing: border-box;
 }
+
+/* Dùng khi đang tải dữ liệu ở màn chỉnh sửa */
+.category-create-card--loading {
+    min-height: 140px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    color: #8b786f;
+}
+
+/* ======================================================
+   FORM FIELD
+   ====================================================== */
 
 .category-create-field {
     margin-bottom: 21px;
@@ -48,27 +93,41 @@
 
 .category-create-field__label {
     display: block;
+
     margin-bottom: 5px;
+
     color: #543426;
+
     font-size: 16px;
     line-height: 21px;
     font-weight: 700;
 }
 
+/* ======================================================
+   INPUT / TEXTAREA
+   ====================================================== */
+
 .category-create-field__input,
 .category-create-field__textarea {
     width: 100%;
+
     box-sizing: border-box;
+
     border: 1px solid #dfcebf;
     border-radius: 9px;
+
     outline: none;
+
     background: #ffffff;
     color: #30251f;
+
     font-family: inherit;
     font-size: 15px;
+
     transition:
         border-color 0.15s ease,
-        box-shadow 0.15s ease;
+        box-shadow 0.15s ease,
+        background-color 0.15s ease;
 }
 
 .category-create-field__input {
@@ -79,7 +138,9 @@
 .category-create-field__textarea {
     min-height: 91px;
     padding: 11px 10px;
+
     line-height: 21px;
+
     resize: vertical;
 }
 
@@ -92,7 +153,9 @@
 .category-create-field__input:focus,
 .category-create-field__textarea:focus {
     border-color: #9c765f;
-    box-shadow: 0 0 0 3px rgba(107, 69, 48, 0.1);
+
+    box-shadow:
+        0 0 0 3px rgba(107, 69, 48, 0.1);
 }
 
 .category-create-field__input:disabled,
@@ -101,22 +164,81 @@
     opacity: 0.72;
 }
 
+/* ======================================================
+   READONLY STATUS INPUT
+
+   Dùng tại màn Chỉnh sửa danh mục.
+   Ô có nền xám và không hiện chữ.
+   ====================================================== */
+
 .category-create-field__input--readonly {
-    background: #eeeeee;
-    color: #766b64;
+    border: 1px solid #dfcebf;
+
+    background-color: #eeeeee;
+    color: transparent;
+
+    text-shadow: none;
+
     cursor: not-allowed;
+    opacity: 1 !important;
 }
 
-.category-create-field__hint {
-    display: block;
-    margin-top: 5px;
-    color: #95867d;
-    font-size: 12px;
-    line-height: 17px;
+.category-create-field__input--readonly:disabled {
+    background-color: #eeeeee;
+    color: transparent;
+
+    cursor: not-allowed;
+    opacity: 1;
 }
+
+.category-create-field__input--readonly:focus {
+    border-color: #dfcebf;
+    box-shadow: none;
+}
+
+/* ======================================================
+   BLANK STATUS BOX
+
+   Dùng tại màn Thêm danh mục mới.
+   Chỉ là một ô màu xám trống, không có nội dung.
+   ====================================================== */
+
+.category-create-field__status-box {
+    width: 100%;
+    height: 40px;
+
+    box-sizing: border-box;
+
+    border: 1px solid #dfcebf;
+    border-radius: 9px;
+
+    background-color: #eeeeee;
+}
+
+/* ======================================================
+   HIDE OLD HINT
+
+   Xóa dòng:
+   "Danh mục mới sẽ được hiển thị ngay sau khi tạo."
+   ====================================================== */
+
+.category-create-field__hint {
+    display: none !important;
+}
+
+/* Phòng trường hợp code cũ dùng tên class khác */
+.category-create-field__help,
+.category-create-field__description {
+    display: none !important;
+}
+
+/* ======================================================
+   ACTION BUTTONS
+   ====================================================== */
 
 .category-create-actions {
     margin-top: 29px;
+
     display: flex;
     align-items: center;
     gap: 14px;
@@ -125,15 +247,20 @@
 .category-create-button {
     height: 41px;
     padding: 0 24px;
+
     border-radius: 8px;
+
     font-family: inherit;
     font-size: 13px;
     line-height: 18px;
     font-weight: 700;
+
     cursor: pointer;
+
     transition:
         background-color 0.15s ease,
         border-color 0.15s ease,
+        color 0.15s ease,
         opacity 0.15s ease;
 }
 
@@ -142,9 +269,13 @@
     cursor: not-allowed;
 }
 
+/* Nút tạo/lưu */
+
 .category-create-button--primary {
     min-width: 153px;
+
     border: 1px solid #422516;
+
     background: #422516;
     color: #ffffff;
 }
@@ -154,9 +285,13 @@
     background: #58321d;
 }
 
+/* Nút hủy */
+
 .category-create-button--cancel {
     min-width: 102px;
+
     border: 1px solid #dfcebf;
+
     background: #ffffff;
     color: #948178;
 }
@@ -166,7 +301,20 @@
     color: #5c4235;
 }
 
+/* ======================================================
+   RESPONSIVE
+   ====================================================== */
+
 @media (max-width: 720px) {
+    .category-create-page__header {
+        margin-bottom: 24px;
+    }
+
+    .category-create-page__title {
+        font-size: 22px;
+        line-height: 29px;
+    }
+
     .category-create-card {
         padding: 25px 20px;
     }

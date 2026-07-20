@@ -23,7 +23,8 @@
 
 .menu-edit-grid {
     display: grid;
-    grid-template-columns: minmax(0, 485px) minmax(0, 485px);
+    grid-template-columns:
+        minmax(0, 485px) minmax(0, 485px);
     gap: 30px;
     align-items: start;
 }
@@ -74,7 +75,10 @@
     color: #30241e;
     font: inherit;
     outline: none;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    transition:
+        border-color 0.15s,
+        box-shadow 0.15s,
+        background-color 0.15s;
 }
 
 .menu-edit-field input,
@@ -86,6 +90,67 @@
 
 .menu-edit-field select {
     appearance: auto;
+}
+
+/* ======================================================
+   DANH MỤC TRONG MÀN CHỈNH SỬA MÓN ĂN
+
+   Theo đúng màn hình SRS:
+   - nền xám
+   - không hiện tên danh mục
+   - không hiện mũi tên xổ xuống
+   - vẫn mở được danh sách lựa chọn
+   ====================================================== */
+
+.menu-edit-field select.menu-edit-category-select--srs-blank {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+
+    padding: 0 10px;
+
+    border: 1px solid #e2d3c6;
+    border-radius: 8px;
+
+    background-color: #eeeeee;
+    background-image: none;
+
+    color: transparent;
+    text-shadow: none;
+    caret-color: transparent;
+
+    cursor: pointer;
+}
+
+.menu-edit-field select.menu-edit-category-select--srs-blank::-ms-expand {
+    display: none;
+}
+
+/*
+ * Khi danh sách được mở, tên các danh mục
+ * vẫn hiển thị để người dùng lựa chọn.
+ */
+.menu-edit-field select.menu-edit-category-select--srs-blank option {
+    background-color: #ffffff;
+    color: #30241e;
+}
+
+.menu-edit-field select.menu-edit-category-select--srs-blank:hover:not(:disabled) {
+    background-color: #eeeeee;
+}
+
+.menu-edit-field select.menu-edit-category-select--srs-blank:focus {
+    border-color: #e2d3c6;
+    background-color: #eeeeee;
+    box-shadow: none;
+    outline: none;
+}
+
+.menu-edit-field select.menu-edit-category-select--srs-blank:disabled {
+    background-color: #eeeeee;
+    color: transparent;
+    cursor: not-allowed;
+    opacity: 1;
 }
 
 .menu-edit-field textarea {
@@ -104,7 +169,18 @@
 .menu-edit-add-recipe select:focus,
 .menu-edit-topping-price:focus {
     border-color: var(--gold);
-    box-shadow: 0 0 0 3px rgba(200, 157, 124, 0.16);
+    box-shadow:
+        0 0 0 3px rgba(200, 157, 124, 0.16);
+}
+
+/*
+ * Ghi đè focus chung để ô Danh mục
+ * vẫn không có viền sáng theo SRS.
+ */
+.menu-edit-field select.menu-edit-category-select--srs-blank:focus {
+    border-color: #e2d3c6;
+    background-color: #eeeeee;
+    box-shadow: none;
 }
 
 .menu-edit-field input::placeholder,
@@ -164,7 +240,8 @@
 
 .menu-edit-topping-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
     gap: 9px 10px;
 }
 
@@ -176,7 +253,8 @@
     border-radius: 7px;
     background: #fff;
     display: grid;
-    grid-template-columns: 16px minmax(0, 1fr) auto 70px;
+    grid-template-columns:
+        16px minmax(0, 1fr) auto 70px;
     align-items: center;
     gap: 7px;
 }
@@ -210,7 +288,8 @@
 
 .menu-edit-add-topping {
     display: grid;
-    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr) 76px;
+    grid-template-columns:
+        minmax(0, 1.55fr) minmax(0, 1fr) 76px;
     gap: 8px;
 }
 
@@ -262,7 +341,8 @@
     border-radius: 6px;
     background: #fff;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 100px 31px;
+    grid-template-columns:
+        minmax(0, 1fr) 100px 31px;
     align-items: center;
     gap: 10px;
 }
@@ -299,7 +379,8 @@
 
 .menu-edit-add-recipe {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 126px 111px;
+    grid-template-columns:
+        minmax(0, 1fr) 126px 111px;
     gap: 8px;
     margin-top: 3px;
 }
@@ -356,7 +437,8 @@
 
 @media (max-width: 1180px) {
     .menu-edit-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
     }
 
     .menu-edit-topping-grid {
@@ -387,7 +469,8 @@
     }
 
     .menu-edit-topping-card {
-        grid-template-columns: 16px minmax(0, 1fr) auto 80px;
+        grid-template-columns:
+            16px minmax(0, 1fr) auto 80px;
     }
 
     .menu-edit-actions {
