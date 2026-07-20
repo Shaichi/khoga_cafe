@@ -13,4 +13,6 @@ public interface MenuItemToppingMappingRepository extends JpaRepository<MenuItem
     List<MenuItemToppingMapping> findByMenuItemId(UUID menuItemId);
 
     boolean existsByMenuItemIdAndOptionToppingId(UUID menuItemId, UUID optionToppingId);
+
+    long deleteByMenuItemIdAndOptionToppingId(UUID menuItemId, UUID optionToppingId);
 }

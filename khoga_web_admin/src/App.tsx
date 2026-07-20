@@ -12,8 +12,8 @@ import UserList from './pages/user/UserList';
 import UserForm from './pages/user/UserForm';
 import UserDetail from './pages/user/UserDetail';
 import MenuItemList from './pages/catalog/MenuItemList';
+import MenuItemDetail from './pages/catalog/MenuItemDetail';
 import MenuItemForm from './pages/catalog/MenuItemForm';
-import CategoryList from './pages/catalog/CategoryList';
 import RawMaterialList from './pages/catalog/RawMaterialList';
 import RawMaterialForm from './pages/catalog/RawMaterialForm';
 import VoucherList from './pages/voucher/VoucherList';
@@ -72,7 +72,8 @@ export default function App() {
             {/* SSADMIN + BUSINESSADMIN */}
             <Route path="/catalog" element={<MenuItemList />} />
             <Route path="/catalog/new" element={<MenuItemForm />} />
-            <Route path="/catalog/categories" element={<CategoryList />} />
+            <Route path="/catalog/categories" element={<Navigate to="/catalog" replace />} />
+            <Route path="/catalog/:id" element={<MenuItemDetail />} />
             <Route path="/catalog/:id/edit" element={<MenuItemForm />} />
             <Route path="/raw-materials" element={<RawMaterialList />} />
             <Route path="/raw-materials/new" element={<RawMaterialForm />} />

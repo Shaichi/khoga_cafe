@@ -5,6 +5,7 @@ import com.khoga.catalog.dto.AvailabilityRequest;
 import com.khoga.catalog.dto.CreateMenuItemRequest;
 import com.khoga.catalog.dto.MenuItemDetailResponse;
 import com.khoga.catalog.dto.MenuItemResponse;
+import com.khoga.catalog.dto.MenuItemStatusRequest;
 import com.khoga.catalog.dto.ToppingRequest;
 import com.khoga.catalog.dto.ToppingResponse;
 import com.khoga.catalog.dto.UpdateMenuItemRequest;
@@ -31,8 +32,10 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Menu, recipe, topping and availability endpoints (UC-15/18/19/68/71/72). Reads are open to any
- * authenticated staff; businessadmin manages the catalog (RDS §3.3); availability toggle also
+ * Menu, recipe, topping and availability endpoints (UC-15/18/19/68/71/72).
+ * Reads are open to any
+ * authenticated staff; businessadmin manages the catalog (RDS §3.3);
+ * availability toggle also
  * allows a store manager (BR-25).
  */
 @RestController
@@ -77,6 +80,16 @@ public class MenuItemController {
         return ResponseEntity.ok(ApiResponse.success(updated, "Cập nhật món thành công"));
     }
 
+    @PutMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('BUSINESSADMIN','SSADMIN')")
+    public ResponseEntity<ApiResponse<MenuItemDetailResponse>> setStatus(
+            @PathVariable UUID id, @Valid @RequestBody MenuItemStatusRequest request) {
+        MenuItemDetailResponse updated = menuItemService.setActive(
+                id, Boolean.TRUE.equals(request.active()), SecurityUtil.currentUserId());
+        String message = request.active() ? "Đã tiếp tục bán món" : "Đã tạm ngưng bán món";
+        return ResponseEntity.ok(ApiResponse.success(updated, message));
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('BUSINESSADMIN','SSADMIN')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
@@ -90,6 +103,11 @@ public class MenuItemController {
             @PathVariable UUID id, @Valid @RequestBody AvailabilityRequest request) {
         menuItemService.toggleAvailability(id, request, SecurityUtil.currentUserId());
         return ResponseEntity.ok(ApiResponse.success(null, "Cập nhật tình trạng món tại chi nhánh"));
+    }
+
+    @GetMapping("/toppings/all")
+    public ResponseEntity<ApiResponse<List<ToppingResponse>>> listAllToppings() {
+        return ResponseEntity.ok(ApiResponse.success(menuItemService.listAllToppings()));
     }
 
     @GetMapping("/{id}/toppings")
@@ -112,6 +130,22 @@ public class MenuItemController {
             @PathVariable UUID id, @PathVariable UUID toppingId, @Valid @RequestBody ToppingRequest request) {
         ToppingResponse updated = menuItemService.updateTopping(toppingId, request, SecurityUtil.currentUserId());
         return ResponseEntity.ok(ApiResponse.success(updated, "Cập nhật topping thành công"));
+    }
+
+    @PostMapping("/{id}/toppings/{toppingId}/link")
+    @PreAuthorize("hasAnyRole('BUSINESSADMIN','SSADMIN')")
+    public ResponseEntity<ApiResponse<Void>> linkTopping(
+            @PathVariable UUID id, @PathVariable UUID toppingId) {
+        menuItemService.linkTopping(id, toppingId, SecurityUtil.currentUserId());
+        return ResponseEntity.ok(ApiResponse.success(null, "Đã gắn topping vào món"));
+    }
+
+    @DeleteMapping("/{id}/toppings/{toppingId}/link")
+    @PreAuthorize("hasAnyRole('BUSINESSADMIN','SSADMIN')")
+    public ResponseEntity<ApiResponse<Void>> unlinkTopping(
+            @PathVariable UUID id, @PathVariable UUID toppingId) {
+        menuItemService.unlinkTopping(id, toppingId, SecurityUtil.currentUserId());
+        return ResponseEntity.ok(ApiResponse.success(null, "Đã bỏ topping khỏi món"));
     }
 
     @DeleteMapping("/{id}/toppings/{toppingId}")
