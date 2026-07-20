@@ -1,90 +1,442 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import {
+  useEffect,
+  useState,
+  type FormEvent,
+} from 'react';
+
+import {
+  useNavigate,
+  useParams,
+} from 'react-router-dom';
+
 import {
   createVoucher,
   getVoucher,
   updateVoucher,
-  type DiscountType,
   type CreateVoucherInput,
+  type DiscountType,
   type UpdateVoucherInput,
 } from '../../api/vouchers';
-import { errorMessage } from '../../api/client';
 
-const numOrNull = (s: string): number | null => (s.trim() === '' ? null : Number(s));
-// BE expects LocalDateTime; <input type="date"> gives YYYY-MM-DD.
-const toStart = (d: string): string | null => (d ? `${d}T00:00:00` : null);
-const toEnd = (d: string): string | null => (d ? `${d}T23:59:59` : null);
-const datePart = (iso: string | null): string => (iso ? iso.slice(0, 10) : '');
+import { errorMessage } from '../../api/client';
+import './VoucherForm.css';
+
+/**
+ * Chuyển giá trị trong input thành number.
+ * Trả về null nếu người dùng để trống hoặc nhập không hợp lệ.
+ */
+const numberOrNull = (
+  value: string,
+): number | null => {
+  const normalizedValue = value.trim();
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const parsedValue = Number(normalizedValue);
+
+  if (!Number.isFinite(parsedValue)) {
+    return null;
+  }
+
+  return parsedValue;
+};
+
+/**
+ * Chuyển ngày YYYY-MM-DD thành thời điểm đầu ngày.
+ */
+const toStartDateTime = (
+  date: string,
+): string | null => {
+  if (!date) {
+    return null;
+  }
+
+  return `${date}T00:00:00`;
+};
+
+/**
+ * Chuyển ngày YYYY-MM-DD thành thời điểm cuối ngày.
+ */
+const toEndDateTime = (
+  date: string,
+): string | null => {
+  if (!date) {
+    return null;
+  }
+
+  return `${date}T23:59:59`;
+};
+
+/**
+ * Lấy riêng phần YYYY-MM-DD từ datetime trả về bởi backend.
+ */
+const getDatePart = (
+  isoDate: string | null | undefined,
+): string => {
+  if (!isoDate) {
+    return '';
+  }
+
+  return isoDate.slice(0, 10);
+};
 
 export default function VoucherForm() {
-  const { id } = useParams();
-  const isEdit = Boolean(id);
   const navigate = useNavigate();
 
+  const { id } = useParams<{
+    id: string;
+  }>();
+
+  const isEditMode = Boolean(id);
+
+  /* ==================== Form state ==================== */
+
   const [code, setCode] = useState('');
-  const [discountType, setDiscountType] = useState<DiscountType | ''>('');
-  const [discountValue, setDiscountValue] = useState('');
-  const [maxDiscount, setMaxDiscount] = useState('');
-  const [minOrder, setMinOrder] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [perCustomer, setPerCustomer] = useState('');
-  const [maxTotal, setMaxTotal] = useState('');
-  const [active, setActive] = useState(true);
 
-  const [loading, setLoading] = useState(isEdit);
-  const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [
+    discountType,
+    setDiscountType,
+  ] = useState<DiscountType | ''>('');
 
-  const isPercentage = discountType === 'PERCENTAGE';
+  const [
+    discountValue,
+    setDiscountValue,
+  ] = useState('');
+
+  const [
+    maxDiscountAmount,
+    setMaxDiscountAmount,
+  ] = useState('');
+
+  const [
+    minOrderValue,
+    setMinOrderValue,
+  ] = useState('');
+
+  const [
+    startDate,
+    setStartDate,
+  ] = useState('');
+
+  const [
+    endDate,
+    setEndDate,
+  ] = useState('');
+
+  const [
+    usageLimitPerCustomer,
+    setUsageLimitPerCustomer,
+  ] = useState('1');
+
+  const [
+    maxTotalUses,
+    setMaxTotalUses,
+  ] = useState('100');
+
+  /**
+   * Trạng thái active vẫn được lưu để khi chỉnh sửa
+   * không làm thay đổi trạng thái hiện tại của voucher.
+   *
+   * Ô trạng thái trên giao diện chỉ hiển thị nền xám,
+   * không hiển thị chữ theo đúng màn hình SRS.
+   */
+  const [active, setActive] =
+    useState(true);
+
+  /* ==================== UI state ==================== */
+
+  const [loading, setLoading] =
+    useState(isEditMode);
+
+  const [submitting, setSubmitting] =
+    useState(false);
+
+  const [error, setError] =
+    useState('');
+
+  const isPercentage =
+    discountType === 'PERCENTAGE';
+
+  /* ==================== Load voucher ==================== */
 
   useEffect(() => {
-    if (!id) return;
-    getVoucher(id)
-      .then((v) => {
-        setCode(v.code);
-        setDiscountType(v.discountType);
-        setDiscountValue(v.discountValue?.toString() ?? '');
-        setMaxDiscount(v.maxDiscountAmount?.toString() ?? '');
-        setMinOrder(v.minOrderValue?.toString() ?? '');
-        setStartDate(datePart(v.startDate));
-        setEndDate(datePart(v.endDate));
-        setPerCustomer(v.usageLimitPerCustomer?.toString() ?? '');
-        setMaxTotal(v.maxTotalUses?.toString() ?? '');
-        setActive(v.status !== 'INACTIVE');
-      })
-      .catch((e) => setError(errorMessage(e)))
-      .finally(() => setLoading(false));
-  }, [id]);
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError('');
-    if (!discountType) { setError('Vui lòng chọn loại chiết khấu'); return; }
-    if (isPercentage && maxDiscount.trim() === '') {
-      setError('Voucher giảm theo phần trăm phải có mức giảm tối đa');
+    if (!id) {
       return;
     }
-    const base = {
-      discountType,
-      discountValue: Number(discountValue),
-      minOrderValue: numOrNull(minOrder),
-      startDate: toStart(startDate),
-      endDate: toEnd(endDate),
-      maxDiscountAmount: isPercentage ? numOrNull(maxDiscount) : null,
-      usageLimitPerCustomer: numOrNull(perCustomer),
-      maxTotalUses: numOrNull(maxTotal),
+
+    const loadVoucher = async () => {
+      setLoading(true);
+      setError('');
+
+      try {
+        const voucher =
+          await getVoucher(id);
+
+        setCode(voucher.code);
+
+        setDiscountType(
+          voucher.discountType,
+        );
+
+        setDiscountValue(
+          voucher.discountValue?.toString() ??
+          '',
+        );
+
+        setMaxDiscountAmount(
+          voucher.maxDiscountAmount?.toString() ??
+          '',
+        );
+
+        setMinOrderValue(
+          voucher.minOrderValue?.toString() ??
+          '',
+        );
+
+        setStartDate(
+          getDatePart(voucher.startDate),
+        );
+
+        setEndDate(
+          getDatePart(voucher.endDate),
+        );
+
+        setUsageLimitPerCustomer(
+          voucher.usageLimitPerCustomer?.toString() ??
+          '1',
+        );
+
+        setMaxTotalUses(
+          voucher.maxTotalUses?.toString() ??
+          '100',
+        );
+
+        setActive(
+          voucher.status !== 'INACTIVE',
+        );
+      } catch (err) {
+        setError(errorMessage(err));
+      } finally {
+        setLoading(false);
+      }
     };
+
+    void loadVoucher();
+  }, [id]);
+
+  /* ==================== Submit ==================== */
+
+  const handleSubmit = async (
+    event: FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+
+    setError('');
+
+    const normalizedCode = code
+      .trim()
+      .toUpperCase();
+
+    const parsedDiscountValue =
+      numberOrNull(discountValue);
+
+    const parsedMaxDiscountAmount =
+      numberOrNull(maxDiscountAmount);
+
+    const parsedMinOrderValue =
+      numberOrNull(minOrderValue);
+
+    const parsedUsageLimitPerCustomer =
+      numberOrNull(
+        usageLimitPerCustomer,
+      );
+
+    const parsedMaxTotalUses =
+      numberOrNull(maxTotalUses);
+
+    /* ==================== Validation ==================== */
+
+    if (
+      !isEditMode &&
+      !normalizedCode
+    ) {
+      setError(
+        'Mã voucher không được để trống.',
+      );
+
+      return;
+    }
+
+    if (
+      !isEditMode &&
+      !/^[A-Z0-9]+$/.test(
+        normalizedCode,
+      )
+    ) {
+      setError(
+        'Mã voucher chỉ được chứa chữ cái và chữ số.',
+      );
+
+      return;
+    }
+
+    if (!discountType) {
+      setError(
+        'Vui lòng chọn loại chiết khấu.',
+      );
+
+      return;
+    }
+
+    if (
+      parsedDiscountValue === null ||
+      parsedDiscountValue <= 0
+    ) {
+      setError(
+        'Giá trị giảm phải lớn hơn 0.',
+      );
+
+      return;
+    }
+
+    if (
+      discountType === 'PERCENTAGE' &&
+      (
+        parsedDiscountValue < 1 ||
+        parsedDiscountValue > 100
+      )
+    ) {
+      setError(
+        'Giá trị giảm theo phần trăm phải nằm trong khoảng từ 1 đến 100.',
+      );
+
+      return;
+    }
+
+    if (
+      discountType === 'PERCENTAGE' &&
+      (
+        parsedMaxDiscountAmount === null ||
+        parsedMaxDiscountAmount <= 0
+      )
+    ) {
+      setError(
+        'Voucher giảm theo phần trăm phải có mức giảm tối đa.',
+      );
+
+      return;
+    }
+
+    if (
+      parsedMinOrderValue !== null &&
+      parsedMinOrderValue < 0
+    ) {
+      setError(
+        'Giá trị đơn hàng tối thiểu không được âm.',
+      );
+
+      return;
+    }
+
+    if (
+      startDate &&
+      endDate &&
+      new Date(startDate).getTime() >=
+      new Date(endDate).getTime()
+    ) {
+      setError(
+        'Ngày hết hạn phải sau ngày bắt đầu.',
+      );
+
+      return;
+    }
+
+    if (
+      parsedUsageLimitPerCustomer !== null &&
+      (
+        !Number.isInteger(
+          parsedUsageLimitPerCustomer,
+        ) ||
+        parsedUsageLimitPerCustomer < 0
+      )
+    ) {
+      setError(
+        'Giới hạn lượt dùng mỗi khách phải là số nguyên không âm.',
+      );
+
+      return;
+    }
+
+    if (
+      parsedMaxTotalUses !== null &&
+      (
+        !Number.isInteger(
+          parsedMaxTotalUses,
+        ) ||
+        parsedMaxTotalUses < 0
+      )
+    ) {
+      setError(
+        'Tổng lượt dùng tối đa phải là số nguyên không âm.',
+      );
+
+      return;
+    }
+
+    const commonInput = {
+      discountType,
+
+      discountValue:
+        parsedDiscountValue,
+
+      maxDiscountAmount:
+        discountType === 'PERCENTAGE'
+          ? parsedMaxDiscountAmount
+          : null,
+
+      minOrderValue:
+        parsedMinOrderValue,
+
+      startDate:
+        toStartDateTime(startDate),
+
+      endDate:
+        toEndDateTime(endDate),
+
+      usageLimitPerCustomer:
+        parsedUsageLimitPerCustomer,
+
+      maxTotalUses:
+        parsedMaxTotalUses,
+    };
+
     setSubmitting(true);
+
     try {
-      if (isEdit && id) {
-        const input: UpdateVoucherInput = { ...base, active };
-        await updateVoucher(id, input);
+      if (isEditMode && id) {
+        const input: UpdateVoucherInput = {
+          ...commonInput,
+          active,
+        };
+
+        await updateVoucher(
+          id,
+          input,
+        );
       } else {
-        const input: CreateVoucherInput = { code, ...base };
+        const input: CreateVoucherInput = {
+          code: normalizedCode,
+          ...commonInput,
+        };
+
         await createVoucher(input);
       }
-      navigate('/vouchers');
+
+      navigate('/vouchers', {
+        replace: true,
+      });
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -92,94 +444,427 @@ export default function VoucherForm() {
     }
   };
 
-  if (loading) return <div className="full-center">Đang tải…</div>;
+  /* ==================== Cancel ==================== */
+
+  const handleCancel = () => {
+    if (submitting) {
+      return;
+    }
+
+    navigate('/vouchers');
+  };
+
+  /* ==================== Loading ==================== */
+
+  if (loading) {
+    return (
+      <div className="voucher-form-page">
+        <header className="voucher-form-page__header">
+          <h1 className="voucher-form-page__title">
+            Chỉnh Sửa Chiến Dịch Voucher
+          </h1>
+        </header>
+
+        <div className="voucher-form-card voucher-form-card--loading">
+          Đang tải dữ liệu voucher…
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <div className="page-head">
-        <Link to="/vouchers" className="back-link">← Vouchers</Link>
-        <h1 className="page-title">{isEdit ? 'Chỉnh Sửa Chiến Dịch Voucher' : 'Tạo Voucher Mới'}</h1>
-      </div>
+    <div className="voucher-form-page">
+      {/* ==================== Header ==================== */}
 
-      <form className="form-card" onSubmit={handleSubmit}>
-        {error && <div className="alert alert--error">{error}</div>}
+      <header className="voucher-form-page__header">
+        <h1 className="voucher-form-page__title">
+          {isEditMode
+            ? 'Chỉnh Sửa Chiến Dịch Voucher'
+            : 'Tạo Voucher Mới'}
+        </h1>
+      </header>
 
-        <div className="field">
-          <label className="label">Mã Voucher (Alphanumeric) *</label>
-          <input className="input" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())}
-            placeholder="Ví dụ: SUMMER50K" required disabled={isEdit} />
-          {isEdit && <p className="hint">Mã voucher là bất biến sau khi tạo.</p>}
+      {/* ==================== Error ==================== */}
+
+      {error && (
+        <div className="voucher-form-page__error">
+          {error}
+        </div>
+      )}
+
+      {/* ==================== Form ==================== */}
+
+      <form
+        className="voucher-form-card"
+        onSubmit={handleSubmit}
+      >
+        {/* ==================== Mã Voucher ==================== */}
+
+        <div className="voucher-form-field">
+          <label
+            className="voucher-form-field__label"
+            htmlFor="voucher-code"
+          >
+            Mã Voucher (Alphanumeric)
+          </label>
+
+          <input
+            id="voucher-code"
+            className={`voucher-form-field__control ${isEditMode
+                ? 'voucher-form-field__control--readonly'
+                : ''
+              }`}
+            type="text"
+            value={code}
+            maxLength={50}
+            disabled={
+              isEditMode ||
+              submitting
+            }
+            placeholder="Ví dụ: SUMMER50K"
+            onChange={(event) => {
+              const normalizedValue =
+                event.target.value
+                  .toUpperCase()
+                  .replace(
+                    /[^A-Z0-9]/g,
+                    '',
+                  );
+
+              setCode(normalizedValue);
+            }}
+            required
+          />
         </div>
 
-        <div className="field">
-          <label className="label">Loại chiết khấu *</label>
-          <select className="input" value={discountType} onChange={(e) => setDiscountType(e.target.value as DiscountType | '')} required>
-            <option value="">— Chọn loại</option>
-            <option value="PERCENTAGE">Giảm theo phần trăm (%)</option>
-            <option value="FIXED_AMOUNT">Số tiền mặt cố định</option>
+        {/* ==================== Loại chiết khấu ==================== */}
+
+        <div className="voucher-form-field">
+          <label
+            className="voucher-form-field__label"
+            htmlFor="voucher-discount-type"
+          >
+            Loại chiết khấu
+          </label>
+
+          <select
+            id="voucher-discount-type"
+            className="voucher-form-field__control voucher-form-field__control--discount-type"
+            value={discountType}
+            disabled={submitting}
+            aria-label="Loại chiết khấu"
+            onChange={(event) => {
+              const nextDiscountType =
+                event.target.value as
+                | DiscountType
+                | '';
+
+              setDiscountType(
+                nextDiscountType,
+              );
+
+              if (
+                nextDiscountType !==
+                'PERCENTAGE'
+              ) {
+                setMaxDiscountAmount('');
+              }
+            }}
+            required
+          >
+            <option value="">
+              Chọn loại chiết khấu
+            </option>
+
+            <option value="PERCENTAGE">
+              Giảm theo phần trăm (%)
+            </option>
+
+            <option value="FIXED_AMOUNT">
+              Số tiền mặt cố định
+            </option>
           </select>
         </div>
 
-        <div className="field">
-          <label className="label">Giá trị giảm *</label>
-          <input className="input" type="number" step="any" min="0" value={discountValue}
-            onChange={(e) => setDiscountValue(e.target.value)} placeholder="Ví dụ: 15 hoặc 15000" required />
+        {/* ==================== Giá trị giảm ==================== */}
+
+        <div className="voucher-form-field">
+          <label
+            className="voucher-form-field__label"
+            htmlFor="voucher-discount-value"
+          >
+            Giá trị giảm
+          </label>
+
+          <input
+            id="voucher-discount-value"
+            className="voucher-form-field__control"
+            type="number"
+            min="0"
+            step="any"
+            value={discountValue}
+            disabled={submitting}
+            placeholder="Ví dụ: 15 hoặc 15000"
+            onChange={(event) =>
+              setDiscountValue(
+                event.target.value,
+              )
+            }
+            required
+          />
         </div>
+
+        {/* ==================== Mức giảm tối đa ==================== */}
 
         {isPercentage && (
-          <div className="field">
-            <label className="label">Mức giảm tối đa (VND) *</label>
-            <input className="input" type="number" step="any" min="0" value={maxDiscount}
-              onChange={(e) => setMaxDiscount(e.target.value)} placeholder="Ví dụ: 30000" />
-            <p className="hint">Bắt buộc với voucher giảm theo phần trăm.</p>
+          <div className="voucher-form-field">
+            <label
+              className="voucher-form-field__label"
+              htmlFor="voucher-max-discount"
+            >
+              Mức giảm tối đa (VND)
+            </label>
+
+            <input
+              id="voucher-max-discount"
+              className="voucher-form-field__control"
+              type="number"
+              min="0"
+              step="any"
+              value={maxDiscountAmount}
+              disabled={submitting}
+              placeholder="Ví dụ: 30000"
+              onChange={(event) =>
+                setMaxDiscountAmount(
+                  event.target.value,
+                )
+              }
+              required
+            />
           </div>
         )}
 
-        <div className="field">
-          <label className="label">Giá trị đơn hàng tối thiểu (VND)</label>
-          <input className="input" type="number" step="any" min="0" value={minOrder}
-            onChange={(e) => setMinOrder(e.target.value)} placeholder="Ví dụ: 50000" />
+        {/* ==================== Đơn hàng tối thiểu ==================== */}
+
+        <div className="voucher-form-field">
+          <label
+            className="voucher-form-field__label"
+            htmlFor="voucher-min-order"
+          >
+            Giá trị đơn hàng tối thiểu (VND)
+          </label>
+
+          <input
+            id="voucher-min-order"
+            className="voucher-form-field__control"
+            type="number"
+            min="0"
+            step="any"
+            value={minOrderValue}
+            disabled={submitting}
+            placeholder="Ví dụ: 50000"
+            onChange={(event) =>
+              setMinOrderValue(
+                event.target.value,
+              )
+            }
+          />
         </div>
 
-        <div className="form-row">
-          <div className="field" style={{ flex: 1 }}>
-            <label className="label">Hạn hiệu lực — Ngày bắt đầu</label>
-            <input className="input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          </div>
-          <div className="field" style={{ flex: 1 }}>
-            <label className="label">Hạn hiệu lực — Ngày hết hạn</label>
-            <input className="input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-          </div>
-        </div>
+        {/* ==================== Thời hạn ==================== */}
 
-        {isEdit && (
-          <div className="field">
-            <label className="label">Trạng thái hoạt động</label>
-            <select className="input" value={active ? 'true' : 'false'} onChange={(e) => setActive(e.target.value === 'true')}>
-              <option value="true">Đang áp dụng</option>
-              <option value="false">Vô hiệu hóa</option>
-            </select>
+        {isEditMode ? (
+          <div className="voucher-form-field">
+            <span className="voucher-form-field__label">
+              Hạn hiệu lực
+            </span>
+
+            <div className="voucher-form-date-grid">
+              <label className="voucher-form-date-field">
+                <span className="voucher-form-date-field__label">
+                  Ngày bắt đầu
+                </span>
+
+                <input
+                  className="voucher-form-field__control"
+                  type="date"
+                  value={startDate}
+                  disabled={submitting}
+                  onChange={(event) =>
+                    setStartDate(
+                      event.target.value,
+                    )
+                  }
+                />
+              </label>
+
+              <label className="voucher-form-date-field">
+                <span className="voucher-form-date-field__label">
+                  Ngày hết hạn
+                </span>
+
+                <input
+                  className="voucher-form-field__control"
+                  type="date"
+                  value={endDate}
+                  disabled={submitting}
+                  onChange={(event) =>
+                    setEndDate(
+                      event.target.value,
+                    )
+                  }
+                />
+              </label>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="voucher-form-field">
+              <label
+                className="voucher-form-field__label"
+                htmlFor="voucher-start-date"
+              >
+                Hạn hiệu lực (Ngày bắt đầu)
+              </label>
+
+              <input
+                id="voucher-start-date"
+                className="voucher-form-field__control"
+                type="date"
+                value={startDate}
+                disabled={submitting}
+                onChange={(event) =>
+                  setStartDate(
+                    event.target.value,
+                  )
+                }
+              />
+            </div>
+
+            <div className="voucher-form-field">
+              <label
+                className="voucher-form-field__label"
+                htmlFor="voucher-end-date"
+              >
+                Hạn hiệu lực (Ngày hết hạn)
+              </label>
+
+              <input
+                id="voucher-end-date"
+                className="voucher-form-field__control"
+                type="date"
+                value={endDate}
+                disabled={submitting}
+                onChange={(event) =>
+                  setEndDate(
+                    event.target.value,
+                  )
+                }
+              />
+            </div>
+          </>
+        )}
+
+        {/* ==================== Trạng thái hoạt động ==================== */}
+
+        {isEditMode && (
+          <div className="voucher-form-field">
+            <label
+              className="voucher-form-field__label"
+              htmlFor="voucher-status"
+            >
+              Trạng thái hoạt động
+            </label>
+
+            <input
+              id="voucher-status"
+              className="voucher-form-field__control voucher-form-field__control--blank-status"
+              type="text"
+              value=""
+              disabled
+              readOnly
+              aria-label="Trạng thái hoạt động"
+            />
           </div>
         )}
 
-        <div className="form-row">
-          <div className="field" style={{ flex: 1 }}>
-            <label className="label">Giới hạn lượt dùng / khách</label>
-            <input className="input" type="number" min="0" step="1" value={perCustomer}
-              onChange={(e) => setPerCustomer(e.target.value)} placeholder="Ví dụ: 1" />
+        {/* ==================== Giới hạn sử dụng ==================== */}
+
+        <div className="voucher-form-two-columns">
+          <div className="voucher-form-field">
+            <label
+              className="voucher-form-field__label"
+              htmlFor="voucher-per-customer"
+            >
+              Giới hạn lượt dùng / khách
+            </label>
+
+            <input
+              id="voucher-per-customer"
+              className="voucher-form-field__control"
+              type="number"
+              min="0"
+              step="1"
+              value={
+                usageLimitPerCustomer
+              }
+              disabled={submitting}
+              onChange={(event) =>
+                setUsageLimitPerCustomer(
+                  event.target.value,
+                )
+              }
+            />
           </div>
-          <div className="field" style={{ flex: 1 }}>
-            <label className="label">Tổng lượt dùng tối đa</label>
-            <input className="input" type="number" min="0" step="1" value={maxTotal}
-              onChange={(e) => setMaxTotal(e.target.value)} placeholder="Ví dụ: 100" />
+
+          <div className="voucher-form-field">
+            <label
+              className="voucher-form-field__label"
+              htmlFor="voucher-max-total"
+            >
+              Tổng lượt dùng tối đa
+            </label>
+
+            <input
+              id="voucher-max-total"
+              className="voucher-form-field__control"
+              type="number"
+              min="0"
+              step="1"
+              value={maxTotalUses}
+              disabled={submitting}
+              onChange={(event) =>
+                setMaxTotalUses(
+                  event.target.value,
+                )
+              }
+            />
           </div>
         </div>
 
-        <div className="form-actions">
-          <button type="submit" className="btn btn--primary" disabled={submitting}>
-            {submitting ? 'Đang lưu…' : isEdit ? 'Lưu Thay Đổi' : 'Tạo Voucher'}
+        {/* ==================== Buttons ==================== */}
+
+        <div className="voucher-form-actions">
+          <button
+            type="submit"
+            className="voucher-form-button voucher-form-button--primary"
+            disabled={submitting}
+          >
+            {submitting
+              ? 'ĐANG LƯU…'
+              : isEditMode
+                ? 'LƯU THAY ĐỔI'
+                : 'TẠO VOUCHER'}
           </button>
-          <button type="button" className="btn btn--ghost" onClick={() => navigate('/vouchers')}>Hủy bỏ</button>
+
+          <button
+            type="button"
+            className="voucher-form-button voucher-form-button--cancel"
+            disabled={submitting}
+            onClick={handleCancel}
+          >
+            HỦY BỎ
+          </button>
         </div>
       </form>
     </div>

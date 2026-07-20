@@ -1,104 +1,301 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import {
-  listVouchers,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+
+import { Link } from 'react-router-dom';
+
+import {
   deactivateVoucher,
   DISCOUNT_TYPE_LABELS,
+  listVouchers,
   VOUCHER_STATUS_LABELS,
   type Voucher,
 } from '../../api/vouchers';
+
 import { errorMessage } from '../../api/client';
+import './VoucherList.css';
 
-const fmtMoney = (n: number) => n.toLocaleString('vi-VN');
+const formatMoney = (value: number) =>
+  value.toLocaleString('vi-VN');
 
-const fmtDate = (iso: string | null) => {
-  if (!iso) return '—';
-  const [y, m, d] = iso.slice(0, 10).split('-');
-  return `${d}/${m}/${y}`;
-};
-
-const discountValueLabel = (v: Voucher) => {
-  if (v.discountType === 'PERCENTAGE') {
-    const cap = v.maxDiscountAmount != null ? ` (Tối đa ${fmtMoney(v.maxDiscountAmount)}đ)` : '';
-    return `${v.discountValue}%${cap}`;
+const formatDate = (iso: string | null) => {
+  if (!iso) {
+    return '—';
   }
-  return `${fmtMoney(v.discountValue)} VND`;
+
+  const [year, month, day] = iso
+    .slice(0, 10)
+    .split('-');
+
+  return `${day}/${month}/${year}`;
 };
 
-const statusBadgeClass = (s: Voucher['status']) =>
-  s === 'ACTIVE' ? 'badge--active' : s === 'SCHEDULED' ? 'badge--scheduled' : 'badge--inactive';
+const getDiscountValue = (voucher: Voucher) => {
+  if (voucher.discountType === 'PERCENTAGE') {
+    const maximumDiscount =
+      voucher.maxDiscountAmount !== null
+        ? ` (Tối đa ${formatMoney(
+          voucher.maxDiscountAmount,
+        )}đ)`
+        : '';
+
+    return `${formatMoney(
+      voucher.discountValue,
+    )}%${maximumDiscount}`;
+  }
+
+  return `${formatMoney(
+    voucher.discountValue,
+  )} VND`;
+};
+
+const getStatusClass = (
+  status: Voucher['status'],
+) => {
+  switch (status) {
+    case 'ACTIVE':
+      return 'voucher-list-status--active';
+
+    case 'EXPIRED':
+      return 'voucher-list-status--expired';
+
+    case 'SCHEDULED':
+      return 'voucher-list-status--scheduled';
+
+    case 'INACTIVE':
+    default:
+      return 'voucher-list-status--inactive';
+  }
+};
 
 export default function VoucherList() {
-  const [items, setItems] = useState<Voucher[]>([]);
+  const [vouchers, setVouchers] = useState<
+    Voucher[]
+  >([]);
+
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [search, setSearch] = useState('');
 
-  const load = () => {
-    listVouchers()
-      .then(setItems)
-      .catch((e) => setError(errorMessage(e)))
-      .finally(() => setLoading(false));
-  };
-  useEffect(load, []);
+  const [deactivatingId, setDeactivatingId] =
+    useState<string | null>(null);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter((v) => v.code.toLowerCase().includes(q));
-  }, [items, search]);
+  const loadVouchers = useCallback(async () => {
+    setLoading(true);
 
-  const deactivate = async (v: Voucher) => {
-    if (!window.confirm(`Vô hiệu hóa voucher "${v.code}"? (ngừng áp dụng ngay lập tức)`)) return;
+    try {
+      const data = await listVouchers();
+
+      setVouchers(data);
+      setError('');
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadVouchers();
+  }, [loadVouchers]);
+
+  const filteredVouchers = useMemo(() => {
+    const keyword = search
+      .trim()
+      .toLowerCase();
+
+    if (!keyword) {
+      return vouchers;
+    }
+
+    return vouchers.filter((voucher) =>
+      voucher.code
+        .toLowerCase()
+        .includes(keyword),
+    );
+  }, [search, vouchers]);
+
+  const handleDeactivate = async (
+    voucher: Voucher,
+  ) => {
+    const confirmed = window.confirm(
+      `Bạn có chắc muốn vô hiệu voucher "${voucher.code}"?\n\n` +
+      'Voucher sẽ ngừng được áp dụng ngay lập tức.',
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeactivatingId(voucher.id);
     setError('');
-    try { await deactivateVoucher(v.id); load(); }
-    catch (err) { setError(errorMessage(err)); }
+
+    try {
+      await deactivateVoucher(voucher.id);
+      await loadVouchers();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setDeactivatingId(null);
+    }
   };
 
   return (
-    <div>
-      <div className="page-head page-head--row">
-        <div>
-          <h1 className="page-title">Chương Trình Khuyến Mãi & Vouchers</h1>
-          <p className="page-subtitle">Quản lý mã giảm giá toàn hệ thống.</p>
+    <div className="voucher-list-page">
+      {/* ================= HEADER ================= */}
+
+      <header className="voucher-list-header">
+        <h1 className="voucher-list-header__title">
+          Chương Trình Khuyến Mãi &amp; Vouchers
+        </h1>
+
+        <Link
+          to="/vouchers/new"
+          className="voucher-list-create-button"
+        >
+          + Tạo Voucher Mới
+        </Link>
+      </header>
+
+      {/* ================= SEARCH ================= */}
+
+      <div className="voucher-list-toolbar">
+        <input
+          type="search"
+          className="voucher-list-search"
+          value={search}
+          aria-label="Tìm theo mã voucher"
+          onChange={(event) =>
+            setSearch(event.target.value)
+          }
+        />
+      </div>
+
+      {error && (
+        <div className="voucher-list-error">
+          {error}
         </div>
-        <Link to="/vouchers/new" className="btn btn--primary">+ Tạo Voucher Mới</Link>
-      </div>
+      )}
 
-      <div className="toolbar">
-        <input className="input toolbar__search" placeholder="Tìm theo mã voucher…" value={search} onChange={(e) => setSearch(e.target.value)} />
-      </div>
+      {/* ================= TABLE ================= */}
 
-      {error && <div className="alert alert--error">{error}</div>}
-
-      <div className="table-wrap">
-        <table className="table">
+      <div className="voucher-list-table-wrap">
+        <table className="voucher-list-table">
           <thead>
-            <tr><th>Mã Voucher</th><th>Loại Giảm Giá</th><th>Giá Trị Giảm</th><th>Đơn Tối Thiểu</th><th>Ngày Hết Hạn</th><th>Trạng Thái</th><th>Hành Động</th></tr>
+            <tr>
+              <th>Mã Voucher</th>
+              <th>Loại giảm giá</th>
+              <th>Giá trị giảm</th>
+              <th>Đơn tối thiểu</th>
+              <th>Ngày hết hạn</th>
+              <th>Trạng thái</th>
+              <th>Hành động</th>
+            </tr>
           </thead>
+
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="table__empty">Đang tải…</td></tr>
-            ) : filtered.length === 0 ? (
-              <tr><td colSpan={7} className="table__empty">Chưa có voucher nào.</td></tr>
-            ) : filtered.map((v) => (
-              <tr key={v.id}>
-                <td style={{ fontWeight: 600 }}>{v.code}</td>
-                <td>{DISCOUNT_TYPE_LABELS[v.discountType]}</td>
-                <td>{discountValueLabel(v)}</td>
-                <td>{v.minOrderValue != null ? `${fmtMoney(v.minOrderValue)} VND` : '—'}</td>
-                <td>{fmtDate(v.endDate)}</td>
-                <td><span className={`badge ${statusBadgeClass(v.status)}`}>{VOUCHER_STATUS_LABELS[v.status]}</span></td>
-                <td>
-                  <span className="actions-cell">
-                    <Link to={`/vouchers/${v.id}/edit`} className="link-action">Sửa</Link>
-                    {(v.status === 'ACTIVE' || v.status === 'SCHEDULED') && (
-                      <button className="link-action link-action--danger" onClick={() => deactivate(v)}>Vô hiệu</button>
-                    )}
-                  </span>
+              <tr>
+                <td
+                  colSpan={7}
+                  className="voucher-list-table__empty"
+                >
+                  Đang tải…
                 </td>
               </tr>
-            ))}
+            ) : filteredVouchers.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={7}
+                  className="voucher-list-table__empty"
+                >
+                  Chưa có voucher nào.
+                </td>
+              </tr>
+            ) : (
+              filteredVouchers.map((voucher) => (
+                <tr key={voucher.id}>
+                  <td className="voucher-list-table__code">
+                    {voucher.code}
+                  </td>
+
+                  <td>
+                    {
+                      DISCOUNT_TYPE_LABELS[
+                      voucher.discountType
+                      ]
+                    }
+                  </td>
+
+                  <td>
+                    {getDiscountValue(voucher)}
+                  </td>
+
+                  <td>
+                    {voucher.minOrderValue !== null
+                      ? `${formatMoney(
+                        voucher.minOrderValue,
+                      )} VND`
+                      : '—'}
+                  </td>
+
+                  <td>
+                    {formatDate(voucher.endDate)}
+                  </td>
+
+                  <td>
+                    <span
+                      className={`voucher-list-status ${getStatusClass(
+                        voucher.status,
+                      )}`}
+                    >
+                      {
+                        VOUCHER_STATUS_LABELS[
+                        voucher.status
+                        ]
+                      }
+                    </span>
+                  </td>
+
+                  <td>
+                    <div className="voucher-list-actions">
+                      <Link
+                        to={`/vouchers/${voucher.id}/edit`}
+                        className="voucher-list-action"
+                      >
+                        Sửa
+                      </Link>
+
+                      {(voucher.status === 'ACTIVE' ||
+                        voucher.status ===
+                        'SCHEDULED') && (
+                          <button
+                            type="button"
+                            className="voucher-list-action voucher-list-action--danger"
+                            disabled={
+                              deactivatingId ===
+                              voucher.id
+                            }
+                            onClick={() =>
+                              void handleDeactivate(
+                                voucher,
+                              )
+                            }
+                          >
+                            {deactivatingId ===
+                              voucher.id
+                              ? 'Đang xử lý…'
+                              : 'Vô hiệu'}
+                          </button>
+                        )}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

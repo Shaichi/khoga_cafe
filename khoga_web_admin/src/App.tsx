@@ -1,30 +1,64 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import {
+  Routes,
+  Route,
+  Navigate,
+} from 'react-router-dom';
+
 import ProtectedRoute from './auth/ProtectedRoute';
 import RoleRoute from './auth/RoleRoute';
 import AppLayout from './layout/AppLayout';
+
 import Login from './pages/Login';
 import ForcePasswordChange from './pages/ForcePasswordChange';
 import Dashboard from './pages/Dashboard';
+
+/* ==================== Branch ==================== */
+
 import BranchList from './pages/branch/BranchList';
 import BranchForm from './pages/branch/BranchForm';
 import BranchSettings from './pages/branch/BranchSettings';
+
+/* ==================== User ==================== */
+
 import UserList from './pages/user/UserList';
 import UserForm from './pages/user/UserForm';
 import UserDetail from './pages/user/UserDetail';
+
+/* ==================== Catalog ==================== */
+
 import MenuItemList from './pages/catalog/MenuItemList';
 import MenuItemDetail from './pages/catalog/MenuItemDetail';
 import MenuItemForm from './pages/catalog/MenuItemForm';
+
+import CategoryCreate from './pages/catalog/CategoryCreate';
+import CategoryEdit from './pages/catalog/CategoryEdit';
+
 import RawMaterialList from './pages/catalog/RawMaterialList';
 import RawMaterialForm from './pages/catalog/RawMaterialForm';
+
+/* ==================== Voucher ==================== */
+
 import VoucherList from './pages/voucher/VoucherList';
 import VoucherForm from './pages/voucher/VoucherForm';
+
+/* ==================== Customer ==================== */
+
 import CustomerList from './pages/customer/CustomerList';
 import CustomerForm from './pages/customer/CustomerForm';
 import CustomerHistory from './pages/customer/CustomerHistory';
+
+/* ==================== Profile ==================== */
+
 import ProfileView from './pages/profile/ProfileView';
 import ProfileEdit from './pages/profile/ProfileEdit';
 import ChangePassword from './pages/profile/ChangePassword';
+
+/* ==================== Settings ==================== */
+
 import CentralSettings from './pages/settings/CentralSettings';
+
+/* ==================== Reports ==================== */
+
 import ReportsHome from './pages/reports/ReportsHome';
 import HqConsolidated from './pages/reports/HqConsolidated';
 import StoreRevenue from './pages/reports/StoreRevenue';
@@ -39,71 +73,271 @@ import AnomalyReport from './pages/reports/AnomalyReport';
 export default function App() {
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
+      {/* ==================== Public routes ==================== */}
+
+      <Route
+        path="/login"
+        element={<Login />}
+      />
+
+      {/* ==================== Protected routes ==================== */}
 
       <Route element={<ProtectedRoute />}>
-        <Route path="/force-password-change" element={<ForcePasswordChange />} />
+        <Route
+          path="/force-password-change"
+          element={<ForcePasswordChange />}
+        />
 
         <Route element={<AppLayout />}>
-          {/* Dashboard — tất cả role */}
-          <Route path="/" element={<Dashboard />} />
+          {/* Dashboard — tất cả tài khoản đã đăng nhập */}
 
-          {/* Profile — tất cả role đã đăng nhập */}
-          <Route path="/profile" element={<ProfileView />} />
-          <Route path="/profile/edit" element={<ProfileEdit />} />
-          <Route path="/profile/password" element={<ChangePassword />} />
+          <Route
+            path="/"
+            element={<Dashboard />}
+          />
 
-          {/* Tất cả routes còn lại bảo vệ bằng RoleRoute */}
+          {/* ==================== Profile ==================== */}
+
+          <Route
+            path="/profile"
+            element={<ProfileView />}
+          />
+
+          <Route
+            path="/profile/edit"
+            element={<ProfileEdit />}
+          />
+
+          <Route
+            path="/profile/password"
+            element={<ChangePassword />}
+          />
+
+          {/* ==================== Role protected routes ==================== */}
+
           <Route element={<RoleRoute />}>
-            {/* SSADMIN */}
-            <Route path="/branches" element={<BranchList />} />
-            <Route path="/branches/new" element={<BranchForm />} />
-            <Route path="/branches/:id" element={<BranchForm />} />
+            {/* ==================== Branch ==================== */}
 
-            {/* SSADMIN + STORE_MANAGER */}
-            <Route path="/branches/:id/settings" element={<BranchSettings />} />
+            <Route
+              path="/branches"
+              element={<BranchList />}
+            />
 
-            {/* SSADMIN */}
-            <Route path="/users" element={<UserList />} />
-            <Route path="/users/new" element={<UserForm />} />
-            <Route path="/users/:id" element={<UserDetail />} />
-            <Route path="/users/:id/edit" element={<UserForm />} />
+            <Route
+              path="/branches/new"
+              element={<BranchForm />}
+            />
 
-            {/* SSADMIN + BUSINESSADMIN */}
-            <Route path="/catalog" element={<MenuItemList />} />
-            <Route path="/catalog/new" element={<MenuItemForm />} />
-            <Route path="/catalog/categories" element={<Navigate to="/catalog" replace />} />
-            <Route path="/catalog/:id" element={<MenuItemDetail />} />
-            <Route path="/catalog/:id/edit" element={<MenuItemForm />} />
-            <Route path="/raw-materials" element={<RawMaterialList />} />
-            <Route path="/raw-materials/new" element={<RawMaterialForm />} />
-            <Route path="/raw-materials/:id/edit" element={<RawMaterialForm />} />
-            <Route path="/vouchers" element={<VoucherList />} />
-            <Route path="/vouchers/new" element={<VoucherForm />} />
-            <Route path="/vouchers/:id/edit" element={<VoucherForm />} />
-            <Route path="/customers" element={<CustomerList />} />
-            <Route path="/customers/new" element={<CustomerForm />} />
-            <Route path="/customers/:id/edit" element={<CustomerForm />} />
-            <Route path="/customers/:id/history" element={<CustomerHistory />} />
-            <Route path="/settings" element={<CentralSettings />} />
+            <Route
+              path="/branches/:id"
+              element={<BranchForm />}
+            />
 
-            {/* Reports: HQ + STORE_MANAGER */}
-            <Route path="/reports" element={<ReportsHome />} />
-            <Route path="/reports/hq-consolidated" element={<HqConsolidated />} />
-            <Route path="/reports/store-revenue" element={<StoreRevenue />} />
-            <Route path="/reports/cogs" element={<CogsReport />} />
-            <Route path="/reports/change-history" element={<ChangeHistory />} />
-            <Route path="/reports/access-review" element={<AccessReview />} />
-            <Route path="/reports/loyalty-liability" element={<LoyaltyLiability />} />
-            <Route path="/reports/labour" element={<LabourReport />} />
-            <Route path="/reports/z-report" element={<ZReport />} />
-            <Route path="/reports/anomaly" element={<AnomalyReport />} />
+            <Route
+              path="/branches/:id/settings"
+              element={<BranchSettings />}
+            />
+
+            {/* ==================== User ==================== */}
+
+            <Route
+              path="/users"
+              element={<UserList />}
+            />
+
+            <Route
+              path="/users/new"
+              element={<UserForm />}
+            />
+
+            <Route
+              path="/users/:id"
+              element={<UserDetail />}
+            />
+
+            <Route
+              path="/users/:id/edit"
+              element={<UserForm />}
+            />
+
+            {/* ==================== Catalog ==================== */}
+
+            {/* Danh sách món ăn và danh mục */}
+            <Route
+              path="/catalog"
+              element={<MenuItemList />}
+            />
+
+            {/* Thêm danh mục */}
+            <Route
+              path="/catalog/categories/new"
+              element={<CategoryCreate />}
+            />
+
+            {/* Chỉnh sửa danh mục */}
+            <Route
+              path="/catalog/categories/:id/edit"
+              element={<CategoryEdit />}
+            />
+
+            {/* Đường dẫn danh mục cũ */}
+            <Route
+              path="/catalog/categories"
+              element={
+                <Navigate
+                  to="/catalog"
+                  replace
+                />
+              }
+            />
+
+            {/* Thêm món ăn */}
+            <Route
+              path="/catalog/new"
+              element={<MenuItemForm />}
+            />
+
+            {/* Chi tiết món ăn */}
+            <Route
+              path="/catalog/:id"
+              element={<MenuItemDetail />}
+            />
+
+            {/* Chỉnh sửa món ăn */}
+            <Route
+              path="/catalog/:id/edit"
+              element={<MenuItemForm />}
+            />
+
+            {/* ==================== Raw materials ==================== */}
+
+            <Route
+              path="/raw-materials"
+              element={<RawMaterialList />}
+            />
+
+            <Route
+              path="/raw-materials/new"
+              element={<RawMaterialForm />}
+            />
+
+            <Route
+              path="/raw-materials/:id/edit"
+              element={<RawMaterialForm />}
+            />
+
+            {/* ==================== Vouchers ==================== */}
+
+            <Route
+              path="/vouchers"
+              element={<VoucherList />}
+            />
+
+            <Route
+              path="/vouchers/new"
+              element={<VoucherForm />}
+            />
+
+            <Route
+              path="/vouchers/:id/edit"
+              element={<VoucherForm />}
+            />
+
+            {/* ==================== Customers ==================== */}
+
+            <Route
+              path="/customers"
+              element={<CustomerList />}
+            />
+
+            <Route
+              path="/customers/new"
+              element={<CustomerForm />}
+            />
+
+            <Route
+              path="/customers/:id/edit"
+              element={<CustomerForm />}
+            />
+
+            <Route
+              path="/customers/:id/history"
+              element={<CustomerHistory />}
+            />
+
+            {/* ==================== Settings ==================== */}
+
+            <Route
+              path="/settings"
+              element={<CentralSettings />}
+            />
+
+            {/* ==================== Reports ==================== */}
+
+            <Route
+              path="/reports"
+              element={<ReportsHome />}
+            />
+
+            <Route
+              path="/reports/hq-consolidated"
+              element={<HqConsolidated />}
+            />
+
+            <Route
+              path="/reports/store-revenue"
+              element={<StoreRevenue />}
+            />
+
+            <Route
+              path="/reports/cogs"
+              element={<CogsReport />}
+            />
+
+            <Route
+              path="/reports/change-history"
+              element={<ChangeHistory />}
+            />
+
+            <Route
+              path="/reports/access-review"
+              element={<AccessReview />}
+            />
+
+            <Route
+              path="/reports/loyalty-liability"
+              element={<LoyaltyLiability />}
+            />
+
+            <Route
+              path="/reports/labour"
+              element={<LabourReport />}
+            />
+
+            <Route
+              path="/reports/z-report"
+              element={<ZReport />}
+            />
+
+            <Route
+              path="/reports/anomaly"
+              element={<AnomalyReport />}
+            />
           </Route>
         </Route>
       </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {/* ==================== Không tìm thấy route ==================== */}
+
+      <Route
+        path="*"
+        element={
+          <Navigate
+            to="/"
+            replace
+          />
+        }
+      />
     </Routes>
   );
 }
-

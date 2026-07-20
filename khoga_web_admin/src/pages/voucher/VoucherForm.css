@@ -1,0 +1,412 @@
+/* ======================================================
+   VOUCHER FORM PAGE
+   ====================================================== */
+
+.voucher-form-page {
+    width: 100%;
+    min-width: 0;
+    color: #45291c;
+}
+
+/* ======================================================
+   HEADER
+   ====================================================== */
+
+.voucher-form-page__header {
+    min-height: 46px;
+    margin-bottom: 35px;
+    padding-bottom: 14px;
+
+    border-bottom: 1px solid #ead9cc;
+
+    display: flex;
+    align-items: flex-start;
+}
+
+.voucher-form-page__title {
+    margin: 1px 0 0;
+
+    color: #302019;
+
+    font-size: 24px;
+    line-height: 31px;
+    font-weight: 700;
+}
+
+/* ======================================================
+   ERROR
+   ====================================================== */
+
+.voucher-form-page__error {
+    width: min(100%, 662px);
+
+    margin: -18px 0 17px;
+    padding: 11px 14px;
+
+    box-sizing: border-box;
+
+    border: 1px solid #f1b8b8;
+    border-radius: 8px;
+
+    background: #fff4f4;
+    color: #c52b2b;
+
+    font-size: 14px;
+    line-height: 20px;
+}
+
+/* ======================================================
+   FORM CARD
+   ====================================================== */
+
+.voucher-form-card {
+    width: min(100%, 662px);
+
+    padding: 31px 30px 30px;
+
+    box-sizing: border-box;
+
+    border: 1px solid #ead9cc;
+    border-radius: 12px;
+
+    background: #ffffff;
+
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.voucher-form-card--loading {
+    min-height: 150px;
+
+    align-items: center;
+    justify-content: center;
+
+    color: #8d7a70;
+}
+
+/* ======================================================
+   FORM FIELD
+   ====================================================== */
+
+.voucher-form-field {
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.voucher-form-field__label {
+    color: #5a3525;
+
+    font-size: 16px;
+    line-height: 21px;
+    font-weight: 700;
+}
+
+.voucher-form-field__control {
+    width: 100%;
+    height: 42px;
+
+    padding: 0 10px;
+
+    box-sizing: border-box;
+
+    border: 1px solid #dfcebf;
+    border-radius: 9px;
+
+    outline: none;
+
+    background: #ffffff;
+    color: #30251f;
+
+    font-family: inherit;
+    font-size: 15px;
+    line-height: 20px;
+
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease,
+        background-color 0.15s ease;
+}
+
+.voucher-form-field__control::placeholder {
+    color: #4f4641;
+    opacity: 1;
+}
+
+.voucher-form-field__control:focus {
+    border-color: #9c765f;
+
+    box-shadow:
+        0 0 0 3px rgba(107, 69, 48, 0.1);
+}
+
+.voucher-form-field__control:disabled {
+    cursor: not-allowed;
+    opacity: 1;
+}
+
+/* ======================================================
+   READONLY INPUT
+   ====================================================== */
+
+.voucher-form-field__control--readonly {
+    background: #eeeeee;
+    color: #77706c;
+}
+
+/* ======================================================
+   DISCOUNT TYPE
+   Không hiện chữ và không hiện mũi tên
+   ====================================================== */
+
+.voucher-form-field__control--discount-type {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+
+    padding-right: 10px;
+
+    border: 1px solid #dfcebf;
+
+    background-color: #eeeeee;
+    background-image: none;
+
+    color: transparent;
+    text-shadow: none;
+
+    cursor: pointer;
+}
+
+/*
+ * Xóa biểu tượng mũi tên trên Microsoft Edge/IE cũ.
+ */
+.voucher-form-field__control--discount-type::-ms-expand {
+    display: none;
+}
+
+/*
+ * Chữ trong danh sách lựa chọn vẫn hiển thị
+ * khi người dùng bấm vào ô.
+ */
+.voucher-form-field__control--discount-type option {
+    background: #ffffff;
+    color: #30251f;
+}
+
+/*
+ * Giữ nguyên giao diện màu xám khi focus.
+ */
+.voucher-form-field__control--discount-type:focus {
+    border-color: #dfcebf;
+    box-shadow: none;
+}
+
+.voucher-form-field__control--discount-type:disabled {
+    background-color: #eeeeee;
+    color: transparent;
+    opacity: 1;
+}
+
+/* ======================================================
+   BLANK STATUS
+   Ô trạng thái không hiển thị chữ
+   ====================================================== */
+
+.voucher-form-field__control--blank-status {
+    border: 1px solid #dfcebf;
+
+    background-color: #eeeeee;
+    color: transparent;
+
+    text-shadow: none;
+
+    cursor: not-allowed;
+}
+
+.voucher-form-field__control--blank-status:focus {
+    border-color: #dfcebf;
+    box-shadow: none;
+}
+
+.voucher-form-field__control--blank-status:disabled {
+    background-color: #eeeeee;
+    color: transparent;
+    opacity: 1;
+}
+
+/* ======================================================
+   DATE GRID
+   ====================================================== */
+
+.voucher-form-date-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 12px;
+}
+
+.voucher-form-date-field {
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.voucher-form-date-field__label {
+    color: #8b786e;
+
+    font-size: 12px;
+    line-height: 17px;
+    font-weight: 500;
+}
+
+/* ======================================================
+   TWO-COLUMN FIELDS
+   ====================================================== */
+
+.voucher-form-two-columns {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 12px;
+}
+
+/* ======================================================
+   DATE INPUT
+   ====================================================== */
+
+.voucher-form-field__control[type='date'] {
+    color: #30251f;
+}
+
+.voucher-form-field__control[type='date'] ::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.7;
+}
+
+/* ======================================================
+   NUMBER INPUT
+   ====================================================== */
+
+.voucher-form-field__control[type='number'] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+}
+
+.voucher-form-field__control[type='number'] ::-webkit-inner-spin-button,
+.voucher-form-field__control[type='number'] ::-webkit-outer-spin-button {
+    margin: 0;
+}
+
+/* ======================================================
+   ACTION BUTTONS
+   ====================================================== */
+
+.voucher-form-actions {
+    margin-top: 30px;
+
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.voucher-form-button {
+    height: 41px;
+
+    padding: 0 24px;
+
+    border-radius: 8px;
+
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 18px;
+    font-weight: 500;
+
+    cursor: pointer;
+
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease,
+        opacity 0.15s ease;
+}
+
+.voucher-form-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Nút chính */
+
+.voucher-form-button--primary {
+    min-width: 143px;
+
+    border: 1px solid #422516;
+
+    background: #422516;
+    color: #ffffff;
+}
+
+.voucher-form-button--primary:hover:not(:disabled) {
+    border-color: #58321d;
+    background: #58321d;
+}
+
+/* Nút hủy */
+
+.voucher-form-button--cancel {
+    min-width: 102px;
+
+    border: 1px solid #dfcebf;
+
+    background: #ffffff;
+    color: #948178;
+}
+
+.voucher-form-button--cancel:hover:not(:disabled) {
+    background: #f8f2ed;
+    color: #5c4235;
+}
+
+/* ======================================================
+   RESPONSIVE
+   ====================================================== */
+
+@media (max-width: 720px) {
+    .voucher-form-page__header {
+        margin-bottom: 24px;
+    }
+
+    .voucher-form-page__title {
+        font-size: 22px;
+        line-height: 29px;
+    }
+
+    .voucher-form-card {
+        padding: 25px 20px;
+    }
+
+    .voucher-form-date-grid,
+    .voucher-form-two-columns {
+        grid-template-columns: 1fr;
+    }
+
+    .voucher-form-actions {
+        margin-top: 20px;
+
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .voucher-form-button {
+        width: 100%;
+    }
+}

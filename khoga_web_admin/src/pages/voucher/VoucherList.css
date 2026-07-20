@@ -1,0 +1,259 @@
+.voucher-list-page {
+    width: 100%;
+    min-width: 0;
+    color: #3d281e;
+}
+
+.voucher-list-header {
+    min-height: 55px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #ead9cc;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.voucher-list-header__title {
+    margin: 4px 0 0;
+    color: #2f211a;
+    font-size: 24px;
+    line-height: 31px;
+    font-weight: 700;
+}
+
+.voucher-list-create-button {
+    height: 39px;
+    padding: 0 19px;
+    border: 1px solid #452617;
+    border-radius: 8px;
+    background: #452617;
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease;
+}
+
+.voucher-list-create-button:hover {
+    border-color: #5c321e;
+    background: #5c321e;
+    color: #ffffff;
+}
+
+.voucher-list-toolbar {
+    margin: 33px 0 20px;
+    display: flex;
+    align-items: center;
+}
+
+.voucher-list-search {
+    width: 153px;
+    height: 42px;
+    padding: 0 12px;
+    box-sizing: border-box;
+    border: 1px solid #dfcdbf;
+    border-radius: 8px;
+    outline: none;
+    background: #ffffff;
+    color: #38271f;
+    font-family: inherit;
+    font-size: 14px;
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.voucher-list-search:focus {
+    border-color: #a47b61;
+    box-shadow: 0 0 0 3px rgba(108, 70, 48, 0.1);
+}
+
+/* Bỏ biểu tượng xóa mặc định của input search */
+.voucher-list-search::-webkit-search-cancel-button {
+    display: none;
+}
+
+.voucher-list-error {
+    margin-bottom: 14px;
+    padding: 11px 14px;
+    border: 1px solid #f0b7b7;
+    border-radius: 8px;
+    background: #fff4f4;
+    color: #c52a2a;
+    font-size: 14px;
+    line-height: 20px;
+}
+
+.voucher-list-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid #ead9cc;
+    border-radius: 11px;
+    background: #ffffff;
+    box-sizing: border-box;
+}
+
+.voucher-list-table {
+    width: 100%;
+    min-width: 1000px;
+    border-collapse: collapse;
+    table-layout: fixed;
+    color: #3f2d24;
+    font-size: 14px;
+}
+
+.voucher-list-table th,
+.voucher-list-table td {
+    height: 48px;
+    padding: 0 15px;
+    border-bottom: 1px solid #eaded5;
+    box-sizing: border-box;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.voucher-list-table th {
+    height: 49px;
+    background: #f4eadf;
+    color: #4a3023;
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.voucher-list-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.voucher-list-table th:nth-child(1) {
+    width: 12%;
+}
+
+.voucher-list-table th:nth-child(2) {
+    width: 21%;
+}
+
+.voucher-list-table th:nth-child(3) {
+    width: 18%;
+}
+
+.voucher-list-table th:nth-child(4) {
+    width: 13%;
+}
+
+.voucher-list-table th:nth-child(5) {
+    width: 13%;
+}
+
+.voucher-list-table th:nth-child(6) {
+    width: 12%;
+}
+
+.voucher-list-table th:nth-child(7) {
+    width: 13%;
+}
+
+.voucher-list-table__code {
+    color: #36241c;
+    font-weight: 700;
+}
+
+.voucher-list-table__empty {
+    height: 80px !important;
+    color: #8a786f;
+    text-align: center !important;
+}
+
+.voucher-list-status {
+    min-height: 23px;
+    padding: 3px 9px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    font-size: 12px;
+    line-height: 17px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.voucher-list-status--active {
+    background: #e8f5e9;
+    color: #277832;
+}
+
+.voucher-list-status--expired {
+    border: 1px solid #ff7d9b;
+    background: #ffe7ed;
+    color: #d12b4f;
+}
+
+.voucher-list-status--scheduled {
+    background: #fff1d8;
+    color: #a66a00;
+}
+
+.voucher-list-status--inactive {
+    background: #f0ece9;
+    color: #81736b;
+}
+
+.voucher-list-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 17px;
+    white-space: nowrap;
+}
+
+.voucher-list-action {
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: #43291d;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 19px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.voucher-list-action:hover {
+    text-decoration: underline;
+}
+
+.voucher-list-action--danger {
+    color: #d62929;
+}
+
+.voucher-list-action:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    text-decoration: none;
+}
+
+@media (max-width: 780px) {
+    .voucher-list-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .voucher-list-create-button {
+        align-self: flex-start;
+    }
+
+    .voucher-list-toolbar {
+        margin-top: 22px;
+    }
+}
