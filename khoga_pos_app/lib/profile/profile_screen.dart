@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../api/api_client.dart';
@@ -90,11 +91,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
                 const Text('Email', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: kBrown)),
                 const SizedBox(height: 8),
-                TextField(key: const Key('profile-email'), controller: _email, keyboardType: TextInputType.emailAddress),
+                TextField(key: const Key('profile-email'), controller: _email, keyboardType: TextInputType.emailAddress, inputFormatters: [LengthLimitingTextInputFormatter(100)]),
                 const SizedBox(height: 16),
                 const Text('Số điện thoại', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: kBrown)),
                 const SizedBox(height: 8),
-                TextField(key: const Key('profile-phone'), controller: _phone, keyboardType: TextInputType.phone),
+                TextField(key: const Key('profile-phone'), controller: _phone, keyboardType: TextInputType.phone, inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(20)]),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   key: const Key('profile-save'),

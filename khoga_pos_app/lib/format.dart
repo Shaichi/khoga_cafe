@@ -1,3 +1,5 @@
+import 'package:flutter/services.dart';
+
 /// Formats a VND amount with '.' thousands separators, e.g. 30000 -> "30.000".
 String formatVnd(num amount) {
   final digits = amount.round().abs().toString();
@@ -31,5 +33,56 @@ String formatDateTime(String? iso8601) {
     return '$d/$m/$y $h:$min';
   } catch (_) {
     return iso8601;
+  }
+}
+
+/// Formatter for text inputs to automatically add '.' thousands separators.
+class CurrencyInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) {
+      return newValue.copyWith(text: '');
+    }
+
+    // Handle backspace properly if deleting a separator
+    if (oldValue.text.length > newValue.text.length) {
+      if (oldValue.text.substring(newValue.selection.start, newValue.selection.start + 1) == '.') {
+        // We'll let the user delete the dot, but we need to reformat everything anyway
+      }
+    }
+
+    // Clean up non-digits
+    final numericString = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (numericString.isEmpty) {
+      return newValue.copyWith(text: '', selection: const TextSelection.collapsed(offset: 0));
+    }
+
+    // Format with dots
+    final numValue = int.parse(numericString);
+    final formattedString = formatVnd(numValue);
+
+    // Calculate new cursor position
+    int selectionIndex = newValue.selection.end;
+    
+    // We can simply set the cursor at the end for simplicity, 
+    // or calculate it based on dots added. For currency input, 
+    // usually users type at the end.
+    // A robust cursor position calculation:
+    int diff = formattedString.length - newValue.text.length;
+    selectionIndex += diff;
+    
+    if (selectionIndex > formattedString.length) {
+      selectionIndex = formattedString.length;
+    } else if (selectionIndex < 0) {
+      selectionIndex = 0;
+    }
+
+    return TextEditingValue(
+      text: formattedString,
+      selection: TextSelection.collapsed(offset: formattedString.length), // Always put cursor at end for simplicity
+    );
   }
 }

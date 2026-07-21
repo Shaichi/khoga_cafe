@@ -59,10 +59,10 @@ void main() {
 
     // Pick employee, fill date + times, save.
     await tester.tap(find.byKey(const Key('emp-u2')));
-    await tester.enterText(find.byKey(const Key('shift-date')), '2026-06-30');
+    final tmr = DateTime.now().add(const Duration(days: 1));
+    final tmrStr = '${tmr.year}-${tmr.month.toString().padLeft(2, '0')}-${tmr.day.toString().padLeft(2, '0')}';
+    await tester.enterText(find.byKey(const Key('shift-date')), tmrStr);
     await tester.tap(find.byKey(const Key('type-AFTERNOON')));
-    await tester.enterText(find.byKey(const Key('shift-start')), '12:00');
-    await tester.enterText(find.byKey(const Key('shift-end')), '18:00');
     await tester.ensureVisible(find.byKey(const Key('schedule-save')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('schedule-save')));
@@ -87,7 +87,6 @@ void main() {
     // Employee field is read-only text (no chooser); date is prefilled.
     expect(find.byKey(const Key('emp-u1')), findsNothing);
     await tester.tap(find.byKey(const Key('type-FULL_DAY')));
-    await tester.enterText(find.byKey(const Key('shift-end')), '19:00');
     await tester.ensureVisible(find.byKey(const Key('schedule-save')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('schedule-save')));

@@ -68,107 +68,150 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     _load();
   }
 
+
   @override
   Widget build(BuildContext context) {
     final role = context.read<AuthController>().profile?.role;
     final isCashier = role == 'CASHIER';
     final shift = context.read<ShiftController>().active;
 
-    // Fix 1: Cashier chưa mở ca → chặn truy cập
     if (isCashier && shift == null) {
       return Scaffold(
-        appBar: AppBar(
-          backgroundColor: kBrown,
-          foregroundColor: Colors.white,
-          title: const Text('Lịch sử đơn hàng'),
-        ),
-        body: const Center(
-          child: Padding(
-            padding: EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.lock_outline, size: 48, color: kMuted),
-                SizedBox(height: 16),
-                Text('Bạn cần mở ca trước khi xem lịch sử đơn hàng.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: kMuted, fontSize: 15)),
-              ],
-            ),
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              const Expanded(
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.lock_outline, size: 48, color: Color(0xFF8C766C)),
+                        SizedBox(height: 16),
+                        Text('Bạn cần mở ca trước khi xem lịch sử đơn hàng.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Color(0xFF8C766C), fontSize: 15)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              _buildBottomButton(),
+            ],
           ),
         ),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: kBrown,
-        foregroundColor: Colors.white,
-        title: const Text('Lịch sử đơn hàng'),
-      ),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
+            _buildHeader(),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: TextField(
-                key: const Key('order-history-search'),
-                decoration: const InputDecoration(
-                  hintText: 'Tìm theo mã đơn (VD: OD-1234)...',
-                  prefixIcon: Icon(Icons.search),
-                ),
-                onChanged: (v) => setState(() => _search = v.trim()),
-              ),
-            ),
-            if (isCashier)
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: Text('Đang hiển thị đơn hàng trong ca hiện tại', style: TextStyle(color: kMuted, fontStyle: FontStyle.italic)),
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    final picked = await showDateRangePicker(
-                      context: context,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime.now().add(const Duration(days: 1)),
-                      initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
-                    );
-                    if (picked != null) {
-                      setState(() {
-                        _startDate = picked.start;
-                        _endDate = picked.end;
-                      });
-                      _load();
-                    }
-                  },
-                  icon: const Icon(Icons.date_range),
-                  label: Text('Ngày: ${formatDate(_startDate)} - ${formatDate(_endDate)}'),
-                ),
-              ),
-            SizedBox(
-              height: 56,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                children: [
-                  for (final f in _filters)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        key: Key('filter-${f.$1 ?? 'ALL'}'),
-                        label: Text(f.$2),
-                        selected: _status == f.$1,
-                        onSelected: (_) => _selectFilter(f.$1),
-                      ),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: SizedBox(
+                height: 38,
+                child: TextField(
+                  key: const Key('order-history-search'),
+                  decoration: InputDecoration(
+                    hintText: 'Tìm số đơn hàng, mã đơn...',
+                    hintStyle: const TextStyle(fontFamily: 'Arial', fontSize: 13, color: Color(0xFF8C766C)),
+                    prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF8C766C)),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 0),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFFEADDD3)),
                     ),
-                ],
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFFC89D7C)),
+                    ),
+                  ),
+                  onChanged: (v) => setState(() => _search = v.trim()),
+                ),
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: SizedBox(
+                height: 38,
+                child: DropdownButtonFormField<String?>(
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: const Color(0xFFFAFAFA),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 0),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFFEADDD3)),
+                    ),
+                  ),
+                  value: _status,
+                  icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF8C766C)),
+                  items: _filters.map((f) => DropdownMenuItem(
+                    value: f.$1,
+                    child: Text(f.$2, style: const TextStyle(fontFamily: 'Segoe UI', fontSize: 13, color: Color(0xFF2C1A11))),
+                  )).toList(),
+                  onChanged: _selectFilter,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             Expanded(child: RefreshIndicator(onRefresh: _load, child: _list())),
+            _buildBottomButton(),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Row(
+              children: [
+                const Icon(Icons.arrow_back_ios, size: 14, color: Color(0xFF8C766C)),
+                const SizedBox(width: 4),
+                const Text('Quay lại', style: TextStyle(fontFamily: 'Segoe UI', fontSize: 14, color: Color(0xFF8C766C))),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Text('Đơn Hàng Chi Nhánh', style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 19, color: Color(0xFF2C1A11))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomButton() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+      color: Colors.white,
+      child: SizedBox(
+        width: double.infinity,
+        height: 48,
+        child: OutlinedButton(
+          style: OutlinedButton.styleFrom(
+            backgroundColor: Colors.white,
+            side: const BorderSide(color: Color(0xFFEADDD3)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            elevation: 0,
+          ),
+          onPressed: () => Navigator.pop(context),
+          child: const Text(
+            'Quay lại bán hàng',
+            style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF3D2314)),
+          ),
         ),
       ),
     );
@@ -187,43 +230,108 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     }
     return ListView.separated(
       key: const Key('order-list'),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       itemCount: filtered.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (_, i) => _row(filtered[i]),
     );
   }
 
-  Widget _row(OrderSummary o) => Card(
-        margin: EdgeInsets.zero,
-        child: ListTile(
-          key: Key('order-row-${o.id}'),
-          title: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(o.orderNumber, style: const TextStyle(fontWeight: FontWeight.bold)),
-              StatusChip(o.status),
-            ],
-          ),
-          subtitle: Text(_buildSubtitle(o)),
-          trailing: Text('${formatVnd(o.total)} VND', style: const TextStyle(fontWeight: FontWeight.w600, color: kBrown)),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => OrderDetailScreen(orderId: o.id)),
-          ),
-        ),
-      );
+  Widget _row(OrderSummary o) {
+    Color bg, text;
+    String statusStr;
+    switch (o.status) {
+      case 'PENDING':
+      case 'PREPARING':
+        bg = const Color(0xFFE3F2FD);
+        text = const Color(0xFF1565C0);
+        statusStr = 'Đang pha chế';
+        break;
+      case 'READY':
+        bg = const Color(0xFFFFF8E1);
+        text = const Color(0xFFB78103);
+        statusStr = 'Chờ lấy hàng';
+        break;
+      case 'COMPLETED':
+        bg = const Color(0xFFE8F5E9);
+        text = const Color(0xFF2E7D32);
+        statusStr = 'Hoàn thành';
+        break;
+      case 'CANCELLED':
+        bg = const Color(0xFFFDE8EB);
+        text = const Color(0xFFCF6679);
+        statusStr = 'Đã hủy đơn';
+        break;
+      default:
+        bg = const Color(0xFFF5F5F5);
+        text = const Color(0xFF757575);
+        statusStr = o.status;
+    }
 
-  String _buildSubtitle(OrderSummary o) {
-    final parts = <String>[];
+    String timeStr = '--:--';
     if (o.createdAt != null) {
       try {
         final dt = DateTime.parse(o.createdAt!);
-        parts.add('${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}');
+        timeStr = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
       } catch (_) {}
     }
-    parts.add('${o.itemCount} món');
-    parts.add(paymentMethodLabel(o.paymentMethod));
-    if (o.customerName != null) parts.add(o.customerName!);
-    return parts.join(' · ');
+
+    return GestureDetector(
+      key: Key('order-row-${o.id}'),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => OrderDetailScreen(orderId: o.id)),
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFDFDFD),
+          border: Border.all(color: const Color(0xFFEADDD3)),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Đơn ${o.orderNumber} (${o.orderType == 'DINE_IN' ? 'Dine-in' : 'Take-away'})',
+                    style: const TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF2C1A11)),
+                  ),
+                  Text(
+                    'Thời gian: $timeStr | Mã: ${o.id.split('-').last}',
+                    style: const TextStyle(fontFamily: 'Segoe UI', fontSize: 11, color: Color(0xFF8C766C)),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '${formatVnd(o.total)} đ',
+                  style: const TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 12.5, color: Color(0xFF3D2314)),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: bg,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    statusStr,
+                    style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 9, color: text),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

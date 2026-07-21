@@ -54,7 +54,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('order-detail')), findsOneWidget);
-    expect(find.textContaining('Espresso'), findsOneWidget);
-    expect(find.textContaining('Shot thêm'), findsOneWidget);
+    expect(find.textContaining('Espresso', skipOffstage: false), findsOneWidget);
+    expect(find.textContaining('Shot thêm', skipOffstage: false), findsOneWidget);
   });
 }

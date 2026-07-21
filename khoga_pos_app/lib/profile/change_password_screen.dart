@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../api/api_client.dart';
@@ -115,7 +116,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         children: [
           Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: kBrown)),
           const SizedBox(height: 8),
-          TextField(key: key, controller: c, obscureText: true),
+          TextField(key: key, controller: c, obscureText: true, inputFormatters: [LengthLimitingTextInputFormatter(255)]),
         ],
       );
 }

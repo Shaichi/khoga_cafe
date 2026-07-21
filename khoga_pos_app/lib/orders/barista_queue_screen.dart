@@ -6,8 +6,11 @@ import '../api/api_client.dart';
 import '../api/models.dart';
 import '../api/order_api.dart';
 import '../auth/auth_controller.dart';
+import '../auth/logout_confirm_modal.dart';
 import '../theme.dart';
+import '../profile/profile_screen.dart';
 import 'order_labels.dart';
+import 'order_detail_screen.dart';
 
 /// Screen 57/58 (landscape) — the Barista Portal. This is the role-home for a
 /// BARISTA: instead of the portrait staff Home + cash-register shift gate, the
@@ -32,20 +35,12 @@ class _BaristaQueueScreenState extends State<BaristaQueueScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.isStandalone) {
-      SystemChrome.setPreferredOrientations(
-        const [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight],
-      );
-    }
     _api = OrderApi(context.read<ApiClient>());
     _load();
   }
 
   @override
   void dispose() {
-    if (widget.isStandalone) {
-      SystemChrome.setPreferredOrientations(DeviceOrientation.values);
-    }
     super.dispose();
   }
 
@@ -93,7 +88,7 @@ class _BaristaQueueScreenState extends State<BaristaQueueScreen> {
       appBar: AppBar(
         backgroundColor: kBrown,
         foregroundColor: Colors.white,
-        title: Text('Pha chế · ${auth.profile?.fullName ?? ''}'),
+        title: Text('Pha chế' + (auth.profile?.storeName != null ? ' · ${auth.profile!.storeName}' : '') + ' · ${auth.profile?.fullName ?? ''}'),
         actions: [
           IconButton(
             key: const Key('portal-refresh'),
@@ -103,10 +98,27 @@ class _BaristaQueueScreenState extends State<BaristaQueueScreen> {
           ),
           if (widget.isStandalone)
             IconButton(
+              key: const Key('portal-profile'),
+              tooltip: 'Hồ sơ cá nhân',
+              icon: const Icon(Icons.person),
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+              },
+            ),
+          if (widget.isStandalone)
+            IconButton(
               key: const Key('portal-logout'),
               tooltip: 'Đăng xuất',
               icon: const Icon(Icons.logout),
-              onPressed: auth.logout,
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => const LogoutConfirmModal(),
+                );
+                if (confirm == true && context.mounted) {
+                  auth.logout();
+                }
+              },
             ),
         ],
       ),
@@ -141,8 +153,16 @@ class _BaristaQueueScreenState extends State<BaristaQueueScreen> {
     final busy = _busyId == o.id;
     return Card(
       margin: EdgeInsets.zero,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(14),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => OrderDetailScreen(orderId: o.id)),
+          );
+        },
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -183,6 +203,7 @@ class _BaristaQueueScreenState extends State<BaristaQueueScreen> {
                 ),
               ),
           ],
+        ),
         ),
       ),
     );

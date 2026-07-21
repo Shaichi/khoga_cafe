@@ -178,6 +178,7 @@ class _ExportStockScreenState extends State<ExportStockScreen> {
   }
 
   Widget _buildSuccess() => Center(
+        key: const Key('export-success'),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -188,6 +189,7 @@ class _ExportStockScreenState extends State<ExportStockScreen> {
             Text('Đã xuất thành công $_successCount mặt hàng', style: const TextStyle(color: kMuted)),
             const SizedBox(height: 24),
             ElevatedButton(
+              key: const Key('export-done'),
               onPressed: () => Navigator.of(context).pop(true),
               style: ElevatedButton.styleFrom(
                 backgroundColor: kBrown,
@@ -216,7 +218,7 @@ class _ExportStockScreenState extends State<ExportStockScreen> {
               children: [
                 const Icon(Icons.error_outline, color: kDanger),
                 const SizedBox(width: 12),
-                Expanded(child: Text(_globalError!, style: const TextStyle(color: kDanger, fontWeight: FontWeight.bold))),
+                Expanded(child: Text(_globalError!, key: const Key('export-error'), style: const TextStyle(color: kDanger, fontWeight: FontWeight.bold))),
               ],
             ),
           ),
@@ -226,6 +228,7 @@ class _ExportStockScreenState extends State<ExportStockScreen> {
           child: _loadingItems
               ? const Center(child: CircularProgressIndicator())
               : DropdownButtonFormField<StockItem>(
+                  key: const Key('export-item-dropdown'),
                   decoration: InputDecoration(
                     labelText: 'Chọn nguyên liệu để xuất...',
                     filled: true,
@@ -296,9 +299,13 @@ class _ExportStockScreenState extends State<ExportStockScreen> {
                               Expanded(
                                 flex: 2,
                                 child: TextField(
+                                  key: Key('export-quantity-${stock.id}'),
                                   controller: itemModel.qtyController,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                                    LengthLimitingTextInputFormatter(10),
+                                  ],
                                   decoration: InputDecoration(
                                     labelText: 'SL (${stock.unit}) *',
                                     errorText: itemModel.error,
@@ -311,7 +318,9 @@ class _ExportStockScreenState extends State<ExportStockScreen> {
                               Expanded(
                                 flex: 3,
                                 child: TextField(
+                                  key: Key('export-reason-${stock.id}'),
                                   controller: itemModel.reasonController,
+                                  inputFormatters: [LengthLimitingTextInputFormatter(250)],
                                   decoration: InputDecoration(
                                     labelText: 'Lý do (Hỏng...) *',
                                     errorText: itemModel.reasonError,
@@ -336,6 +345,7 @@ class _ExportStockScreenState extends State<ExportStockScreen> {
             border: Border(top: BorderSide(color: kBorder)),
           ),
           child: ElevatedButton(
+            key: const Key('export-submit'),
             onPressed: _submitting || _exportList.isEmpty ? null : _submit,
             style: ElevatedButton.styleFrom(
               backgroundColor: kBrown,

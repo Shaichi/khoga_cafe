@@ -457,6 +457,7 @@ class _AuditCountRowState extends State<_AuditCountRow> {
           if (_hasDiscrepancy) ...[
             const SizedBox(height: 12),
             TextField(
+              key: Key('audit-note-${s.id}'),
               controller: widget.noteController,
               decoration: InputDecoration(
                 hintText: 'Nhập lý do chênh lệch (Bắt buộc)...',

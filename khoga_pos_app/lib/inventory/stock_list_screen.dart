@@ -105,6 +105,7 @@ class _StockListScreenState extends State<StockListScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
+                      key: const Key('to-import-action'),
                       onPressed: () async {
                         final refreshed = await Navigator.of(context).push<bool>(
                           MaterialPageRoute<bool>(builder: (_) => const ImportStockScreen()),
@@ -127,6 +128,7 @@ class _StockListScreenState extends State<StockListScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton.icon(
+                      key: const Key('to-export-action'),
                       onPressed: () async {
                         final refreshed = await Navigator.of(context).push<bool>(
                           MaterialPageRoute<bool>(builder: (_) => const ExportStockScreen()),
@@ -159,6 +161,7 @@ class _StockListScreenState extends State<StockListScreen> {
                     height: 24,
                     width: 24,
                     child: Checkbox(
+                      key: const Key('low-stock-filter'),
                       value: _lowOnly,
                       activeColor: kBrown,
                       onChanged: (v) {
@@ -237,6 +240,7 @@ class _StockListScreenState extends State<StockListScreen> {
     final statusBg = s.lowStock ? kDanger.withValues(alpha: 0.1) : kSuccess.withValues(alpha: 0.1);
 
     return Container(
+      key: Key('stock-row-${s.id}'),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),

@@ -9,9 +9,11 @@ import '../api/api_client.dart';
 import '../api/checkout_api.dart';
 import '../api/models.dart';
 import '../api/order_api.dart';
+
 import '../format.dart';
 import '../theme.dart';
-import '../auth/auth_controller.dart';
+import 'invoice_dialog.dart';
+
 import 'cart_controller.dart';
 
 /// Screen 38 — "Payment Checkout Modal". Previews the breakdown, lets the cashier
@@ -93,7 +95,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   num get _net => _breakdown?.netTotalPayable ?? 0;
-  num get _cashReceived => num.tryParse(_cashCtrl.text.trim()) ?? 0;
+  num get _cashReceived => num.tryParse(_cashCtrl.text.replaceAll('.', '').trim()) ?? 0;
   num get _change => (_cashReceived - _net).clamp(0, double.infinity);
 
   Future<void> _confirm() async {
@@ -177,85 +179,145 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
+
   Widget _form() {
     return Column(
       children: [
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: kBgAlt, borderRadius: BorderRadius.circular(12)),
-            child: Column(
-              children: [
-                const Text('Tổng tiền cần thanh toán', style: TextStyle(color: kMuted)),
-                const SizedBox(height: 4),
-                Text('${formatVnd(_net)} VND',
-                    key: const Key('payable-total'),
-                    style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: kBrown)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          const Text('Phương thức thanh toán', style: TextStyle(fontWeight: FontWeight.w600, color: kBrown)),
-          const SizedBox(height: 10),
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (int i = 0; i < _methods.length; i++) ...[
-                  Expanded(child: _methodTile(_methods[i].$1, _methods[i].$2, _methods[i].$3)),
-                  if (i < _methods.length - 1) const SizedBox(width: 10),
-                ],
-              ],
-            ),
-          ),
-          if (_method == 'CASH') ...[
-            const SizedBox(height: 20),
-            const Text('Tiền mặt khách đưa (VND) *',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: kBrown)),
-            const SizedBox(height: 8),
-            TextField(
-              key: const Key('cash-received'),
-              controller: _cashCtrl,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              children: [
-                for (final q in [50000, 100000, 200000, 500000])
-                  OutlinedButton(
-                    onPressed: () => setState(() => _cashCtrl.text = '$q'),
-                    child: Text('${q ~/ 1000}K'),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFDFAF7),
+                    border: Border.all(color: const Color(0xFFEADDD3)),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Tiền thối lại khách:', style: TextStyle(color: kBrown, fontWeight: FontWeight.w600)),
-                Text('${formatVnd(_change)} VND',
-                    key: const Key('change-due'),
-                    style: const TextStyle(color: kSuccess, fontWeight: FontWeight.bold)),
-              ],
-            ),
-          ],
-          if (_method == 'VIETQR') ...[
-            const SizedBox(height: 16),
-            const Text('Khách quét mã VietQR để thanh toán. Đơn sẽ chờ xác nhận từ cổng thanh toán.',
-                style: TextStyle(color: kMuted)),
-          ],
-          if (_error != null) ...[
-            const SizedBox(height: 16),
-            Text(_error!, style: const TextStyle(color: kDanger)),
-          ],
+                  child: Column(
+                    children: [
+                      const Text('Tổng tiền cần thanh toán', style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF8C766C))),
+                      const SizedBox(height: 4),
+                      Text('${formatVnd(_net)} VND',
+                          key: const Key('payable-total'),
+                          style: const TextStyle(fontFamily: 'Segoe UI', fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF3D2314))),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text('Phương thức thanh toán', style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF8C766C))),
+                const SizedBox(height: 12),
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  childAspectRatio: 2.2, // ~161.5 / 71
+                  children: [
+                    _methodTile('CASH', 'Tiền mặt', Icons.payments_outlined),
+                    _methodTile('CARD', 'Thẻ (POS)', Icons.credit_card),
+                    _methodTile('VIETQR', 'Chuyển VietQR', Icons.qr_code_2),
+                    _methodTile('SHOPEEFOOD', 'ShopeeFood', Icons.delivery_dining), // Added from Figma
+                  ],
+                ),
+                if (_method == 'CASH') ...[
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFAFAFA),
+                      border: Border.all(color: const Color(0xFFEEEEEE)),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text('Tiền mặt khách đưa (VND) *',
+                            style: TextStyle(fontFamily: 'Segoe UI', fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF5C3826))),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          height: 42,
+                          child: TextField(
+                            key: const Key('cash-received'),
+                            controller: _cashCtrl,
+                            keyboardType: TextInputType.number,
+                            style: const TextStyle(fontFamily: 'Arial', fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF2C1A11)),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(15),
+                              CurrencyInputFormatter(),
+                            ],
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: Colors.white,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 0),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: const BorderSide(color: Color(0xFFEADDD3)),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: const BorderSide(color: Color(0xFFC89D7C)),
+                              ),
+                            ),
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            for (final q in [50000, 100000, 200000, 500000]) ...[
+                              Expanded(
+                                child: SizedBox(
+                                  height: 32,
+                                  child: OutlinedButton(
+                                    style: OutlinedButton.styleFrom(
+                                      backgroundColor: Colors.white,
+                                      side: const BorderSide(color: Color(0xFFEADDD3)),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                      padding: EdgeInsets.zero,
+                                    ),
+                                    onPressed: () => setState(() => _cashCtrl.text = formatVnd(q)),
+                                    child: Text('${q ~/ 1000}K', style: const TextStyle(fontFamily: 'Arial', fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF5C3826))),
+                                  ),
+                                ),
+                              ),
+                              if (q != 500000) const SizedBox(width: 6),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.only(top: 12),
+                          decoration: const BoxDecoration(
+                            border: Border(top: BorderSide(color: Color(0xFFEADDD3), style: BorderStyle.solid)), // Dashed in Figma, solid for simplicity
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Tiền thối lại khách:', style: TextStyle(fontFamily: 'Segoe UI', fontSize: 13, color: Color(0xFF5C3826), fontWeight: FontWeight.bold)),
+                              Text('${formatVnd(_change)} VND',
+                                  key: const Key('change-due'),
+                                  style: const TextStyle(fontFamily: 'Segoe UI', fontSize: 15, color: Color(0xFF2E7D32), fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                if (_method == 'VIETQR') ...[
+                  const SizedBox(height: 16),
+                  const Text('Khách quét mã VietQR để thanh toán. Đơn sẽ chờ xác nhận từ cổng thanh toán.',
+                      style: TextStyle(color: Color(0xFF8C766C))),
+                ],
+                if (_error != null) ...[
+                  const SizedBox(height: 16),
+                  Text(_error!, style: const TextStyle(color: kDanger)),
+                ],
               ],
             ),
           ),
@@ -264,24 +326,43 @@ class _PaymentScreenState extends State<PaymentScreen> {
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
           decoration: const BoxDecoration(
             color: Colors.white,
-            border: Border(top: BorderSide(color: kBorder)),
+            border: Border(top: BorderSide(color: Color(0xFFEADDD3))),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: Row(
             children: [
-              OutlinedButton(
-                onPressed: _submitting ? null : () => Navigator.of(context).pop(),
-                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-                child: const Text('HỦY'),
+              Expanded(
+                child: SizedBox(
+                  height: 48,
+                  child: OutlinedButton(
+                    onPressed: _submitting ? null : () => Navigator.of(context).pop(),
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      side: const BorderSide(color: Color(0xFFEADDD3)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    child: const Text('HỦY', style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF3D2314))),
+                  ),
+                ),
               ),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                key: const Key('confirm-payment'),
-                onPressed: _submitting ? null : _confirm,
-                child: _submitting
-                    ? const SizedBox(
-                        height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text('XÁC NHẬN'),
+              const SizedBox(width: 8),
+              Expanded(
+                child: SizedBox(
+                  height: 48,
+                  child: ElevatedButton(
+                    key: const Key('confirm-payment'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3D2314),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    onPressed: _submitting ? null : _confirm,
+                    child: _submitting
+                        ? const SizedBox(
+                            height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Text('XÁC NHẬN', style: TextStyle(fontFamily: 'Arial', fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white)),
+                  ),
+                ),
               ),
             ],
           ),
@@ -297,27 +378,23 @@ class _PaymentScreenState extends State<PaymentScreen> {
       onTap: () => setState(() => _method = code),
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFF6ECE3) : Colors.white,
-          border: Border.all(color: selected ? kBrown : kBorder, width: selected ? 2 : 1),
+          color: selected ? const Color(0xFFF5EEE8) : const Color(0xFFFAFAFA),
+          border: Border.all(color: selected ? const Color(0xFF3D2314) : const Color(0xFFEADDD3), width: 1),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: kBrown),
+            Icon(icon, color: selected ? const Color(0xFF3D2314) : const Color(0xFF8C766C)),
             const SizedBox(height: 6),
-            Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: kBrown)),
+            Text(label, textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 13, color: selected ? const Color(0xFF3D2314) : const Color(0xFF5C3826))),
           ],
         ),
       ),
     );
   }
 
-  /// Renders the VietQR code the customer scans. The gateway may return either a
-  /// ready-made image (base64 `data:image` URL → shown directly) or the raw
-  /// EMVCo payload string (→ rendered into a scannable QR with qr_flutter).
   Widget _qrWidget(String? content) {
     if (content == null || content.isEmpty) {
       return const Icon(Icons.qr_code_2, color: kBrown, size: 96);
@@ -451,89 +528,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
       final order = await _orderApi.detail(r.orderId);
       if (!mounted) return;
       Navigator.pop(context); // close loading
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Hóa đơn thanh toán', textAlign: TextAlign.center),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text('KHOGA CAFÉ', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                const SizedBox(height: 8),
-                Text('Mã HĐ: ${order.orderNumber}', textAlign: TextAlign.center),
-                Text('Thu ngân: ${context.read<AuthController>().profile?.fullName ?? ""}', textAlign: TextAlign.center),
-                const Divider(height: 24),
-                for (final item in order.items)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(child: Text('${item.quantity}x ${item.menuItemName}')),
-                        Text(formatVnd(item.unitPrice * item.quantity)),
-                      ],
-                    ),
-                  ),
-                const Divider(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Cộng tiền hàng (Tạm tính):'),
-                    Text('${formatVnd(order.subtotal)} đ'),
-                  ],
-                ),
-                if (order.discount > 0)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Giảm giá (Voucher/Hội viên):'),
-                      Text('-${formatVnd(order.discount)} đ', style: const TextStyle(color: kDanger)),
-                    ],
-                  ),
-                const Divider(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('TỔNG THANH TOÁN (NET):', style: TextStyle(fontWeight: FontWeight.bold)),
-                    Text('${formatVnd(order.total)} đ', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Thuế VAT gồm trong giá (10%):', style: TextStyle(fontSize: 11, color: kMuted)),
-                    Text('${formatVnd((order.total * 10 / 110).round())} đ', style: TextStyle(fontSize: 11, color: kMuted)),
-                  ],
-                ),
-                const Divider(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Thanh toán bằng:'),
-                    Text(_methodLabel(order.paymentMethod), style: const TextStyle(fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Text('Xin cảm ơn quý khách!\nHẹn gặp lại quý khách lần sau.',
-                    textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: kMuted, fontStyle: FontStyle.italic)),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Đóng')),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.print),
-              label: const Text('In'),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đang in hóa đơn...')));
-                Navigator.pop(ctx);
-              },
-            ),
-          ],
-        ),
+      Navigator.push(
+        context,
+        MaterialPageRoute<void>(builder: (_) => InvoiceDialog(order: order)),
       );
     } catch (e) {
       if (!mounted) return;

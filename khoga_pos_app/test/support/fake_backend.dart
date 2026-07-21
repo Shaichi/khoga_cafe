@@ -51,18 +51,22 @@ Map<String, dynamic> _page(List<Map<String, dynamic>> content) => {
       'totalPages': 1,
     };
 
-Map<String, dynamic> _scheduleFromBody(String id, Map<String, dynamic> body) => {
+Map<String, dynamic> _scheduleFromBody(String id, Map<String, dynamic> body) {
+  final today = DateTime.now();
+  final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+  return {
       'id': id,
       'employeeId': body['employeeId'] ?? 'u1',
       'employeeName': body['employeeId'] == 'u2' ? 'Lê Pha Chế' : 'Nguyễn Thu Ngân',
       'role': 'CASHIER',
-      'shiftDate': body['shiftDate'] ?? '2026-06-29',
+      'shiftDate': body['shiftDate'] ?? todayStr,
       'shiftType': body['shiftType'] ?? 'MORNING',
       'shiftStartTime': body['shiftStartTime'],
       'shiftEndTime': body['shiftEndTime'],
       'posRegisterId': body['posRegisterId'],
       'crossBranch': false,
     };
+}
 
 Map<String, dynamic> _shift({String? register, dynamic startingCash}) => {
       'id': 'shift-1',
@@ -101,6 +105,7 @@ MockClient authBackend({
         'email': null,
         'phone': null,
         'storeId': 's1',
+        'storeName': 'Khoga - Chi nhánh 1',
       };
   return MockClient((req) async {
     final path = req.url.path;
@@ -267,15 +272,17 @@ MockClient authBackend({
         final body = jsonDecode(req.body) as Map<String, dynamic>;
         return apiOk(_scheduleFromBody('sc-new', body), message: 'Đã tạo lịch làm việc', status: 201);
       }
+      final today = DateTime.now();
+      final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
       return apiOk([
         {
           'id': 'sc1', 'employeeId': 'u1', 'employeeName': 'Nguyễn Thu Ngân', 'role': 'CASHIER',
-          'shiftDate': '2026-06-28', 'shiftType': 'MORNING', 'shiftStartTime': '08:00', 'shiftEndTime': '12:00',
+          'shiftDate': todayStr, 'shiftType': 'MORNING', 'shiftStartTime': '08:00', 'shiftEndTime': '12:00',
           'posRegisterId': 'POS-01', 'crossBranch': false,
         },
         {
           'id': 'sc2', 'employeeId': 'u2', 'employeeName': 'Lê Pha Chế', 'role': 'BARISTA',
-          'shiftDate': '2026-06-28', 'shiftType': 'AFTERNOON', 'shiftStartTime': '12:00', 'shiftEndTime': '18:00',
+          'shiftDate': todayStr, 'shiftType': 'AFTERNOON', 'shiftStartTime': '12:00', 'shiftEndTime': '18:00',
           'posRegisterId': null, 'crossBranch': true,
         },
       ]);

@@ -184,7 +184,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final toStr = lastDay.toIso8601String().substring(0, 10);
     
     // Create Uri with JWT token so the backend can authenticate the browser request
-    final url = Uri.parse('http://localhost:8080/api/v1/attendance/export?from=$fromStr&to=$toStr&format=csv&token=${client.token}');
+    final url = Uri.parse('$kApiBaseUrl/attendance/export?from=$fromStr&to=$toStr&format=csv&token=${client.token}');
     
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
       if (mounted) {

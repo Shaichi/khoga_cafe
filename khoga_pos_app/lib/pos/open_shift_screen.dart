@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../api/api_client.dart';
 import '../auth/auth_controller.dart';
+import '../auth/logout_confirm_modal.dart';
 import '../format.dart';
 import '../theme.dart';
 import 'pos_screen.dart';
@@ -34,7 +35,7 @@ class _OpenShiftScreenState extends State<OpenShiftScreen> {
 
   Future<void> _submit() async {
     final register = _selectedRegister;
-    final cash = num.tryParse(_cash.text.trim());
+    final cash = num.tryParse(_cash.text.replaceAll('.', '').trim());
     if (register == null || register.isEmpty) {
       setState(() => _error = 'Vui lòng chọn máy POS');
       return;
@@ -109,7 +110,11 @@ class _OpenShiftScreenState extends State<OpenShiftScreen> {
                     key: const Key('starting-cash'),
                     controller: _cash,
                     keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(15),
+                      CurrencyInputFormatter(),
+                    ],
                   ),
                   const SizedBox(height: 28),
                   ElevatedButton(
@@ -119,7 +124,7 @@ class _OpenShiftScreenState extends State<OpenShiftScreen> {
                         setState(() => _error = 'Vui lòng chọn máy POS');
                         return;
                       }
-                      final cash = num.tryParse(_cash.text.trim());
+                      final cash = num.tryParse(_cash.text.replaceAll('.', '').trim());
                       if (cash == null || cash < 0) {
                         setState(() => _error = 'Tiền đầu ca không hợp lệ');
                         return;
@@ -148,7 +153,15 @@ class _OpenShiftScreenState extends State<OpenShiftScreen> {
                   ),
                   const SizedBox(height: 8),
                   TextButton(
-                    onPressed: () => context.read<AuthController>().logout(),
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => const LogoutConfirmModal(),
+                      );
+                      if (confirm == true && context.mounted) {
+                        context.read<AuthController>().logout();
+                      }
+                    },
                     child: const Text('Đăng xuất tài khoản', style: TextStyle(color: kGold, fontWeight: FontWeight.bold)),
                   ),
                 ],

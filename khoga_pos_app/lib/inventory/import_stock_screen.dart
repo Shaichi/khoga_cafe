@@ -85,7 +85,11 @@ class _ImportStockScreenState extends State<ImportStockScreen> {
       return;
     }
     setState(() {
-      _importList.add(ImportStockItemModel(item));
+      final model = ImportStockItemModel(item);
+      model.qtyController.addListener(() {
+        if (mounted) setState(() {});
+      });
+      _importList.add(model);
       _selectedDropdownItem = null;
     });
   }
@@ -167,6 +171,7 @@ class _ImportStockScreenState extends State<ImportStockScreen> {
   }
 
   Widget _buildSuccess() => Center(
+        key: const Key('import-success'),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -177,6 +182,7 @@ class _ImportStockScreenState extends State<ImportStockScreen> {
             Text('Đã nhập thành công $_successCount mặt hàng', style: const TextStyle(color: kMuted)),
             const SizedBox(height: 24),
             ElevatedButton(
+              key: const Key('import-done'),
               onPressed: () => Navigator.of(context).pop(true),
               style: ElevatedButton.styleFrom(
                 backgroundColor: kBrown,
@@ -205,7 +211,7 @@ class _ImportStockScreenState extends State<ImportStockScreen> {
               children: [
                 const Icon(Icons.error_outline, color: kDanger),
                 const SizedBox(width: 12),
-                Expanded(child: Text(_globalError!, style: const TextStyle(color: kDanger, fontWeight: FontWeight.bold))),
+                Expanded(child: Text(_globalError!, key: const Key('import-error'), style: const TextStyle(color: kDanger, fontWeight: FontWeight.bold))),
               ],
             ),
           ),
@@ -215,6 +221,7 @@ class _ImportStockScreenState extends State<ImportStockScreen> {
           child: _loadingItems
               ? const Center(child: CircularProgressIndicator())
               : DropdownButtonFormField<StockItem>(
+                  key: const Key('import-item-dropdown'),
                   decoration: InputDecoration(
                     labelText: 'Chọn nguyên liệu để thêm...',
                     filled: true,
@@ -277,7 +284,13 @@ class _ImportStockScreenState extends State<ImportStockScreen> {
                             ],
                           ),
                           const SizedBox(height: 4),
-                          Text('Tồn hiện tại: ${formatVnd(stock.currentQuantity)} ${stock.unit}', style: const TextStyle(color: kMuted, fontSize: 13)),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Tồn hiện tại: ${formatVnd(stock.currentQuantity)} ${stock.unit}', style: const TextStyle(color: kMuted, fontSize: 13)),
+                              Text('Đơn giá: ${formatVnd(stock.standardCost)}đ', style: const TextStyle(color: kBrown, fontSize: 13, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
                           const SizedBox(height: 12),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -285,9 +298,13 @@ class _ImportStockScreenState extends State<ImportStockScreen> {
                               Expanded(
                                 flex: 2,
                                 child: TextField(
+                                  key: Key('import-quantity-${stock.id}'),
                                   controller: itemModel.qtyController,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                                    LengthLimitingTextInputFormatter(10),
+                                  ],
                                   decoration: InputDecoration(
                                     labelText: 'SL (${stock.unit}) *',
                                     errorText: itemModel.error,
@@ -301,6 +318,7 @@ class _ImportStockScreenState extends State<ImportStockScreen> {
                                 flex: 3,
                                 child: TextField(
                                   controller: itemModel.noteController,
+                                  inputFormatters: [LengthLimitingTextInputFormatter(250)],
                                   decoration: const InputDecoration(
                                     labelText: 'Ghi chú (Tùy chọn)',
                                     border: OutlineInputBorder(),
@@ -310,6 +328,19 @@ class _ImportStockScreenState extends State<ImportStockScreen> {
                               ),
                             ],
                           ),
+                          if (num.tryParse(itemModel.qtyController.text.trim()) != null) ...[
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                const Text('Thành tiền: ', style: TextStyle(color: kMuted, fontSize: 14)),
+                                Text(
+                                  '${formatVnd((num.tryParse(itemModel.qtyController.text.trim()) ?? 0) * stock.standardCost)}đ',
+                                  style: const TextStyle(color: kSuccess, fontSize: 16, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
                     );
@@ -323,17 +354,33 @@ class _ImportStockScreenState extends State<ImportStockScreen> {
             color: Colors.white,
             border: Border(top: BorderSide(color: kBorder)),
           ),
-          child: ElevatedButton(
-            onPressed: _submitting || _importList.isEmpty ? null : _submit,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kBrown,
-              foregroundColor: Colors.white,
-              minimumSize: const Size.fromHeight(50),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            child: _submitting
-                ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : Text('XÁC NHẬN NHẬP KHO (${_importList.length} MÓN)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Tổng cộng:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: kBrownDark)),
+                  Text(
+                    '${formatVnd(_importList.fold<num>(0, (sum, item) => sum + ((num.tryParse(item.qtyController.text.trim()) ?? 0) * item.stockItem.standardCost)))}đ',
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: kSuccess),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                key: const Key('import-submit'),
+                onPressed: _submitting || _importList.isEmpty ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kBrown,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(50),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: _submitting
+                    ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : Text('XÁC NHẬN NHẬP KHO (${_importList.length} MÓN)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ),
+            ],
           ),
         ),
       ],

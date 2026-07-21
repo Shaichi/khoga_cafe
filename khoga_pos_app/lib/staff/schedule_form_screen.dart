@@ -292,6 +292,7 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
                 _label('Loại ca *'),
                 ..._allTypes.map((t) {
                   return RadioListTile<String>(
+                    key: Key('type-${t.$1}'),
                     title: Text(t.$2),
                     value: t.$1,
                     groupValue: _selectedTypes.isEmpty ? null : _selectedTypes.first,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class CancelOrderDialog extends StatefulWidget {
   const CancelOrderDialog({super.key});
@@ -35,6 +36,7 @@ class _CancelOrderDialogState extends State<CancelOrderDialog> {
                 hintText: 'Lý do...',
                 border: OutlineInputBorder(),
               ),
+              inputFormatters: [LengthLimitingTextInputFormatter(250)],
               maxLines: 2,
             ),
           ],

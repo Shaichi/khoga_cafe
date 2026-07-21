@@ -97,30 +97,30 @@ class _CancelOrderScreenState extends State<CancelOrderScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // BR-07/BR-08 Warning notice
+                    // BR-07/BR-08 Warning notice (Figma design handles PREPARING state)
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFF3E0),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFFFF9800).withValues(alpha: 0.3)),
                       ),
-                      child: const Text(
-                        'Lưu ý: Hệ thống chỉ hỗ trợ hủy đơn hàng ở trạng thái Chờ pha chế (PENDING). '
-                        'Khi hủy thành công, các khuyến mãi (Voucher) đã áp dụng và điểm tích lũy '
-                        'tiêu tốn sẽ tự động hoàn trả cho khách hàng.',
-                        style: TextStyle(
+                      child: Text(
+                        widget.status == 'PREPARING'
+                            ? 'Cảnh báo: Đơn hàng này đang ở trạng thái pha chế. Nếu xác nhận hủy, nguyên liệu đã sử dụng sẽ tính là hao hụt và KHÔNG hoàn lại kho.'
+                            : 'Lưu ý: Hệ thống chỉ hỗ trợ hủy đơn hàng ở trạng thái Chờ pha chế (PENDING). Khi hủy thành công, các khuyến mãi (Voucher) đã áp dụng và điểm tích lũy tiêu tốn sẽ tự động hoàn trả cho khách hàng.',
+                        style: const TextStyle(
                           color: Color(0xFFE65100),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          height: 1.4,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          height: 1.45,
                         ),
                       ),
                     ),
                     const SizedBox(height: 16),
 
                     // Non-PENDING status error
-                    if (!_canSubmit) ...[
+                    if (!_canSubmit && widget.status != 'PREPARING') ...[
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -130,7 +130,7 @@ class _CancelOrderScreenState extends State<CancelOrderScreen> {
                         ),
                         child: Text(
                           '❌ Không thể hủy: Đơn hàng này đang ở trạng thái '
-                          '${_statusLabel(widget.status)}. Chỉ có thể hủy đơn hàng ở trạng thái Chờ pha chế.',
+                          '${_statusLabel(widget.status)}.',
                           style: const TextStyle(color: kDanger, fontSize: 13),
                         ),
                       ),
@@ -154,17 +154,23 @@ class _CancelOrderScreenState extends State<CancelOrderScreen> {
                           Text.rich(
                             TextSpan(
                               children: [
-                                const TextSpan(text: 'Đơn hàng: ', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                                TextSpan(text: widget.orderNumber, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: kBrown)),
-                                const TextSpan(text: '  (Trạng thái: ', style: TextStyle(fontSize: 12)),
-                                TextSpan(text: _statusLabel(widget.status), style: TextStyle(fontSize: 12, color: _statusColor(widget.status), fontWeight: FontWeight.w600)),
-                                const TextSpan(text: ')', style: TextStyle(fontSize: 12)),
+                                const TextSpan(text: 'Đơn hàng: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF3D2314))),
+                                TextSpan(text: widget.orderNumber, style: const TextStyle(fontWeight: FontWeight.normal, fontSize: 12, color: Color(0xFF3D2314))),
+                                const TextSpan(text: ' (Trạng thái: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: Color(0xFF3D2314))),
+                                TextSpan(text: _statusLabel(widget.status), style: const TextStyle(fontSize: 12, color: Color(0xFF3D2314), fontWeight: FontWeight.normal)),
+                                const TextSpan(text: ')', style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: Color(0xFF3D2314))),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Text('Số tiền hoàn trả: ${formatVnd(widget.refundAmount)} VND',
-                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                          const SizedBox(height: 10),
+                          Text.rich(
+                            TextSpan(
+                              children: [
+                                const TextSpan(text: 'Số tiền hoàn trả: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF3D2314))),
+                                TextSpan(text: '${formatVnd(widget.refundAmount)} VND', style: const TextStyle(fontWeight: FontWeight.normal, fontSize: 12, color: Color(0xFF3D2314))),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -172,32 +178,45 @@ class _CancelOrderScreenState extends State<CancelOrderScreen> {
 
                     // Dropdown: Reason (mandatory)
                     const Text('Lý do hủy đơn *',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kBrown)),
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF5C3826))),
                     const SizedBox(height: 6),
                     DropdownButtonFormField<String>(
                       key: const Key('cancel-reason'),
                       value: _selectedReason,
-                      hint: const Text('Chọn lý do...'),
+                      hint: const Text('Chọn lý do...', style: TextStyle(fontSize: 14, color: Color(0xFF2C1A11))),
+                      icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF5C3826)),
                       items: _reasons
-                          .map((r) => DropdownMenuItem(value: r.value, child: Text(r.label, style: const TextStyle(fontSize: 14))))
+                          .map((r) => DropdownMenuItem(value: r.value, child: Text(r.label, style: const TextStyle(fontSize: 14, color: Color(0xFF2C1A11)))))
                           .toList(),
-                      onChanged: _canSubmit ? (val) => setState(() => _selectedReason = val) : null,
-                      decoration: const InputDecoration(border: OutlineInputBorder()),
+                      onChanged: (_canSubmit || widget.status == 'PREPARING') ? (val) => setState(() => _selectedReason = val) : null,
+                      decoration: InputDecoration(
+                        fillColor: const Color(0xFFFAFAFA),
+                        filled: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFEADDD3))),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kGold, width: 2)),
+                      ),
                     ),
                     const SizedBox(height: 16),
 
                     // Textarea: Notes (mandatory)
                     const Text('Ghi chú chi tiết *',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kBrown)),
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF5C3826))),
                     const SizedBox(height: 6),
                     TextField(
                       key: const Key('cancel-notes'),
                       controller: _notesCtrl,
-                      enabled: _canSubmit,
+                      enabled: _canSubmit || widget.status == 'PREPARING',
                       maxLines: 3,
-                      decoration: const InputDecoration(
+                      style: const TextStyle(fontSize: 14, color: Color(0xFF2C1A11)),
+                      decoration: InputDecoration(
                         hintText: 'Giải trình lý do hủy đơn bắt buộc...',
-                        border: OutlineInputBorder(),
+                        hintStyle: const TextStyle(fontSize: 14, color: Color(0xFF2C1A11)),
+                        fillColor: const Color(0xFFFAFAFA),
+                        filled: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFEADDD3))),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kGold, width: 2)),
                       ),
                     ),
                   ],
@@ -218,23 +237,28 @@ class _CancelOrderScreenState extends State<CancelOrderScreen> {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () => Navigator.of(context).pop(),
-                        style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                        child: const Text('HỦY BỎ'),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          side: const BorderSide(color: Color(0xFFEADDD3)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('HỦY BỎ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF3D2314))),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
                         key: const Key('confirm-cancel'),
-                        onPressed: !_canSubmit || _submitting ? null : _submit,
+                        onPressed: (!(_canSubmit || widget.status == 'PREPARING') || _submitting) ? null : _submit,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: kDanger,
+                          backgroundColor: const Color(0xFFCF6679),
                           minimumSize: const Size.fromHeight(48),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         child: _submitting
                             ? const SizedBox(
                                 height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : const Text('XÁC NHẬN HỦY', style: TextStyle(color: Colors.white)),
+                            : const Text('XÁC NHẬN HỦY', style: TextStyle(color: Colors.white, fontSize: 13.9, fontWeight: FontWeight.bold, fontFamily: 'Arial')),
                       ),
                     ),
                   ],

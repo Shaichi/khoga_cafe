@@ -34,8 +34,6 @@ class CheckoutRequestData {
           for (final l in lines) {
             'menuItemId': l.item.id,
             'quantity': l.qty,
-            if (l.toppings.isNotEmpty)
-              'toppingIds': l.toppings.expand((t) => List.filled(t.qty, t.id)).toList()
           },
         ],
       };

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../auth/auth_controller.dart';
+import '../auth/logout_confirm_modal.dart';
 import '../format.dart';
 import '../inventory/stock_list_screen.dart';
 import '../orders/barista_queue_screen.dart';
@@ -38,7 +39,19 @@ class HomeScreen extends StatelessWidget {
               MaterialPageRoute<void>(builder: (_) => const ProfileScreen()),
             ),
           ),
-          IconButton(onPressed: auth.logout, icon: const Icon(Icons.logout), tooltip: 'Đăng xuất'),
+          IconButton(
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => const LogoutConfirmModal(),
+              );
+              if (confirm == true && context.mounted) {
+                auth.logout();
+              }
+            },
+            icon: const Icon(Icons.logout),
+            tooltip: 'Đăng xuất',
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -49,6 +62,10 @@ class HomeScreen extends StatelessWidget {
             const Text('Xin chào,', style: TextStyle(color: kMuted, fontSize: 14)),
             Text(profile?.fullName ?? '',
                 style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: kBrown)),
+            if (profile?.storeName != null) ...[
+              const SizedBox(height: 4),
+              Text('Chi nhánh: ${profile!.storeName}', style: const TextStyle(fontSize: 16, color: kMuted)),
+            ],
             const SizedBox(height: 24),
             if (shift != null)
               Card(

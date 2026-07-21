@@ -3,9 +3,10 @@ import 'package:provider/provider.dart';
 
 import 'auth/auth_controller.dart';
 import 'orders/barista_queue_screen.dart';
-
+import 'pos/open_shift_screen.dart';
+import 'pos/pos_screen.dart';
 import 'pos/shift_controller.dart';
-import 'screens/home_screen.dart';
+
 import 'screens/login_screen.dart';
 import 'screens/manager_dashboard_screen.dart';
 import 'theme.dart';
@@ -68,8 +69,9 @@ class _ShiftGateState extends State<ShiftGate> {
     if (!shift.loaded) {
       return const Scaffold(body: Center(child: Text('Đang tải…')));
     }
-    // All authenticated users route to the HomeScreen (Staff Portal).
-    // From there, if they need POS, the HomeScreen routes to OpenShiftScreen.
-    return const HomeScreen();
+    if (shift.active != null) {
+      return const PosScreen();
+    }
+    return const OpenShiftScreen();
   }
 }

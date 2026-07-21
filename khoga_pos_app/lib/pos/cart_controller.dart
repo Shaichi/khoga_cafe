@@ -2,40 +2,23 @@ import 'package:flutter/foundation.dart';
 
 import '../api/models.dart';
 
-class CartTopping {
-  final String id;
-  final String name;
-  final num price;
-  int qty;
-
-  CartTopping({required this.id, required this.name, required this.price, this.qty = 1});
-}
-
-/// One line in the cart: a menu item plus its toppings and quantity.
+/// One line in the cart: a menu item and its quantity.
 class CartLine {
   final String id;
   final MenuItem item;
-  final List<CartTopping> toppings;
   int qty;
 
   CartLine({
     String? id,
     required this.item,
     required this.qty,
-    this.toppings = const [],
   }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
 
-  num get unitTotal => item.price + toppings.fold<num>(0, (sum, t) => sum + (t.price * t.qty));
+  num get unitTotal => item.price;
   num get lineTotal => unitTotal * qty;
   
-  bool hasSameContent(MenuItem otherItem, List<CartTopping> otherToppings) {
-    if (item.id != otherItem.id) return false;
-    if (toppings.length != otherToppings.length) return false;
-    for (final t in toppings) {
-      final match = otherToppings.where((ot) => ot.id == t.id && ot.qty == t.qty);
-      if (match.isEmpty) return false;
-    }
-    return true;
+  bool hasSameContent(MenuItem otherItem) {
+    return item.id == otherItem.id;
   }
 }
 
@@ -119,13 +102,13 @@ class CartController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void add(MenuItem item, {List<CartTopping> toppings = const [], int qty = 1}) {
-    // Try to find an existing line with the exact same item and toppings
-    final index = _lines.indexWhere((l) => l.hasSameContent(item, toppings));
+  void add(MenuItem item, {int qty = 1}) {
+    // Try to find an existing line with the exact same item
+    final index = _lines.indexWhere((l) => l.hasSameContent(item));
     if (index >= 0) {
       _lines[index].qty += qty;
     } else {
-      _lines.add(CartLine(item: item, qty: qty, toppings: List.from(toppings)));
+      _lines.add(CartLine(item: item, qty: qty));
     }
     notifyListeners();
   }

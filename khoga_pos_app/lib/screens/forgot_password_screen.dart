@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../api/api_client.dart';
@@ -132,6 +133,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         TextField(
           controller: _emailCtrl,
           keyboardType: TextInputType.emailAddress,
+          inputFormatters: [LengthLimitingTextInputFormatter(100)],
           decoration: const InputDecoration(hintText: 'VD: admin@khoga.com'),
           onSubmitted: (_) => _submitEmail(),
         ),
@@ -179,6 +181,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         TextField(
           controller: _newPasswordCtrl,
           obscureText: true,
+          inputFormatters: [LengthLimitingTextInputFormatter(255)],
         ),
         const SizedBox(height: 16),
         const Text('Xác nhận mật khẩu mới', style: TextStyle(color: kBrown, fontWeight: FontWeight.bold)),
@@ -186,6 +189,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         TextField(
           controller: _confirmPasswordCtrl,
           obscureText: true,
+          inputFormatters: [LengthLimitingTextInputFormatter(255)],
           onSubmitted: (_) => _submitNewPassword(),
         ),
         const SizedBox(height: 24),

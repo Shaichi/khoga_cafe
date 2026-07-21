@@ -98,32 +98,57 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
     final order = _order;
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: kBrown,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text('Chi Tiết Đơn Hàng', style: TextStyle(fontWeight: FontWeight.bold, color: kBrown)),
-        centerTitle: true,
-      ),
       body: SafeArea(
-        child: _loading
-            ? const Center(child: Text('Đang tải…'))
-            : _error != null
-                ? Center(child: Text(_error!, key: const Key('order-detail-error'), style: const TextStyle(color: kDanger)))
-                : order == null
-                    ? const SizedBox.shrink()
-                    : _body(order),
+        child: Column(
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: const Icon(Icons.arrow_back, color: Color(0xFF2C1A11), size: 24),
+                    ),
+                  ),
+                  const Text(
+                    'Chi Tiết Đơn Hàng',
+                    style: TextStyle(
+                      fontFamily: 'Segoe UI',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 19,
+                      color: Color(0xFF2C1A11),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Content
+            Expanded(
+              child: _loading
+                  ? const Center(child: Text('Đang tải…'))
+                  : _error != null
+                      ? Center(child: Text(_error!, key: const Key('order-detail-error'), style: const TextStyle(color: kDanger)))
+                      : order == null
+                          ? const SizedBox.shrink()
+                          : _body(order),
+            ),
+            
+            // Bottom Actions
+            if (order != null && !_loading) _buildActionButtons(order),
+          ],
+        ),
       ),
-      bottomNavigationBar: (order != null && !_loading) ? _buildActionButtons(order) : null,
     );
   }
 
@@ -132,170 +157,168 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final canRefund = o.paymentStatus == 'PAID' && o.status != 'PENDING' && o.status != 'CANCELLED';
     
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: kBorder)),
-      ),
-      child: SafeArea(
-        child: Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.print),
-                label: const Text('In HĐ (Sắp có)'),
-                onPressed: null,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+      color: Colors.white,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (canCancel || canRefund)
+            Container(
+              width: double.infinity,
+              height: 48,
+              margin: const EdgeInsets.only(bottom: 8),
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  side: const BorderSide(color: Color.fromRGBO(207, 102, 121, 0.2)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+                onPressed: canCancel ? _cancelOrder : _refundOrder,
+                child: Text(
+                  canCancel ? 'HỦY ĐƠN' : 'HỦY ĐƠN & HOÀN TIỀN',
+                  style: const TextStyle(
+                    fontFamily: 'Arial',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Color(0xFFCF6679),
+                  ),
+                ),
               ),
             ),
-            if (canCancel) ...[
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.cancel),
-                  label: const Text('Hủy Đơn'),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  onPressed: _cancelOrder,
+          Container(
+            width: double.infinity,
+            height: 48,
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3D2314),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              onPressed: () {}, // Sắp có
+              child: const Text(
+                'IN LẠI HÓA ĐƠN',
+                style: TextStyle(
+                  fontFamily: 'Arial',
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: Colors.white,
                 ),
               ),
-            ],
-            if (canRefund) ...[
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.undo),
-                  label: const Text('Hoàn Tiền'),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                  onPressed: _refundOrder,
+            ),
+          ),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                backgroundColor: Colors.white,
+                side: const BorderSide(color: Color(0xFFEADDD3)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                'QUAY LẠI',
+                style: TextStyle(
+                  fontFamily: 'Segoe UI',
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: Color(0xFF3D2314),
                 ),
               ),
-            ],
-          ],
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _body(OrderDetail o) {
-    return Column(
+    return ListView(
+      key: const Key('order-detail'),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       children: [
-        Expanded(
-          child: ListView(
-            key: const Key('order-detail'),
-            padding: const EdgeInsets.all(20),
-            children: [
-              // Info Card
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFF0EBE5)),
-                ),
-                child: Column(
-                  children: [
-                    _infoRow('Số đơn hàng:', o.orderNumber, bold: true),
-                    _infoRow('Mã định danh (ID):', o.id),
-                    _infoRow('Hình thức / Giờ:', '${orderTypeLabel(o.orderType)} | ${o.createdAt?.split('T').last.substring(0, 5) ?? '--:--'}'),
-                    _infoRow('Trạng thái thanh toán:', paymentStatusLabel(o.paymentStatus).toUpperCase(), color: kSuccess, bold: true),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Divider(color: Color(0xFFE5E0DA), height: 1, thickness: 1),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Trạng thái đơn hàng:', style: TextStyle(color: kMuted)),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE3F2FD),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(o.status == 'PENDING' ? 'Chờ pha chế' : o.status == 'PREPARING' ? 'Đang pha chế' : 'Hoàn thành', 
-                                  style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 12)),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              
-              // Items Section
-              const Text('Danh sách món nước & bánh', style: TextStyle(fontWeight: FontWeight.bold, color: kMuted, fontSize: 13)),
-              const Divider(color: Color(0xFFF0EBE5), thickness: 1),
-              const SizedBox(height: 8),
-              for (final line in o.items) _itemRow(line),
-              
-              const SizedBox(height: 16),
-              
-              // Payment Section
-              const Text('Chi tiết thanh toán', style: TextStyle(fontWeight: FontWeight.bold, color: kMuted, fontSize: 13)),
-              const Divider(color: Color(0xFFF0EBE5), thickness: 1),
-              const SizedBox(height: 8),
-              _totalRow('Tổng tiền hàng:', o.subtotal),
-              if (o.discount > 0) _totalRow('Tổng chiết khấu:', -o.discount),
-              const SizedBox(height: 8),
-              _totalRow('Khách đã trả (${paymentMethodLabel(o.paymentMethod)}):', o.total, bold: true),
-            ],
-          ),
-        ),
-        
-        // Bottom Actions
+        // Info Card
         Container(
-          padding: const EdgeInsets.all(20),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            border: Border(top: BorderSide(color: Color(0xFFF0EBE5))),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFDFAF7),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFEADDD3)),
           ),
           child: Column(
             children: [
-              if (context.read<AuthController>().profile?.role != 'BARISTA') ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: kDanger,
-                      side: const BorderSide(color: Color(0xFFF8D7DA)),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              _infoRow('Số đơn hàng:', o.orderNumber, bold: true),
+              _infoRow('Mã định danh (ID):', o.id),
+              _infoRow('Hình thức / Giờ:', '${orderTypeLabel(o.orderType)} | ${o.createdAt?.split('T').last.substring(0, 5) ?? '--:--'}'),
+              _infoRow('Trạng thái thanh toán:', paymentStatusLabel(o.paymentStatus).toUpperCase(), color: const Color(0xFF2E7D32), bold: true),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Divider(color: Color(0xFFEADDD3), height: 1, thickness: 1), 
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Trạng thái đơn hàng:', style: TextStyle(fontFamily: 'Segoe UI', color: Color(0xFF5C3826), fontSize: 13)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE3F2FD),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    onPressed: () {},
-                    child: const Text('HỦY ĐƠN & HOÀN TIỀN', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kBrown,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    child: Text(
+                      o.status == 'PENDING' ? 'Chờ pha chế' : o.status == 'PREPARING' ? 'Đang pha chế' : 'Hoàn thành',
+                      style: const TextStyle(fontFamily: 'Segoe UI', color: Color(0xFF1565C0), fontWeight: FontWeight.bold, fontSize: 10),
                     ),
-                    onPressed: () {},
-                    child: const Text('IN LẠI HÓA ĐƠN', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
-                ),
-                const SizedBox(height: 12),
-              ],
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: kBrown,
-                    side: const BorderSide(color: Color(0xFFF0EBE5)),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('QUAY LẠI', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
+                ],
               ),
             ],
           ),
         ),
+        const SizedBox(height: 16),
+        
+        // Items Section
+        Container(
+          padding: const EdgeInsets.only(bottom: 4),
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: Color(0xFFF0E6DF))),
+          ),
+          child: const Text(
+            'Danh sách món nước & bánh',
+            style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, color: Color(0xFF8C766C), fontSize: 12),
+          ),
+        ),
+        const SizedBox(height: 8),
+        for (final line in o.items) _itemRow(line),
+        
+        const SizedBox(height: 16),
+        
+        // Payment Section
+        Container(
+          padding: const EdgeInsets.only(bottom: 4),
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: Color(0xFFF0E6DF))),
+          ),
+          child: const Text(
+            'Chi tiết thanh toán',
+            style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, color: Color(0xFF8C766C), fontSize: 12),
+          ),
+        ),
+        const SizedBox(height: 8),
+        _totalRow('Tổng tiền hàng:', o.subtotal),
+        if (o.discount > 0) _totalRow('Tổng chiết khấu:', -o.discount),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.only(top: 8),
+          decoration: const BoxDecoration(
+            border: Border(top: BorderSide(color: Color(0xFFF0E6DF))),
+          ),
+          child: _totalRow('Khách đã trả (${paymentMethodLabel(o.paymentMethod)}):', o.total, bold: true),
+        ),
+        const SizedBox(height: 24),
       ],
     );
   }
@@ -305,18 +328,15 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: kMuted)),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-                color: color ?? Colors.black87,
-              ),
+          Text(label, style: const TextStyle(fontFamily: 'Segoe UI', color: Color(0xFF5C3826), fontSize: 13)),
+          Text(
+            value,
+            style: TextStyle(
+              fontFamily: 'Segoe UI',
+              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+              color: color ?? const Color(0xFF2C1A11),
+              fontSize: 12.5,
             ),
           ),
         ],
@@ -332,14 +352,25 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(child: Text('${line.quantity}x ${line.menuItemName}', style: const TextStyle(fontWeight: FontWeight.bold))),
-                Text('${formatVnd(line.lineTotal)} đ', style: const TextStyle(fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: Text(
+                    '${line.quantity}x ${line.menuItemName}',
+                    style: const TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, color: Color(0xFF3D2314), fontSize: 13),
+                  ),
+                ),
+                Text(
+                  '${formatVnd(line.lineTotal)} đ',
+                  style: const TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, color: Color(0xFF2C1A11), fontSize: 13),
+                ),
               ],
             ),
             if (line.toppings.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 2),
-                child: Text('- ${line.toppings.map((t) => t.name).join(', ')}', style: const TextStyle(color: kMuted, fontSize: 13)),
+                child: Text(
+                  '- ${line.toppings.map((t) => t.name).join(', ')}',
+                  style: const TextStyle(fontFamily: 'Segoe UI', color: Color(0xFF8C766C), fontSize: 11),
+                ),
               ),
           ],
         ),
@@ -350,8 +381,24 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: TextStyle(color: bold ? kBrown : kMuted, fontWeight: bold ? FontWeight.bold : FontWeight.normal)),
-            Text('${formatVnd(value)} đ', style: TextStyle(fontWeight: bold ? FontWeight.bold : FontWeight.bold, color: bold ? kBrown : Colors.black87)),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Segoe UI',
+                color: const Color(0xFF5C3826),
+                fontSize: 13,
+                fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+            Text(
+              '${formatVnd(value)} đ',
+              style: TextStyle(
+                fontFamily: 'Segoe UI',
+                fontWeight: FontWeight.bold,
+                color: bold ? const Color(0xFF3D2314) : const Color(0xFF2C1A11),
+                fontSize: 12.5,
+              ),
+            ),
           ],
         ),
       );

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../api/api_client.dart';
 import '../api/stock_api.dart';
 import '../auth/auth_controller.dart';
+import '../auth/logout_confirm_modal.dart';
 import '../inventory/stock_list_screen.dart';
 import '../screens/reports_hub_screen.dart';
 import '../staff/attendance_screen.dart';
@@ -18,37 +19,40 @@ class ManagerDashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthController>();
     return Scaffold(
       backgroundColor: kBg,
       body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 32),
-            // Header
-            Text(
-              'Store Manager',
-              style: const TextStyle(
-                fontFamily: 'Segoe UI',
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: kBrownDark,
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              const SizedBox(height: 32),
+              // Header
+              const Text(
+                'Store Manager',
+                style: TextStyle(
+                  fontFamily: 'Segoe UI',
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: kBrownDark,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Nguyễn Du Branch',
-              style: const TextStyle(
-                fontFamily: 'Segoe UI',
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: kMuted,
+              const SizedBox(height: 4),
+              Text(
+                auth.profile?.storeName ?? 'Khoga',
+                style: const TextStyle(
+                  fontFamily: 'Segoe UI',
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: kMuted,
+                ),
               ),
-            ),
-            const SizedBox(height: 32),
+              const SizedBox(height: 32),
 
-            // Grid Menu
-            Expanded(
-              child: GridView.count(
+              // Grid Menu
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 crossAxisCount: 2,
                 mainAxisSpacing: 16,
@@ -57,6 +61,7 @@ class ManagerDashboardScreen extends StatelessWidget {
                     1.6, // Adjusted to match the visual proportion (156x94 from Figma)
                 children: [
                   _buildMenuCard(
+                    key: const Key('inventory-action'),
                     context: context,
                     icon: Icons.inventory_2_outlined,
                     label: 'Kho Hàng',
@@ -69,6 +74,7 @@ class ManagerDashboardScreen extends StatelessWidget {
                     },
                   ),
                   _buildMenuCard(
+                    key: const Key('staff-action'),
                     context: context,
                     icon: Icons.people_outline,
                     label: 'Nhân Viên',
@@ -81,6 +87,7 @@ class ManagerDashboardScreen extends StatelessWidget {
                     },
                   ),
                   _buildMenuCard(
+                    key: const Key('schedule-action'),
                     context: context,
                     icon: Icons.calendar_month_outlined,
                     label: 'Lịch Làm Việc',
@@ -93,6 +100,7 @@ class ManagerDashboardScreen extends StatelessWidget {
                     },
                   ),
                   _buildMenuCard(
+                    key: const Key('attendance-action'),
                     context: context,
                     icon: Icons.how_to_reg,
                     label: 'Điểm Danh',
@@ -130,7 +138,6 @@ class ManagerDashboardScreen extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
 
             // Alerts / Settings widgets
             Padding(
@@ -192,19 +199,22 @@ class ManagerDashboardScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildMenuCard({
+    Key? key,
     required BuildContext context,
     required IconData icon,
     required String label,
     required VoidCallback onTap,
   }) {
     return InkWell(
+      key: key,
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
@@ -286,52 +296,14 @@ class ManagerDashboardScreen extends StatelessWidget {
     );
   }
 
-  void _showLogoutDialog(BuildContext context) {
-    showDialog(
+  void _showLogoutDialog(BuildContext context) async {
+    final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text(
-          'Đăng xuất',
-          style: TextStyle(
-            fontFamily: 'Segoe UI',
-            fontWeight: FontWeight.bold,
-            color: kBrownDark,
-          ),
-        ),
-        content: const Text(
-          'Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?',
-          style: TextStyle(fontFamily: 'Segoe UI', color: kBrown),
-        ),
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text(
-              'HỦY',
-              style: TextStyle(color: kMuted, fontWeight: FontWeight.bold),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              context.read<AuthController>().logout();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kDanger,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text(
-              'ĐĂNG XUẤT',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
+      builder: (ctx) => const LogoutConfirmModal(),
     );
+    if (confirm == true && context.mounted) {
+      context.read<AuthController>().logout();
+    }
   }
 }
 
