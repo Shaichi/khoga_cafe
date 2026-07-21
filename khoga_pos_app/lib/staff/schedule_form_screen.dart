@@ -4,12 +4,17 @@ import 'package:provider/provider.dart';
 import '../api/api_client.dart';
 import '../api/models.dart';
 import '../api/staff_api.dart';
-import '../theme.dart';
 
-/// Screen 36/37 — create or edit a shift. In edit mode the employee and date are
-/// fixed (BR-36); create mode picks an employee from the roster.
+// Figma Colors
+const Color cBgWhite = Color(0xFFFFFFFF);
+const Color cBorderLight = Color(0xFFEADDD3);
+const Color cTextDark = Color(0xFF2C1A11);
+const Color cTextMuted = Color(0xFF8C766C);
+const Color cBrownDark = Color(0xFF3D2314);
+const Color cPrimary = Color(0xFF5C3826);
+const Color cDanger = Color(0xFFC62828);
+
 class ScheduleFormScreen extends StatefulWidget {
-  /// When non-null, the form edits this shift (UC-37); otherwise it creates (UC-36).
   final ScheduleShift? existing;
   final String? defaultDate;
   
@@ -46,15 +51,24 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
   List<StaffRoster> _roster = const [];
   String? _employeeId;
   
-  // Mảng lưu các ca được chọn
   final Set<String> _selectedTypes = {'MORNING'};
-  
-  // Phạm vi phân ca
-  String _scope = 'DAILY'; // DAILY, WEEKLY, MONTHLY
 
   bool _loadingRoster = false;
   bool _submitting = false;
   String? _error;
+
+  bool get _isBarista {
+    if (widget.isEdit) {
+      return widget.existing!.role.toLowerCase().contains('pha chế') || widget.existing!.role.toLowerCase().contains('barista');
+    }
+    for (final r in _roster) {
+      if (r.userId == _employeeId) {
+        return r.role.toLowerCase().contains('pha chế') || r.role.toLowerCase().contains('barista');
+      }
+    }
+    return false;
+  }
+
 
   @override
   void initState() {
@@ -97,48 +111,21 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
     }
   }
 
-  // Lấy danh sách các ngày để rải ca
-  List<String> _getDatesForScope(String baseDateStr, String scope) {
-    if (baseDateStr.isEmpty) return [];
-    try {
-      final parts = baseDateStr.split('-');
-      final baseDate = DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
-
-      if (scope == 'DAILY') {
-        return [baseDateStr];
-      } else if (scope == 'WEEKLY') {
-        // Rải ca cho tuần tiếp theo (từ Thứ 2 tuần sau)
-        final nextMonday = baseDate.add(Duration(days: 8 - baseDate.weekday));
-        List<String> dates = [];
-        for (int i = 0; i < 7; i++) {
-          final d = nextMonday.add(Duration(days: i));
-          dates.add('${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}');
-        }
-        return dates;
-      } else if (scope == 'MONTHLY') {
-        // All days in the month
-        final lastDay = DateTime(baseDate.year, baseDate.month + 1, 0).day;
-        List<String> dates = [];
-        for (int i = 1; i <= lastDay; i++) {
-          dates.add('${baseDate.year}-${baseDate.month.toString().padLeft(2, '0')}-${i.toString().padLeft(2, '0')}');
-        }
-        return dates;
-      }
-    } catch (_) {}
-    return [baseDateStr];
-  }
-
   Future<void> _submit() async {
     if (!widget.isEdit && _employeeId == null) {
       setState(() => _error = 'Vui lòng chọn nhân viên');
       return;
     }
     if (_date.text.trim().isEmpty) {
-      setState(() => _error = 'Vui lòng nhập ngày bắt đầu');
+      setState(() => _error = 'Vui lòng nhập ngày làm việc');
       return;
     }
     if (_selectedTypes.isEmpty) {
-      setState(() => _error = 'Vui lòng chọn loại ca');
+      setState(() => _error = 'Vui lòng chọn ca làm việc');
+      return;
+    }
+    if (!_isBarista && _register.text.trim().isEmpty) {
+      setState(() => _error = 'Vui lòng chọn máy POS phân bổ');
       return;
     }
     
@@ -146,9 +133,10 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
       try {
         final parts = _date.text.trim().split('-');
         final d = DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
-        final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
         if (d.isBefore(today)) {
-          setState(() => _error = 'Không thể thêm ca làm việc trong quá khứ');
+          setState(() => _error = 'Không thể phân ca làm việc trong quá khứ');
           return;
         }
       } catch (_) {}
@@ -161,31 +149,22 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
 
     try {
       if (widget.isEdit) {
-        // Update a single shift
-        final type = _selectedTypes.first; // Edit mode can only select 1 type visually or we just take the first
+        final type = _selectedTypes.first;
         await _api.update(widget.existing!.id,
             shiftType: type,
             shiftStartTime: _start.text.trim(),
             shiftEndTime: _end.text.trim(),
-            posRegisterId: _register.text.trim());
+            posRegisterId: _isBarista ? null : _register.text.trim());
       } else {
-        // Create multiple shifts based on scope and selected types
-        final dates = _getDatesForScope(_date.text.trim(), _scope);
-        
-        List<Future> futures = [];
-        for (final d in dates) {
-          for (final type in _selectedTypes) {
-            futures.add(_api.create(
-              employeeId: _employeeId!,
-              shiftDate: d,
-              shiftType: type,
-              shiftStartTime: _start.text.trim(),
-              shiftEndTime: _end.text.trim(),
-              posRegisterId: _register.text.trim()
-            ));
-          }
-        }
-        await Future.wait(futures);
+        final type = _selectedTypes.first;
+        await _api.create(
+          employeeId: _employeeId!,
+          shiftDate: _date.text.trim(),
+          shiftType: type,
+          shiftStartTime: _start.text.trim(),
+          shiftEndTime: _end.text.trim(),
+          posRegisterId: _isBarista ? null : _register.text.trim()
+        );
       }
       if (mounted) Navigator.of(context).pop(true);
     } on ApiException catch (e) {
@@ -201,11 +180,11 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Xác nhận'),
-        content: const Text('Bạn có chắc chắn muốn xóa ca làm này?'),
+        title: const Text('Xác nhận', style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, color: cBrownDark)),
+        content: const Text('Bạn có chắc chắn muốn xóa ca làm này?', style: TextStyle(fontFamily: 'Segoe UI')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('HỦY')),
-          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('XÓA', style: TextStyle(color: kDanger))),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('HỦY', style: TextStyle(color: cBrownDark, fontFamily: 'Segoe UI'))),
+          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('XÓA', style: TextStyle(color: cDanger, fontFamily: 'Segoe UI'))),
         ],
       ),
     );
@@ -228,198 +207,264 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: kBrown,
-        foregroundColor: Colors.white,
-        title: Text(widget.isEdit ? 'Sửa ca làm' : 'Thêm ca làm'),
+  InputDecoration _inputDecoration() {
+    return InputDecoration(
+      filled: true,
+      fillColor: cBgWhite,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: cBorderLight),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (_error != null) ...[
-                  Text(_error!, key: const Key('schedule-form-error'), style: const TextStyle(color: kDanger)),
-                  const SizedBox(height: 12),
-                ],
-                _label('Nhân viên *'),
-                if (widget.isEdit)
-                  Text(widget.existing!.employeeName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16))
-                else
-                  _employeePicker(),
-                const SizedBox(height: 16),
-                
-                if (!widget.isEdit) ...[
-                  _label('Phạm vi áp dụng (Rải ca) *'),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      ChoiceChip(
-                        label: const Text('Trong ngày'),
-                        selected: _scope == 'DAILY',
-                        onSelected: (_) => setState(() => _scope = 'DAILY'),
-                      ),
-                      ChoiceChip(
-                        label: const Text('Cả tuần'),
-                        selected: _scope == 'WEEKLY',
-                        onSelected: (_) => setState(() => _scope = 'WEEKLY'),
-                      ),
-                      ChoiceChip(
-                        label: const Text('Cả tháng'),
-                        selected: _scope == 'MONTHLY',
-                        onSelected: (_) => setState(() => _scope = 'MONTHLY'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                _label(widget.isEdit ? 'Ngày làm *' : 'Ngày bắt đầu / Ngày chuẩn *'),
-                TextField(
-                  key: const Key('shift-date'),
-                  controller: _date,
-                  readOnly: widget.isEdit,
-                  decoration: const InputDecoration(hintText: '2026-06-29'),
-                ),
-                const SizedBox(height: 16),
-                
-                _label('Loại ca *'),
-                ..._allTypes.map((t) {
-                  return RadioListTile<String>(
-                    key: Key('type-${t.$1}'),
-                    title: Text(t.$2),
-                    value: t.$1,
-                    groupValue: _selectedTypes.isEmpty ? null : _selectedTypes.first,
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                    onChanged: widget.isPast ? null : (val) {
-                      if (val != null) {
-                        setState(() {
-                          _selectedTypes.clear();
-                          _selectedTypes.add(val);
-                          if (val == 'MORNING') {
-                            _start.text = '08:00';
-                            _end.text = '12:00';
-                          } else if (val == 'AFTERNOON') {
-                            _start.text = '12:00';
-                            _end.text = '18:00';
-                          } else if (val == 'FULL_DAY') {
-                            _start.text = '08:00';
-                            _end.text = '18:00';
-                          }
-                        });
-                      }
-                    },
-                  );
-                }),
-                const SizedBox(height: 16),
-                _label('Máy POS (nếu là thu ngân)'),
-                DropdownButtonFormField<String>(
-                  key: const Key('shift-register'),
-                  value: _register.text.isEmpty ? null : _register.text,
-                  decoration: InputDecoration(
-                    hintText: 'Chọn máy POS',
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: kBorder),
-                    ),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'POS-01', child: Text('POS-01')),
-                    DropdownMenuItem(value: 'POS-02', child: Text('POS-02')),
-                    DropdownMenuItem(value: 'POS-03', child: Text('POS-03')),
-                  ],
-                  onChanged: widget.isPast ? null : (val) {
-                    if (val != null) setState(() => _register.text = val);
-                  },
-                ),
-                const SizedBox(height: 28),
-                if (widget.isPast) ...[
-                  const Center(
-                    child: Text('Ca làm việc trong quá khứ chỉ có thể xem, không thể sửa đổi hoặc xóa.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: kMuted, fontStyle: FontStyle.italic)),
-                  ),
-                ] else if (widget.isEdit) ...[
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: _submitting ? null : _delete,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: kDanger,
-                            side: const BorderSide(color: kDanger),
-                            minimumSize: const Size.fromHeight(50),
-                          ),
-                          child: const Text('XÓA CA'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          key: const Key('schedule-save'),
-                          onPressed: _submitting ? null : _submit,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: kBrown,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size.fromHeight(50),
-                          ),
-                          child: _submitting
-                              ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                              : const Text('LƯU CA'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ] else ...[
-                  ElevatedButton(
-                    key: const Key('schedule-save'),
-                    onPressed: _submitting ? null : _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kBrown,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(50),
-                    ),
-                    child: _submitting
-                        ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Text('TẠO CA'),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: cBrownDark),
       ),
-    );
-  }
-
-  Widget _employeePicker() {
-    if (_loadingRoster) return const Text('Đang tải nhân viên…', style: TextStyle(color: kMuted));
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final s in _roster)
-          ChoiceChip(
-            key: Key('emp-${s.userId}'),
-            label: Text(s.fullName),
-            selected: _employeeId == s.userId,
-            onSelected: (_) => setState(() => _employeeId = s.userId),
-          ),
-      ],
+      disabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: cBorderLight),
+      ),
     );
   }
 
   Widget _label(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
-    child: Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: kBrown)),
+    child: Text(text, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: cBrownDark, fontFamily: 'Segoe UI')),
   );
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: cBgWhite,
+      appBar: AppBar(
+        backgroundColor: cBgWhite,
+        foregroundColor: cBrownDark,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: cTextMuted),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          widget.isEdit ? 'Điều Chỉnh Ca' : 'Phân Ca Mới',
+          style: const TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 22, color: cBrownDark),
+        ),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_error != null) ...[
+                Text(_error!, key: const Key('schedule-form-error'), style: const TextStyle(color: cDanger, fontFamily: 'Segoe UI')),
+                const SizedBox(height: 12),
+              ],
+              
+              if (widget.isEdit) ...[
+                RichText(
+                  text: TextSpan(
+                    style: const TextStyle(fontFamily: 'Segoe UI', fontSize: 16, color: cTextDark),
+                    children: [
+                      const TextSpan(text: 'Nhân viên: ', style: TextStyle(fontWeight: FontWeight.bold, color: cBrownDark)),
+                      TextSpan(text: widget.existing!.employeeName),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                RichText(
+                  text: TextSpan(
+                    style: const TextStyle(fontFamily: 'Segoe UI', fontSize: 16, color: cTextDark),
+                    children: [
+                      const TextSpan(text: 'Ngày: ', style: TextStyle(fontWeight: FontWeight.bold, color: cBrownDark)),
+                      TextSpan(text: _date.text),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ] else ...[
+                _label('Nhân viên *'),
+                if (_loadingRoster)
+                  TextFormField(
+                    enabled: false,
+                    decoration: _inputDecoration().copyWith(hintText: 'Đang tải...'),
+                  )
+                else
+                  DropdownButtonFormField<String>(
+                    value: _employeeId,
+                    decoration: _inputDecoration(),
+                    icon: const Icon(Icons.keyboard_arrow_down, color: cTextMuted),
+                    items: _roster.map((s) => DropdownMenuItem(
+                      value: s.userId,
+                      child: Text(s.fullName, style: const TextStyle(fontFamily: 'Segoe UI', color: cBrownDark)),
+                    )).toList(),
+                    onChanged: (v) {
+                      if (v != null) setState(() => _employeeId = v);
+                    },
+                  ),
+                const SizedBox(height: 20),
+
+                _label('Ngày làm việc *'),
+                TextFormField(
+                  key: const Key('shift-date'),
+                  controller: _date,
+                  readOnly: true, // Typically chosen from previous screen
+                  decoration: _inputDecoration(),
+                  style: const TextStyle(fontFamily: 'Segoe UI', color: cTextDark),
+                ),
+                const SizedBox(height: 20),
+              ],
+              
+              _label(widget.isEdit ? 'Ca làm việc' : 'Ca làm việc *'),
+              DropdownButtonFormField<String>(
+                value: _selectedTypes.isEmpty ? null : _selectedTypes.first,
+                decoration: _inputDecoration(),
+                icon: const Icon(Icons.keyboard_arrow_down, color: cTextMuted),
+                items: _allTypes.map((t) => DropdownMenuItem(
+                  value: t.$1,
+                  child: Text(t.$2, style: const TextStyle(fontFamily: 'Segoe UI', color: cBrownDark)),
+                )).toList(),
+                onChanged: widget.isPast ? null : (v) {
+                  if (v != null) {
+                    setState(() {
+                      _selectedTypes.clear();
+                      _selectedTypes.add(v);
+                      if (v == 'MORNING') {
+                        _start.text = '08:00';
+                        _end.text = '12:00';
+                      } else if (v == 'AFTERNOON') {
+                        _start.text = '12:00';
+                        _end.text = '18:00';
+                      } else if (v == 'FULL_DAY') {
+                        _start.text = '08:00';
+                        _end.text = '18:00';
+                      }
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 20),
+
+              if (!_isBarista) ...[
+                _label(widget.isEdit ? 'Đăng ký' : 'Máy POS phân bổ *'),
+                DropdownButtonFormField<String>(
+                  key: const Key('shift-register'),
+                  value: _register.text.isEmpty ? null : _register.text,
+                  decoration: _inputDecoration(),
+                  icon: const Icon(Icons.keyboard_arrow_down, color: cTextMuted),
+                  items: const [
+                    DropdownMenuItem(value: 'REG-01', child: Text('REG-01')),
+                    DropdownMenuItem(value: 'REG-02', child: Text('REG-02')),
+                    DropdownMenuItem(value: 'REG-03', child: Text('REG-03')),
+                  ],
+                  onChanged: widget.isPast ? null : (val) {
+                    if (val != null) setState(() => _register.text = val);
+                  },
+                ),
+                const SizedBox(height: 20),
+              ],
+              
+              if (widget.isPast)
+                const Center(
+                  child: Text(
+                    'Ca làm việc trong quá khứ chỉ có thể xem, không thể sửa đổi hoặc xóa.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: cTextMuted, fontStyle: FontStyle.italic, fontFamily: 'Segoe UI'),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: const BoxDecoration(
+          color: cBgWhite,
+          border: Border(top: BorderSide(color: Colors.transparent)),
+        ),
+        child: widget.isEdit 
+          ? (widget.isPast 
+              ? const SizedBox.shrink()
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            key: const Key('schedule-save'),
+                            onPressed: _submitting ? null : _submit,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: cBrownDark,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size.fromHeight(50),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              elevation: 0,
+                            ),
+                            child: _submitting
+                                ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                : const Text('LƯU', style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 16)),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: _submitting ? null : _delete,
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size.fromHeight(50),
+                              side: const BorderSide(color: cBorderLight),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: const Text('XÓA', style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, color: cDanger, fontSize: 16)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    OutlinedButton(
+                      onPressed: _submitting ? null : () => Navigator.of(context).pop(),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(50),
+                        side: const BorderSide(color: cBorderLight),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text('HỦY', style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, color: cBrownDark, fontSize: 16)),
+                    ),
+                  ],
+                ))
+          : Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _submitting ? null : () => Navigator.of(context).pop(),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                      side: const BorderSide(color: cBorderLight),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text('HỦY', style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, color: cBrownDark, fontSize: 16)),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    key: const Key('schedule-save'),
+                    onPressed: _submitting ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: cBrownDark,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(50),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      elevation: 0,
+                    ),
+                    child: _submitting
+                        ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Text('PHÂN CA', style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 16)),
+                  ),
+                ),
+              ],
+            ),
+      ),
+    );
+  }
 }

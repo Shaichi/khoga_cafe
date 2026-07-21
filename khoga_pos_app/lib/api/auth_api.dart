@@ -45,4 +45,11 @@ class AuthApi {
       'newPassword': newPassword,
     });
   }
+
+  Future<LoginResponse> forcePasswordChange(String newPassword) async {
+    final data = await _client.post('/auth/force-password-change', {
+      'newPassword': newPassword,
+    });
+    return LoginResponse.fromJson(data as Map<String, dynamic>);
+  }
 }

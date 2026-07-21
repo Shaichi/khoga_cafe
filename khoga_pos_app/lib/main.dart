@@ -21,6 +21,7 @@ void main() async {
     MultiProvider(
       providers: [
         Provider<ApiClient>.value(value: apiClient),
+        Provider<AuthApi>(create: (_) => AuthApi(apiClient)),
         ChangeNotifierProvider<AuthController>(
           create: (_) => AuthController(apiClient, AuthApi(apiClient)),
         ),

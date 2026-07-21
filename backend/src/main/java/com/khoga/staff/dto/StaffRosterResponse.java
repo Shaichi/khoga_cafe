@@ -10,6 +10,7 @@ public record StaffRosterResponse(
                 String employeeId,
                 String fullName,
                 Role role,
+                String phone,
                 boolean pinSet,
                 boolean pinLocked,
                 Boolean isActive) {

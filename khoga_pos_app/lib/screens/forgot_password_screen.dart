@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../api/api_client.dart';
@@ -53,8 +52,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       }
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
-    } catch (_) {
-      if (mounted) setState(() => _error = 'Không thể gửi OTP. Vui lòng thử lại.');
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Lỗi gửi OTP: $e');
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -133,14 +132,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         TextField(
           controller: _emailCtrl,
           keyboardType: TextInputType.emailAddress,
-          inputFormatters: [LengthLimitingTextInputFormatter(100)],
           decoration: const InputDecoration(hintText: 'VD: admin@khoga.com'),
           onSubmitted: (_) => _submitEmail(),
         ),
         const SizedBox(height: 24),
         ElevatedButton(
           onPressed: _submitting ? null : _submitEmail,
-          child: _submitting ? const CircularProgressIndicator(color: Colors.white) : const Text('GỬI OTP'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: kBrown,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          child: _submitting ? const CircularProgressIndicator(color: Colors.white) : const Text('GỬI OTP', style: TextStyle(fontWeight: FontWeight.bold)),
         ),
       ],
     );
@@ -151,21 +155,76 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('Một mã OTP đã được gửi đến email của bạn.', style: TextStyle(color: kMuted)),
-        const SizedBox(height: 16),
-        const Text('Mã xác thực (OTP)', style: TextStyle(color: kBrown, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _otpCtrl,
-          keyboardType: TextInputType.number,
-          maxLength: 6,
-          decoration: const InputDecoration(hintText: '123456'),
-          onSubmitted: (_) => _submitOtp(),
+        const Text(
+          'Nhập mã xác thực gồm 6 chữ số đã được gửi tới\nemail của bạn.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: kMuted, height: 1.5, fontSize: 13),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 32),
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(6, (index) {
+                final text = _otpCtrl.text;
+                final char = text.length > index ? text[index] : '';
+                final isFocused = text.length == index;
+                return Container(
+                  width: 45,
+                  height: 55,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(
+                      color: isFocused ? kGold : const Color(0xFFE5E5E5),
+                      width: isFocused ? 2 : 1,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    char,
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: kBrown),
+                  ),
+                );
+              }),
+            ),
+            Positioned.fill(
+              child: Opacity(
+                opacity: 0.0,
+                child: TextField(
+                  controller: _otpCtrl,
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  autofocus: true,
+                  onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) {
+                    if (_otpCtrl.text.length == 6) _submitOtp();
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 48),
         ElevatedButton(
           onPressed: _submitting ? null : _submitOtp,
-          child: _submitting ? const CircularProgressIndicator(color: Colors.white) : const Text('XÁC NHẬN'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: kBrown,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          child: _submitting ? const CircularProgressIndicator(color: Colors.white) : const Text('XÁC NHẬN', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        const SizedBox(height: 16),
+        Center(
+          child: TextButton(
+            onPressed: () {
+              // Resend logic
+            },
+            child: const Text('Gửi lại mã xác thực', style: TextStyle(color: Color(0xFFD6A07B), fontWeight: FontWeight.bold, fontSize: 13)),
+          ),
         ),
       ],
     );
@@ -176,26 +235,90 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('Mật khẩu mới', style: TextStyle(color: kBrown, fontWeight: FontWeight.bold)),
+        const Text(
+          'Tạo mật khẩu bảo mật mới cho tài khoản.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: kMuted, height: 1.5, fontSize: 13),
+        ),
+        const SizedBox(height: 32),
+        const Text('Mật khẩu mới', style: TextStyle(color: kBrown, fontWeight: FontWeight.bold, fontSize: 13)),
         const SizedBox(height: 8),
         TextField(
           controller: _newPasswordCtrl,
           obscureText: true,
-          inputFormatters: [LengthLimitingTextInputFormatter(255)],
+          decoration: InputDecoration(
+            hintText: 'Mật khẩu mới',
+            hintStyle: const TextStyle(color: Color(0xFFBDBDBD)),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFE5E5E5)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFE5E5E5)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: kGold),
+            ),
+          ),
         ),
-        const SizedBox(height: 16),
-        const Text('Xác nhận mật khẩu mới', style: TextStyle(color: kBrown, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 20),
+        const Text('Xác nhận mật khẩu', style: TextStyle(color: kBrown, fontWeight: FontWeight.bold, fontSize: 13)),
         const SizedBox(height: 8),
         TextField(
           controller: _confirmPasswordCtrl,
           obscureText: true,
-          inputFormatters: [LengthLimitingTextInputFormatter(255)],
           onSubmitted: (_) => _submitNewPassword(),
+          decoration: InputDecoration(
+            hintText: 'Xác nhận lại mật khẩu',
+            hintStyle: const TextStyle(color: Color(0xFFBDBDBD)),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFE5E5E5)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFE5E5E5)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: kGold),
+            ),
+          ),
         ),
         const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFDF9F6),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFF5E6DC)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text('Độ phức tạp bắt buộc', style: TextStyle(color: kBrown, fontWeight: FontWeight.bold, fontSize: 12)),
+              SizedBox(height: 8),
+              Text(
+                'Mật khẩu có độ dài ít nhất 8 ký tự, bao gồm chữ viết hoa, chữ viết thường, chữ số và ký tự đặc biệt.',
+                style: TextStyle(color: kMuted, fontSize: 12, height: 1.5),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 48),
         ElevatedButton(
           onPressed: _submitting ? null : _submitNewPassword,
-          child: _submitting ? const CircularProgressIndicator(color: Colors.white) : const Text('ĐỔI MẬT KHẨU'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: kBrown,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          child: _submitting ? const CircularProgressIndicator(color: Colors.white) : const Text('LƯU MẬT KHẨU', style: TextStyle(fontWeight: FontWeight.bold)),
         ),
       ],
     );
@@ -215,7 +338,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    _step == 0 ? 'Quên mật khẩu' : _step == 1 ? 'Xác thực OTP' : 'Đặt lại mật khẩu',
+                    _step == 0 ? 'Quên mật khẩu' : _step == 1 ? 'Xác Thực OTP' : 'Mật Khẩu Mới',
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: kBrown),
                   ),
@@ -236,11 +359,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   if (_step == 1) _buildOtpStep(),
                   if (_step == 2) _buildPasswordStep(),
                   const SizedBox(height: 24),
-                  TextButton.icon(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back, size: 18),
-                    label: const Text('Quay lại Đăng nhập'),
-                  ),
+                  if (_step == 0)
+                    TextButton.icon(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.arrow_back, size: 18),
+                      label: const Text('Quay lại Đăng nhập'),
+                    ),
                 ],
               ),
             ),

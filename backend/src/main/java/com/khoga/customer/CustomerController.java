@@ -60,6 +60,11 @@ public class CustomerController {
         return ResponseEntity.ok(ApiResponse.success(customerService.history(id)));
     }
 
+    @GetMapping("/{id}/point-logs")
+    public ResponseEntity<ApiResponse<List<com.khoga.customer.dto.CustomerPointLogResponse>>> getPointLogs(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success(customerService.getPointLogs(id)));
+    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<CustomerResponse>> create(@Valid @RequestBody CreateCustomerRequest request) {
         CustomerResponse created = customerService.create(request, SecurityUtil.currentUserId());

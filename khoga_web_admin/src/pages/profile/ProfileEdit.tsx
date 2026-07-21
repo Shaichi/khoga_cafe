@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { updateProfile } from '../../api/auth';
 import { errorMessage } from '../../api/client';
@@ -51,8 +51,7 @@ export default function ProfileEdit() {
   return (
     <div>
       <div className="page-head">
-        <Link to="/profile" className="back-link">← Thông tin cá nhân</Link>
-        <h1 className="page-title">Chỉnh sửa thông tin</h1>
+        <h1 className="page-title">Chỉnh Sửa Hồ Sơ Cá Nhân</h1>
       </div>
 
       <form className="form-card" onSubmit={handleSubmit}>

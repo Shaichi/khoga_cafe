@@ -3,15 +3,16 @@ import 'package:provider/provider.dart';
 import '../api/api_client.dart';
 import '../api/stock_api.dart';
 import '../auth/auth_controller.dart';
-import '../auth/logout_confirm_modal.dart';
+import '../auth/logout_screen.dart';
 import '../inventory/stock_list_screen.dart';
-import '../screens/reports_hub_screen.dart';
+import '../screens/revenue_report_screen.dart';
 import '../staff/attendance_screen.dart';
 import '../staff/schedule_screen.dart';
 import '../staff/staff_list_screen.dart';
 import '../theme.dart';
 import 'branch_settings_screen.dart';
 import 'manager_order_history_screen.dart';
+import 'worked_hours_report_screen.dart';
 import '../profile/profile_screen.dart';
 
 class ManagerDashboardScreen extends StatelessWidget {
@@ -19,40 +20,37 @@ class ManagerDashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthController>();
     return Scaffold(
       backgroundColor: kBg,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              const SizedBox(height: 32),
-              // Header
-              const Text(
-                'Store Manager',
-                style: TextStyle(
-                  fontFamily: 'Segoe UI',
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: kBrownDark,
-                ),
+        child: Column(
+          children: [
+            const SizedBox(height: 32),
+            // Header
+            Text(
+              'Store Manager',
+              style: const TextStyle(
+                fontFamily: 'Segoe UI',
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: kBrownDark,
               ),
-              const SizedBox(height: 4),
-              Text(
-                auth.profile?.storeName ?? 'Khoga',
-                style: const TextStyle(
-                  fontFamily: 'Segoe UI',
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: kMuted,
-                ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              context.watch<AuthController>().profile?.storeName ?? 'Chi nhánh Nguyễn Du',
+              style: const TextStyle(
+                fontFamily: 'Segoe UI',
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: kMuted,
               ),
-              const SizedBox(height: 32),
+            ),
+            const SizedBox(height: 32),
 
-              // Grid Menu
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
+            // Grid Menu
+            Expanded(
+              child: GridView.count(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 crossAxisCount: 2,
                 mainAxisSpacing: 16,
@@ -61,7 +59,6 @@ class ManagerDashboardScreen extends StatelessWidget {
                     1.6, // Adjusted to match the visual proportion (156x94 from Figma)
                 children: [
                   _buildMenuCard(
-                    key: const Key('inventory-action'),
                     context: context,
                     icon: Icons.inventory_2_outlined,
                     label: 'Kho Hàng',
@@ -74,7 +71,6 @@ class ManagerDashboardScreen extends StatelessWidget {
                     },
                   ),
                   _buildMenuCard(
-                    key: const Key('staff-action'),
                     context: context,
                     icon: Icons.people_outline,
                     label: 'Nhân Viên',
@@ -87,7 +83,6 @@ class ManagerDashboardScreen extends StatelessWidget {
                     },
                   ),
                   _buildMenuCard(
-                    key: const Key('schedule-action'),
                     context: context,
                     icon: Icons.calendar_month_outlined,
                     label: 'Lịch Làm Việc',
@@ -100,7 +95,6 @@ class ManagerDashboardScreen extends StatelessWidget {
                     },
                   ),
                   _buildMenuCard(
-                    key: const Key('attendance-action'),
                     context: context,
                     icon: Icons.how_to_reg,
                     label: 'Điểm Danh',
@@ -115,11 +109,11 @@ class ManagerDashboardScreen extends StatelessWidget {
                   _buildMenuCard(
                     context: context,
                     icon: Icons.bar_chart,
-                    label: 'Báo Cáo',
+                    label: 'Doanh Thu',
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => const ReportsHubScreen(),
+                          builder: (_) => const RevenueReportScreen(),
                         ),
                       );
                     },
@@ -136,8 +130,21 @@ class ManagerDashboardScreen extends StatelessWidget {
                       );
                     },
                   ),
+                  _buildMenuCard(
+                    context: context,
+                    icon: Icons.timer_outlined,
+                    label: 'Báo Cáo Công',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const WorkedHoursReportScreen(),
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
+            ),
 
             // Alerts / Settings widgets
             Padding(
@@ -183,7 +190,9 @@ class ManagerDashboardScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: ElevatedButton(
-                onPressed: () => _showLogoutDialog(context),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const LogoutScreen()),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kBrown,
                   foregroundColor: Colors.white,
@@ -199,22 +208,19 @@ class ManagerDashboardScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            ],
-          ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildMenuCard({
-    Key? key,
     required BuildContext context,
     required IconData icon,
     required String label,
     required VoidCallback onTap,
   }) {
     return InkWell(
-      key: key,
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
@@ -296,15 +302,6 @@ class ManagerDashboardScreen extends StatelessWidget {
     );
   }
 
-  void _showLogoutDialog(BuildContext context) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => const LogoutConfirmModal(),
-    );
-    if (confirm == true && context.mounted) {
-      context.read<AuthController>().logout();
-    }
-  }
 }
 
 class LowStockAlertWidget extends StatefulWidget {

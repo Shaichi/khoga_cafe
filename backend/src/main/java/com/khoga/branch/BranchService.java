@@ -146,6 +146,24 @@ public class BranchService {
         auditLogService.record(ActionType.DEACTIVATE, "Store", oldJson, newJson, actorId);
     }
 
+    /** Activate / reactivate an inactive store. */
+    @Transactional
+    public void activate(UUID id, UUID actorId) {
+        Store store = load(id);
+        if (Boolean.TRUE.equals(store.getIsActive())) {
+            return;
+        }
+        int max = systemConfigService.getGlobalInt("MAX_ACTIVE_BRANCHES", DEFAULT_MAX_ACTIVE_BRANCHES);
+        if (storeRepository.countByIsActiveTrue() >= max) {
+            throw AppException.of("MSG16", max);
+        }
+        store.setIsActive(true);
+        storeRepository.save(store);
+        String oldJson = AuditJson.snapshot().put("active", false).json();
+        String newJson = AuditJson.snapshot().put("active", true).json();
+        auditLogService.record(ActionType.UPDATE, "Store", oldJson, newJson, actorId);
+    }
+
     /** BR-37: notify each affected branch employee that their branch (and shifts) closed. */
     private void notifyBranchClosure(List<User> branchUsers, Store store) {
         String subject = "Chi nhánh " + store.getName() + " đã ngừng hoạt động";

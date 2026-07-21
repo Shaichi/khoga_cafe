@@ -4,9 +4,19 @@ import 'package:provider/provider.dart';
 import '../api/api_client.dart';
 import '../api/models.dart';
 import '../api/staff_api.dart';
-import '../theme.dart';
+import '../auth/auth_controller.dart';
 
-/// Screen 47 — View Branch Staff List (UC-66). Manager scope.
+// Figma Colors
+const Color cBgWhite = Color(0xFFFFFFFF);
+const Color cBrownDark = Color(0xFF4B382A);
+const Color cBrownLight = Color(0xFFE7D1B7);
+const Color cBorderLight = Color(0xFFEBEBEB);
+const Color cTextMuted = Color(0xFF909090);
+const Color cActiveBg = Color(0xFFE8F5E9);
+const Color cActiveText = Color(0xFF2E7D32);
+const Color cInactiveBg = Color(0xFFFFEBEE);
+const Color cInactiveText = Color(0xFFC62828);
+
 class StaffListScreen extends StatefulWidget {
   const StaffListScreen({super.key});
 
@@ -16,27 +26,17 @@ class StaffListScreen extends StatefulWidget {
 
 class _StaffListScreenState extends State<StaffListScreen> {
   late final ScheduleApi _api;
-  final _searchController = TextEditingController();
   
-  List<StaffRoster> _allStaff = const [];
-  List<StaffRoster> _filteredStaff = const [];
-  
+  List<StaffRoster> _allStaff = [];
   bool _loading = true;
   String? _error;
+  String _filterRole = 'ALL';
 
   @override
   void initState() {
     super.initState();
     _api = ScheduleApi(context.read<ApiClient>());
-    _searchController.addListener(_filter);
     _load();
-  }
-
-  @override
-  void dispose() {
-    _searchController.removeListener(_filter);
-    _searchController.dispose();
-    super.dispose();
   }
 
   Future<void> _load() async {
@@ -49,7 +49,6 @@ class _StaffListScreenState extends State<StaffListScreen> {
       if (mounted) {
         setState(() {
           _allStaff = list;
-          _filteredStaff = list;
         });
       }
     } catch (e) {
@@ -59,103 +58,178 @@ class _StaffListScreenState extends State<StaffListScreen> {
     }
   }
 
-  void _filter() {
-    final query = _searchController.text.trim().toLowerCase();
-    setState(() {
-      if (query.isEmpty) {
-        _filteredStaff = _allStaff;
-      } else {
-        _filteredStaff = _allStaff.where((s) {
-          return s.fullName.toLowerCase().contains(query) ||
-                 (s.employeeId?.toLowerCase().contains(query) ?? false);
-        }).toList();
-      }
-    });
+  List<StaffRoster> get _filteredStaff {
+    if (_filterRole == 'ALL') return _allStaff;
+    return _allStaff.where((s) => s.role == _filterRole).toList();
   }
+
+  int get _countTotal => _allStaff.length;
+  int get _countCashier => _allStaff.where((s) => s.role == 'CASHIER').length;
+  int get _countBarista => _allStaff.where((s) => s.role == 'BARISTA').length;
+  int get _countManager => _allStaff.where((s) => s.role == 'STORE_MANAGER').length;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: cBgWhite,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: kBrownDark,
-        elevation: 1,
-        title: const Text('Nhân viên chi nhánh', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: cBgWhite,
+        foregroundColor: cBrownDark,
+        elevation: 0,
+        leadingWidth: 64,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: cBrownDark),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text(
+          'Nhân Viên',
+          style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 22, color: cBrownDark),
+        ),
+        centerTitle: true,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: Center(
+              child: Text(
+                context.watch<AuthController>().profile?.storeName ?? 'Nguyễn Du',
+                style: const TextStyle(color: cBrownDark, fontWeight: FontWeight.w600, fontSize: 14, fontFamily: 'Segoe UI'),
+              ),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // Search Bar
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Tìm kiếm nhân viên...',
-                  prefixIcon: const Icon(Icons.search, color: kMuted),
-                  filled: true,
-                  fillColor: kBg,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
+            const Divider(height: 1, color: cBorderLight),
+            if (_loading)
+              const Expanded(child: Center(child: CircularProgressIndicator(color: cBrownDark)))
+            else if (_error != null)
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, color: cInactiveText, size: 48),
+                      const SizedBox(height: 12),
+                      Text(_error!, style: const TextStyle(color: cInactiveText, fontFamily: 'Segoe UI')),
+                      const SizedBox(height: 12),
+                      ElevatedButton(
+                        onPressed: _load,
+                        style: ElevatedButton.styleFrom(backgroundColor: cBrownDark, foregroundColor: Colors.white),
+                        child: const Text('Thử lại', style: TextStyle(fontFamily: 'Segoe UI')),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else ...[
+              // Stats Row
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildStatBox('Tổng NV', _countTotal),
+                    const SizedBox(width: 8),
+                    _buildStatBox('Cashier', _countCashier),
+                    const SizedBox(width: 8),
+                    _buildStatBox('Barista', _countBarista),
+                    const SizedBox(width: 8),
+                    _buildStatBox('Manager', _countManager),
+                  ],
+                ),
+              ),
+
+              // Filter Row
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildFilterChip('Tất cả', 'ALL'),
+                      _buildFilterChip('Cashier', 'CASHIER'),
+                      _buildFilterChip('Barista', 'BARISTA'),
+                      _buildFilterChip('Manager', 'STORE_MANAGER'),
+                    ],
                   ),
                 ),
               ),
-            ),
-            const Divider(height: 1, color: kBorder),
-            
-            // List
-            Expanded(child: _buildList()),
+              const SizedBox(height: 16),
+
+              // List
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemCount: _filteredStaff.length,
+                  separatorBuilder: (_, index) => const SizedBox(height: 12),
+                  itemBuilder: (_, i) => _buildStaffCard(_filteredStaff[i]),
+                ),
+              ),
+            ]
           ],
         ),
       ),
     );
   }
 
-  Widget _buildList() {
-    if (_loading) return const Center(child: CircularProgressIndicator(color: kBrown));
-    if (_error != null) {
-      return Center(
+  Widget _buildStatBox(String label, int count) {
+    return Expanded(
+      child: Container(
+        height: 70,
+        decoration: BoxDecoration(
+          color: cBgWhite,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: cBorderLight),
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, color: kDanger, size: 48),
-            const SizedBox(height: 12),
-            Text(_error!, style: const TextStyle(color: kDanger)),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: _load,
-              style: ElevatedButton.styleFrom(backgroundColor: kBrown, foregroundColor: Colors.white),
-              child: const Text('Thử lại'),
+            Text(
+              count.toString(),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: cBrownDark, fontFamily: 'Segoe UI'),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 10, color: cBrownDark, fontWeight: FontWeight.w600, fontFamily: 'Segoe UI'),
             ),
           ],
         ),
-      );
-    }
-    
-    if (_filteredStaff.isEmpty) {
-      return Center(
-        child: Text(
-          _searchController.text.isEmpty ? 'Chưa có nhân viên nào' : 'Không tìm thấy kết quả',
-          style: const TextStyle(color: kMuted, fontSize: 16),
-        ),
-      );
-    }
+      ),
+    );
+  }
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: _filteredStaff.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (_, i) => _buildStaffCard(_filteredStaff[i]),
+  Widget _buildFilterChip(String label, String role) {
+    final isActive = _filterRole == role;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8.0),
+      child: GestureDetector(
+        onTap: () => setState(() => _filterRole = role),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: isActive ? cBrownDark : cBgWhite,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: isActive ? cBrownDark : cBorderLight),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isActive ? Colors.white : cBrownDark,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              fontFamily: 'Segoe UI',
+            ),
+          ),
+        ),
+      ),
     );
   }
 
   Widget _buildStaffCard(StaffRoster staff) {
-    // Generate initials
-    final names = staff.fullName.split(' ').where((s) => s.isNotEmpty).toList();
+    final names = staff.fullName.trim().split(' ').where((s) => s.isNotEmpty).toList();
     String initials = '';
     if (names.isNotEmpty) {
       initials = names.first[0].toUpperCase();
@@ -164,105 +238,96 @@ class _StaffListScreenState extends State<StaffListScreen> {
       }
     }
 
-    // Role colors
+    final isCashier = staff.role == 'CASHIER';
     final isManager = staff.role == 'STORE_MANAGER';
-    final roleColor = isManager ? kBrownDark : kGold;
     
-    // Status color
-    final statusColor = staff.isActive ? kSuccess : kMuted;
+    final avatarBg = isCashier ? cBrownLight : cBrownDark;
+    final avatarFg = isCashier ? cBrownDark : Colors.white;
+
+    final roleLabel = isManager ? 'Store Manager' : (isCashier ? 'Cashier' : 'Barista');
     
-    // PIN Status
-    String pinStatusText = 'Chưa tạo PIN';
-    Color pinColor = kMuted;
-    IconData pinIcon = Icons.password;
-    
-    if (staff.pinLocked) {
-      pinStatusText = 'Khóa PIN';
-      pinColor = kDanger;
-      pinIcon = Icons.lock;
-    } else if (staff.pinSet) {
-      pinStatusText = 'Đã tạo PIN';
-      pinColor = kSuccess;
-      pinIcon = Icons.check_circle;
-    }
+    final statusBg = staff.isActive ? cActiveBg : cInactiveBg;
+    final statusFg = staff.isActive ? cActiveText : cInactiveText;
+    final statusText = staff.isActive ? 'Hoạt động' : 'Vô hiệu hóa';
+
+    final authProfile = context.read<AuthController>().profile;
+    final isMe = authProfile != null && authProfile.id == staff.userId;
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kBorder),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: cBgWhite,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cBorderLight),
       ),
       padding: const EdgeInsets.all(16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Avatar
           CircleAvatar(
             radius: 28,
-            backgroundColor: roleColor.withValues(alpha: 0.1),
+            backgroundColor: avatarBg,
             child: Text(
               initials,
-              style: TextStyle(color: roleColor, fontWeight: FontWeight.bold, fontSize: 20),
+              style: TextStyle(color: avatarFg, fontWeight: FontWeight.bold, fontSize: 18, fontFamily: 'Segoe UI'),
             ),
           ),
           const SizedBox(width: 16),
-          
-          // Info
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: Text(
                         staff.fullName,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: kBrownDark),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: cBrownDark, fontFamily: 'Segoe UI'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    // Status dot
                     Container(
-                      width: 10,
-                      height: 10,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: statusColor,
-                        shape: BoxShape.circle,
+                        color: statusBg,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        statusText,
+                        style: TextStyle(color: statusFg, fontWeight: FontWeight.bold, fontSize: 10, fontFamily: 'Segoe UI'),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
-                  staff.employeeId ?? 'Không có mã NV',
-                  style: const TextStyle(color: kMuted, fontSize: 14),
+                  roleLabel,
+                  style: TextStyle(color: isManager ? cBrownLight : cBrownDark, fontWeight: FontWeight.bold, fontSize: 13, fontFamily: 'Segoe UI'),
                 ),
-                const SizedBox(height: 12),
-                
-                // Badges
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildBadge(
-                      text: _roleLabel(staff.role),
-                      color: roleColor,
-                      icon: isManager ? Icons.shield : Icons.badge,
+                    Text(
+                      staff.phone ?? 'Chưa cập nhật SĐT',
+                      style: const TextStyle(color: cTextMuted, fontSize: 13, fontFamily: 'Segoe UI'),
                     ),
-                    _buildBadge(
-                      text: pinStatusText,
-                      color: pinColor,
-                      icon: pinIcon,
-                    ),
+                    if (isMe)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8.0),
+                        child: Text('BẠN', style: TextStyle(color: cTextMuted, fontWeight: FontWeight.bold, fontSize: 12, fontFamily: 'Segoe UI')),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: cActiveText.withValues(alpha: 0.3)),
+                        ),
+                        child: const Icon(Icons.phone, size: 16, color: cActiveText),
+                      )
                   ],
                 ),
               ],
@@ -272,33 +337,5 @@ class _StaffListScreenState extends State<StaffListScreen> {
       ),
     );
   }
-
-  Widget _buildBadge({required String text, required Color color, required IconData icon}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(
-            text,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _roleLabel(String r) => switch (r) {
-        'STORE_MANAGER' => 'Quản lý',
-        'CASHIER' => 'Thu ngân',
-        'BARISTA' => 'Pha chế',
-        _ => r,
-      };
 }
+

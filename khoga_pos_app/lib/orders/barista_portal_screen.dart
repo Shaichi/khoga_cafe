@@ -6,12 +6,13 @@ import '../api/api_client.dart';
 import '../api/models.dart';
 import '../api/order_api.dart';
 import '../auth/auth_controller.dart';
-import '../auth/logout_confirm_modal.dart';
+import '../auth/logout_screen.dart';
+import '../profile/profile_screen.dart';
 import '../theme.dart';
-import 'order_labels.dart';
 import 'order_detail_screen.dart';
 import 'print_sticker_dialog.dart';
 
+/// Barista Monitor Portal — redesigned to match Figma Node 149:2587.
 class BaristaPortalScreen extends StatefulWidget {
   const BaristaPortalScreen({super.key});
 
@@ -29,9 +30,10 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations(
-      const [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight],
-    );
+    SystemChrome.setPreferredOrientations(const [
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     _api = OrderApi(context.read<ApiClient>());
     _load();
   }
@@ -51,11 +53,17 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
       final summaries = await _api.queue();
       final details = <OrderDetail>[];
       for (final s in summaries) {
-        details.add(await _api.detail(s.id));
+        try {
+          details.add(await _api.detail(s.id));
+        } catch (_) {}
       }
       if (mounted) setState(() => _orders = details);
     } catch (e) {
-      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Không tải được hàng đợi');
+      if (mounted) {
+        setState(
+          () => _error = e is ApiException ? e.message : 'Không tải được hàng đợi',
+        );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -68,10 +76,13 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
       if (!mounted) return;
       if (res.stockWarnings.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(backgroundColor: kDanger, content: Text(res.stockWarnings.join('\n'))),
+          SnackBar(
+            backgroundColor: kDanger,
+            content: Text(res.stockWarnings.join('\n')),
+          ),
         );
       }
-      
+
       // If we just advanced to PREPARING, pop up the print sticker dialog
       if (target == 'PREPARING') {
         showDialog(
@@ -80,12 +91,14 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
           builder: (_) => PrintStickerDialog(order: o),
         );
       }
-      
+
       await _load();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e is ApiException ? e.message : 'Cập nhật thất bại')),
+          SnackBar(
+            content: Text(e is ApiException ? e.message : 'Cập nhật thất bại'),
+          ),
         );
       }
     } finally {
@@ -96,41 +109,61 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
+    final storeName = auth.profile?.storeName ?? 'Nguyễn Du';
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F7F5),
+      backgroundColor: const Color(0xFFFDFAF7),
       appBar: AppBar(
-        backgroundColor: kBrown,
+        backgroundColor: const Color(0xFF3D2314),
         foregroundColor: Colors.white,
-        title: Text('Quầy Pha Chế (Barista Monitor)'),
+        elevation: 0,
+        title: const Text(
+          'Quầy Pha Chế (Barista Monitor)',
+          style: TextStyle(
+            fontFamily: 'Segoe UI',
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
         actions: [
           Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: InkWell(
-                onTap: () => _showProfileDialog(context, auth),
-                child: Text('Chi nhánh: TT Q1 | Tài khoản: ${auth.profile?.fullName ?? ''}', style: const TextStyle(decoration: TextDecoration.underline)),
+              child: Text(
+                'Chi nhánh: $storeName | Quầy: BAR-01',
+                style: const TextStyle(
+                  fontFamily: 'Segoe UI',
+                  color: Color(0xFFEADDD3),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const ProfileScreen()),
+            ),
+            child: const Text(
+              'Tài khoản',
+              style: TextStyle(color: Color(0xFFEADDD3)),
             ),
           ),
           IconButton(
             key: const Key('portal-refresh'),
             tooltip: 'Làm mới',
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, color: Color(0xFFEADDD3)),
             onPressed: _load,
           ),
-          TextButton.icon(
+          TextButton(
             key: const Key('portal-logout'),
-            icon: const Icon(Icons.logout, color: Colors.white),
-            label: const Text('Đăng xuất', style: TextStyle(color: Colors.white)),
-            onPressed: () async {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (ctx) => const LogoutConfirmModal(),
-              );
-              if (confirm == true && context.mounted) {
-                auth.logout();
-              }
-            },
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const LogoutScreen()),
+            ),
+            child: const Text(
+              'Đăng xuất',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
           const SizedBox(width: 8),
         ],
@@ -140,11 +173,40 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
   }
 
   Widget _body() {
-    if (_loading) return const Center(child: Text('Đang tải…'));
-    if (_error != null) return Center(child: Text(_error!, style: const TextStyle(color: kDanger)));
-    
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFF3D2314)),
+      );
+    }
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              _error!,
+              style: const TextStyle(color: kDanger, fontFamily: 'Segoe UI'),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: _load,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3D2314),
+              ),
+              child: const Text(
+                'Thử lại',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final pendingOrders = _orders.where((o) => o.status == 'PENDING').toList();
-    final preparingOrders = _orders.where((o) => o.status == 'PREPARING' || o.status == 'HOLD').toList();
+    final preparingOrders = _orders
+        .where((o) => o.status == 'PREPARING' || o.status == 'HOLD')
+        .toList();
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -152,7 +214,7 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
         Expanded(
           child: _buildColumn('Đơn Chờ Pha Chế (Pending)', pendingOrders),
         ),
-        const VerticalDivider(width: 1, color: Color(0xFFE5E0DA)),
+        const VerticalDivider(width: 1, thickness: 1, color: Color(0xFFEADDD3)),
         Expanded(
           child: _buildColumn('Đang Thực Hiện (Preparing)', preparingOrders),
         ),
@@ -163,30 +225,61 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
   Widget _buildColumn(String title, List<OrderDetail> orders) {
     return Column(
       children: [
+        // Column Header per Figma 149:2587
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: const BoxDecoration(
-            color: Color(0xFFF0EBE5),
-            border: Border(bottom: BorderSide(color: Color(0xFFE5E0DA))),
+            color: Color(0xFFF5EEE8),
+            border: Border(bottom: BorderSide(color: Color(0xFFEADDD3))),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: kBrown, fontSize: 16)),
-              CircleAvatar(
-                radius: 12,
-                backgroundColor: kBrown,
-                child: Text('${orders.length}', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontFamily: 'Segoe UI',
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF5C3826),
+                  fontSize: 12,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3D2314),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${orders.length}',
+                  style: const TextStyle(
+                    fontFamily: 'Segoe UI',
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ],
           ),
         ),
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: orders.length,
-            itemBuilder: (_, i) => _card(orders[i]),
-          ),
+          child: orders.isEmpty
+              ? const Center(
+                  child: Text(
+                    'Không có đơn hàng',
+                    style: TextStyle(
+                      color: Color(0xFF8C766C),
+                      fontFamily: 'Segoe UI',
+                      fontSize: 13,
+                    ),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: orders.length,
+                  itemBuilder: (_, i) => _card(orders[i]),
+                ),
         ),
       ],
     );
@@ -196,144 +289,288 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
     final busy = _busyId == o.id;
     final isPending = o.status == 'PENDING';
     final isHold = o.status == 'HOLD';
-    
-    // Simulate wait time since createdAt
-    final waitText = isPending ? 'Chờ 5m' : 'Đang pha 10m';
+
+    final rawNum = o.orderNumber ?? '';
+    final formattedNum = rawNum.length >= 3
+        ? rawNum.substring(rawNum.length - 3)
+        : rawNum.padLeft(3, '0');
+
+    // Calculate wait time text safely
+    String waitText = isPending ? 'Chờ 5m' : 'Đang pha 10m';
+    if (o.createdAt != null && o.createdAt!.isNotEmpty) {
+      try {
+        final parsed = DateTime.parse(o.createdAt!);
+        final diffMin = DateTime.now().difference(parsed).inMinutes.abs();
+        waitText = isPending
+            ? (diffMin == 0 ? 'Vừa vào' : 'Chờ ${diffMin}m')
+            : 'Đang pha ${diffMin}m';
+      } catch (_) {}
+    }
+
+    // Channel/type badge check
+    final orderTypeStr = o.orderType ?? '';
+    final isShopeeFood = orderTypeStr == 'DELIVERY' || o.id.contains('shopee');
+
+    final itemsList = o.items ?? [];
 
     return GestureDetector(
       onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailScreen(orderId: o.id)));
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => OrderDetailScreen(orderId: o.id)),
+        );
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
           color: isHold ? const Color(0xFFFFF4F4) : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isHold ? kDanger : const Color(0xFFE5E0DA), width: isHold ? 2 : 1),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2)),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isHold ? const Color(0xFFCF6679) : const Color(0xFFEADDD3),
+            width: isHold ? 1.5 : 1,
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color.fromRGBO(0, 0, 0, 0.02),
+              blurRadius: 6,
+              offset: Offset(0, 2),
+            ),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(child: Text(o.orderNumber, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: kBrown), overflow: TextOverflow.ellipsis)),
-                  const SizedBox(width: 8),
-                  Text(waitText, style: const TextStyle(color: kMuted, fontSize: 13)),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF9F7F5),
-                  borderRadius: BorderRadius.circular(8),
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Card Top Row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Đơn #$formattedNum',
+                      style: TextStyle(
+                        fontFamily: 'Segoe UI',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: isHold
+                            ? const Color(0xFFCF6679)
+                            : const Color(0xFF2C1A11),
+                      ),
+                    ),
+                    if (isShopeeFood) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF3E0),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: const Color(0xFFE65100).withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: const Text(
+                          'ĐƠN SHOPEEFOOD',
+                          style: TextStyle(
+                            fontFamily: 'Segoe UI',
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFE65100),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: (o.items ?? []).map((item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
+                Text(
+                  waitText,
+                  style: const TextStyle(
+                    fontFamily: 'Segoe UI',
+                    color: Color(0xFF8C766C),
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            // Items Container per Figma 149:2587
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFAFAFA),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: itemsList.map((item) {
+                  final qty = item.quantity ?? 1;
+                  final name = item.menuItemName ?? 'Món';
+                  final toppingsList = item.toppings ?? [];
+                  final toppingsText = toppingsList
+                      .map((t) => t.name ?? '')
+                      .where((n) => n.isNotEmpty)
+                      .join(', ');
+                  final detailsText =
+                      toppingsText.isNotEmpty ? '- $toppingsText' : '';
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('${item.quantity ?? 1}x ${item.menuItemName ?? 'Món'}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                        if ((item.toppings ?? []).isNotEmpty)
+                        Text(
+                          '${qty}x $name',
+                          style: const TextStyle(
+                            fontFamily: 'Segoe UI',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            color: Color(0xFF3D2314),
+                          ),
+                        ),
+                        if (detailsText.isNotEmpty)
                           Padding(
-                            padding: const EdgeInsets.only(top: 4, left: 8),
-                            child: Text('- ${item.toppings.map((t) => t.name).join(', ')}', style: const TextStyle(color: kMuted, fontSize: 13)),
-                          )
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              detailsText,
+                              style: const TextStyle(
+                                fontFamily: 'Segoe UI',
+                                color: Color(0xFF8C766C),
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
-                  )).toList(),
-                ),
+                  );
+                }).toList(),
               ),
-              const SizedBox(height: 12),
-              Wrap(
-                alignment: WrapAlignment.end,
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  if (isPending)
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: kBrown,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      onPressed: busy ? null : () => _advance(o, 'PREPARING'),
-                      child: busy
-                          ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Text('BẮT ĐẦU PHA CHẾ'),
-                    )
-                  else if (isHold)
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: kGold,
-                        foregroundColor: Colors.black87,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      onPressed: busy ? null : () => _advance(o, 'PREPARING'),
-                      child: busy
-                          ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black87))
-                          : const Text('TIẾP TỤC PHA'),
-                    )
-                  else ...[
-                    OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: kDanger,
-                        side: const BorderSide(color: kDanger, width: 1),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      onPressed: busy ? null : () => _advance(o, 'HOLD'),
-                      child: const Text('BÁO LỖI'),
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: kSuccess,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      onPressed: busy ? null : () => _advance(o, 'READY'),
-                      child: busy
-                          ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Text('HOÀN THÀNH'),
-                    ),
-                  ]
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+            ),
+            const SizedBox(height: 10),
 
-  void _showProfileDialog(BuildContext context, auth) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Thông tin tài khoản'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Nhân viên: ${auth.profile?.fullName ?? 'Không rõ'}', style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('Tài khoản: ${auth.profile?.username ?? ''}'),
-            const SizedBox(height: 8),
-            Text('Vai trò: ${auth.profile?.role ?? ''}'),
-            const SizedBox(height: 8),
-            Text('Mã chi nhánh: ${auth.profile?.storeId ?? 'N/A'}'),
+            // Action Buttons Row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (isPending)
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3D2314),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      minimumSize: const Size(0, 28),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    onPressed: busy ? null : () => _advance(o, 'PREPARING'),
+                    child: busy
+                        ? const SizedBox(
+                            height: 14,
+                            width: 14,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text(
+                            'BẮT ĐẦU PHA CHẾ',
+                            style: TextStyle(
+                              fontFamily: 'Arial',
+                              fontSize: 10.9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  )
+                else if (isHold)
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFC89D7C),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      minimumSize: const Size(0, 28),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    onPressed: busy ? null : () => _advance(o, 'PREPARING'),
+                    child: busy
+                        ? const SizedBox(
+                            height: 14,
+                            width: 14,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text(
+                            'TIẾP TỤC PHA',
+                            style: TextStyle(
+                              fontFamily: 'Arial',
+                              fontSize: 10.9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  )
+                else ...[
+                  OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFCF6679),
+                      side: const BorderSide(color: Color(0x4DCF6679)),
+                      minimumSize: const Size(0, 28),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    onPressed: busy ? null : () => _advance(o, 'HOLD'),
+                    child: const Text(
+                      'BÁO LỖI',
+                      style: TextStyle(
+                        fontFamily: 'Segoe UI',
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2E7D32),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      minimumSize: const Size(0, 28),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    onPressed: busy ? null : () => _advance(o, 'READY'),
+                    child: busy
+                        ? const SizedBox(
+                            height: 14,
+                            width: 14,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text(
+                            'HOÀN THÀNH',
+                            style: TextStyle(
+                              fontFamily: 'Arial',
+                              fontSize: 10.9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
+                ]
+              ],
+            ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('ĐÓNG')),
-        ],
       ),
     );
   }

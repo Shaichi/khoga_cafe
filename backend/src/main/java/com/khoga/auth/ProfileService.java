@@ -50,7 +50,8 @@ public class ProfileService {
 
     private ProfileResponse toResponse(User u) {
         UUID storeId = u.getStore() != null ? u.getStore().getId() : null;
+        String storeName = u.getStore() != null ? u.getStore().getName() : null;
         return new ProfileResponse(u.getId(), u.getUsername(), u.getFullName(),
-                u.getEmail(), u.getPhone(), u.getRole(), storeId);
+                u.getEmail(), u.getPhone(), u.getRole(), storeId, storeName);
     }
 }

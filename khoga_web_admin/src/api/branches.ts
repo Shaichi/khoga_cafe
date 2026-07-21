@@ -47,6 +47,10 @@ export async function deactivateBranch(id: string): Promise<void> {
   await apiClient.post(`/branches/${id}/deactivate`);
 }
 
+export async function activateBranch(id: string): Promise<void> {
+  await apiClient.post(`/branches/${id}/activate`);
+}
+
 /** com.khoga.branch.dto.BranchSettingsResponse — branch-scoped operational settings (UC-42). */
 export interface BranchSettings {
   timezone: string | null;

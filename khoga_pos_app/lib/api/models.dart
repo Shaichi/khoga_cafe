@@ -307,6 +307,7 @@ class StaffRoster {
   final String? employeeId;
   final String fullName;
   final String role;
+  final String? phone;
   final bool pinSet;
   final bool pinLocked;
   final bool isActive;
@@ -319,6 +320,7 @@ class StaffRoster {
     required this.pinLocked,
     required this.isActive,
     this.employeeId,
+    this.phone,
   });
 
   factory StaffRoster.fromJson(Map<String, dynamic> j) => StaffRoster(
@@ -326,9 +328,10 @@ class StaffRoster {
         employeeId: j['employeeId'] as String?,
         fullName: j['fullName'] as String? ?? '',
         role: j['role'] as String? ?? '',
-        pinSet: j['pinSet'] as bool? ?? false,
-        pinLocked: j['pinLocked'] as bool? ?? false,
-        isActive: j['isActive'] as bool? ?? true,
+        phone: j['phone'] as String?,
+        pinSet: (j['pinSet'] as bool?) ?? false,
+        pinLocked: (j['pinLocked'] as bool?) ?? false,
+        isActive: (j['isActive'] as bool?) ?? true,
       );
 }
 

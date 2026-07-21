@@ -10,7 +10,6 @@ import '../api/order_api.dart';
 import '../format.dart';
 import '../theme.dart';
 import 'order_detail_screen.dart';
-import 'order_labels.dart';
 
 /// Screen 49 — branch order history (UC-54). A status filter scopes the list;
 /// tapping a row opens the detail screen (40).
@@ -22,16 +21,10 @@ class OrderHistoryScreen extends StatefulWidget {
 }
 
 class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
-  static const _filters = [
-    (null, 'Tất cả'),
-    ('COMPLETED', 'Hoàn tất'),
-    ('CANCELLED', 'Đã hủy'),
-  ];
-
   late final OrderApi _api;
   String? _status;
-  DateTime _startDate = DateTime.now();
-  DateTime _endDate = DateTime.now();
+  final DateTime _startDate = DateTime.now();
+  final DateTime _endDate = DateTime.now();
   List<OrderSummary> _orders = const [];
   String _search = '';
   bool _loading = true;
@@ -63,11 +56,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     }
   }
 
-  void _selectFilter(String? status) {
-    setState(() => _status = status);
-    _load();
-  }
-
+  // Filter feature removed from UI matching Figma
 
   @override
   Widget build(BuildContext context) {
@@ -75,142 +64,149 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     final isCashier = role == 'CASHIER';
     final shift = context.read<ShiftController>().active;
 
+    // Cashier chưa mở ca → chặn truy cập
     if (isCashier && shift == null) {
       return Scaffold(
-        backgroundColor: Colors.white,
-        body: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(),
-              const Expanded(
-                child: Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.lock_outline, size: 48, color: Color(0xFF8C766C)),
-                        SizedBox(height: 16),
-                        Text('Bạn cần mở ca trước khi xem lịch sử đơn hàng.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Color(0xFF8C766C), fontSize: 15)),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              _buildBottomButton(),
-            ],
+        appBar: AppBar(
+          backgroundColor: kBrown,
+          foregroundColor: Colors.white,
+          title: const Text('Lịch sử đơn hàng'),
+        ),
+        body: const Center(
+          child: Padding(
+            padding: EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.lock_outline, size: 48, color: kMuted),
+                SizedBox(height: 16),
+                Text('Bạn cần mở ca trước khi xem lịch sử đơn hàng.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: kMuted, fontSize: 15)),
+              ],
+            ),
           ),
         ),
       );
     }
 
+    final isManager = role == 'STORE_MANAGER';
+
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        foregroundColor: kBrownDark,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        titleSpacing: 16,
+        title: Row(
+          children: [
+            GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              child: Row(
+                children: [
+                  const Icon(Icons.arrow_back, color: kMuted, size: 20),
+                  const SizedBox(width: 4),
+                  const Text('Quay lại', style: TextStyle(color: kMuted, fontSize: 14, fontWeight: FontWeight.normal)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(isManager ? 'Đơn Hàng Chi Nhánh' : 'Lịch sử đơn hàng', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: kBrownDark)),
+          ],
+        ),
+        centerTitle: false,
+      ),
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-              child: SizedBox(
-                height: 38,
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: Container(
+                height: 48,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFEBEBEB)),
+                ),
+                alignment: Alignment.centerLeft,
                 child: TextField(
                   key: const Key('order-history-search'),
-                  decoration: InputDecoration(
+                  maxLength: 50,
+                  decoration: const InputDecoration(
                     hintText: 'Tìm số đơn hàng, mã đơn...',
-                    hintStyle: const TextStyle(fontFamily: 'Arial', fontSize: 13, color: Color(0xFF8C766C)),
-                    prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF8C766C)),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 0),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0xFFEADDD3)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0xFFC89D7C)),
-                    ),
+                    hintStyle: TextStyle(color: kMuted, fontSize: 14),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    counterText: '',
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
                   ),
                   onChanged: (v) => setState(() => _search = v.trim()),
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: SizedBox(
-                height: 38,
-                child: DropdownButtonFormField<String?>(
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: const Color(0xFFFAFAFA),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 0),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0xFFEADDD3)),
-                    ),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Container(
+                height: 48,
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFEBEBEB)),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String?>(
+                    value: _status,
+                    isExpanded: true,
+                    hint: const SizedBox(),
+                    icon: const SizedBox(),
+                    items: const [
+                      DropdownMenuItem(value: null, child: Text('', style: TextStyle(color: kMuted, fontSize: 14))),
+                      DropdownMenuItem(value: 'PENDING', child: Text('Chờ pha chế', style: TextStyle(color: kBrownDark, fontSize: 14))),
+                      DropdownMenuItem(value: 'PREPARING', child: Text('Đang pha chế', style: TextStyle(color: kBrownDark, fontSize: 14))),
+                      DropdownMenuItem(value: 'READY', child: Text('Chờ lấy hàng', style: TextStyle(color: kBrownDark, fontSize: 14))),
+                      DropdownMenuItem(value: 'COMPLETED', child: Text('Hoàn thành', style: TextStyle(color: kBrownDark, fontSize: 14))),
+                      DropdownMenuItem(value: 'CANCELLED', child: Text('Đã hủy', style: TextStyle(color: kBrownDark, fontSize: 14))),
+                    ],
+                    onChanged: (v) {
+                      setState(() => _status = v);
+                      _load();
+                    },
                   ),
-                  value: _status,
-                  icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF8C766C)),
-                  items: _filters.map((f) => DropdownMenuItem(
-                    value: f.$1,
-                    child: Text(f.$2, style: const TextStyle(fontFamily: 'Segoe UI', fontSize: 13, color: Color(0xFF2C1A11))),
-                  )).toList(),
-                  onChanged: _selectFilter,
                 ),
               ),
             ),
-            const SizedBox(height: 12),
             Expanded(child: RefreshIndicator(onRefresh: _load, child: _list())),
-            _buildBottomButton(),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Row(
-              children: [
-                const Icon(Icons.arrow_back_ios, size: 14, color: Color(0xFF8C766C)),
-                const SizedBox(width: 4),
-                const Text('Quay lại', style: TextStyle(fontFamily: 'Segoe UI', fontSize: 14, color: Color(0xFF8C766C))),
-              ],
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Color(0xFFEBEBEB))),
+        ),
+        child: SafeArea(
+          child: SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: kBrownDark,
+                side: const BorderSide(color: Color(0xFFEBEBEB)),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Quay lại bán hàng', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ),
-          ),
-          const SizedBox(width: 8),
-          const Text('Đơn Hàng Chi Nhánh', style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 19, color: Color(0xFF2C1A11))),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomButton() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-      color: Colors.white,
-      child: SizedBox(
-        width: double.infinity,
-        height: 48,
-        child: OutlinedButton(
-          style: OutlinedButton.styleFrom(
-            backgroundColor: Colors.white,
-            side: const BorderSide(color: Color(0xFFEADDD3)),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            elevation: 0,
-          ),
-          onPressed: () => Navigator.pop(context),
-          child: const Text(
-            'Quay lại bán hàng',
-            style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF3D2314)),
           ),
         ),
       ),
@@ -223,114 +219,109 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       return Center(child: Text(_error!, key: const Key('order-history-error'), style: const TextStyle(color: kDanger)));
     }
     
-    final filtered = _orders.where((o) => _search.isEmpty || o.orderNumber.toLowerCase().contains(_search.toLowerCase())).toList();
+    final filtered = _orders.where((o) => _search.isEmpty || o.orderNumber.toLowerCase().contains(_search.toLowerCase()) || o.id.toLowerCase().contains(_search.toLowerCase())).toList();
     
     if (filtered.isEmpty) {
       return const Center(child: Text('Không tìm thấy đơn hàng phù hợp', style: TextStyle(color: kMuted)));
     }
     return ListView.separated(
       key: const Key('order-list'),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: filtered.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (_, i) => _row(filtered[i]),
     );
   }
 
   Widget _row(OrderSummary o) {
-    Color bg, text;
-    String statusStr;
-    switch (o.status) {
-      case 'PENDING':
-      case 'PREPARING':
-        bg = const Color(0xFFE3F2FD);
-        text = const Color(0xFF1565C0);
-        statusStr = 'Đang pha chế';
-        break;
-      case 'READY':
-        bg = const Color(0xFFFFF8E1);
-        text = const Color(0xFFB78103);
-        statusStr = 'Chờ lấy hàng';
-        break;
-      case 'COMPLETED':
-        bg = const Color(0xFFE8F5E9);
-        text = const Color(0xFF2E7D32);
-        statusStr = 'Hoàn thành';
-        break;
-      case 'CANCELLED':
-        bg = const Color(0xFFFDE8EB);
-        text = const Color(0xFFCF6679);
-        statusStr = 'Đã hủy đơn';
-        break;
-      default:
-        bg = const Color(0xFFF5F5F5);
-        text = const Color(0xFF757575);
-        statusStr = o.status;
-    }
-
-    String timeStr = '--:--';
+    String time = '--:--';
     if (o.createdAt != null) {
       try {
-        final dt = DateTime.parse(o.createdAt!);
-        timeStr = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+        final dt = DateTime.parse(o.createdAt!).toLocal();
+        time = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
       } catch (_) {}
     }
+    final orderTypeStr = o.orderType == 'DINE_IN' ? 'Dine-in' : 'Take-away';
+    final orderNumberStr = o.orderNumber.startsWith('#') ? o.orderNumber : '#${o.orderNumber}';
 
     return GestureDetector(
-      key: Key('order-row-${o.id}'),
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(builder: (_) => OrderDetailScreen(orderId: o.id)),
       ),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFFDFDFD),
-          border: Border.all(color: const Color(0xFFEADDD3)),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFEBEBEB)),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Đơn ${o.orderNumber} (${o.orderType == 'DINE_IN' ? 'Dine-in' : 'Take-away'})',
-                    style: const TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF2C1A11)),
-                  ),
-                  Text(
-                    'Thời gian: $timeStr | Mã: ${o.id.split('-').last}',
-                    style: const TextStyle(fontFamily: 'Segoe UI', fontSize: 11, color: Color(0xFF8C766C)),
-                  ),
-                ],
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisAlignment: MainAxisAlignment.center,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '${formatVnd(o.total)} đ',
-                  style: const TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 12.5, color: Color(0xFF3D2314)),
-                ),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: bg,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    statusStr,
-                    style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 9, color: text),
-                  ),
-                ),
+                Text('Đơn $orderNumberStr ($orderTypeStr)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: kBrownDark)),
+                Text('${formatVnd(o.total)} đ', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: kBrownDark)),
               ],
             ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Thời gian: $time | Mã: ORD-${o.id.substring(0, 4)}', style: const TextStyle(color: kMuted, fontSize: 13)),
+                _buildStatusBadge(o.status),
+              ],
+            )
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(String status) {
+    Color bg, fg;
+    String text;
+    switch (status) {
+      case 'PENDING':
+      case 'PREPARING':
+        bg = const Color(0xFFE3F2FD);
+        fg = const Color(0xFF1565C0);
+        text = status == 'PENDING' ? 'Chờ pha chế' : 'Đang pha chế';
+        break;
+      case 'READY':
+        bg = const Color(0xFFFFF9C4);
+        fg = const Color(0xFFB78103);
+        text = 'Chờ lấy hàng';
+        break;
+      case 'COMPLETED':
+        bg = const Color(0xFFE8F5E9);
+        fg = const Color(0xFF2E7D32);
+        text = 'Hoàn thành';
+        break;
+      case 'CANCELLED':
+        bg = const Color(0xFFFFEBEE);
+        fg = const Color(0xFFC62828);
+        text = 'Đã hủy đơn';
+        break;
+      default:
+        bg = Colors.grey.shade200;
+        fg = Colors.grey.shade800;
+        text = status;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [bg, Colors.white.withOpacity(0.0)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.bold),
       ),
     );
   }

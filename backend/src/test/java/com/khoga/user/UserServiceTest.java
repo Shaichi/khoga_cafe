@@ -125,8 +125,8 @@ class UserServiceTest {
         User self = userOf(actor, Role.CASHIER);
         when(userRepository.findById(actor)).thenReturn(Optional.of(self));
 
-        assertThrows(AppException.class,
-                () -> service.update(actor, new UpdateUserRequest(null, Role.SSADMIN, null, null, null), actor));
+        assertThrows(AppException.class, () ->
+                service.update(actor, new UpdateUserRequest("Self", Role.SSADMIN, null, null, null), actor));
     }
 
     @Test
@@ -162,7 +162,7 @@ class UserServiceTest {
         when(userRepository.existsByPhoneAndIdNot("0900000001", id)).thenReturn(false);
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        service.update(id, new UpdateUserRequest(null, null, null, "new@khoga.com", "0900000001"), actor);
+        service.update(id, new UpdateUserRequest("Updated Name", null, null, "new@khoga.com", "0900000001"), actor);
 
         verify(auditLogService).record(eq(ActionType.UPDATE), eq("User"),
                 argThat(old -> old != null && old.contains("old@khoga.com")),
