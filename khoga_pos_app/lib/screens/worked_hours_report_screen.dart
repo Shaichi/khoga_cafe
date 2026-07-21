@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../api/api_client.dart';
 import '../api/models.dart';
 import '../api/staff_api.dart';
+import '../auth/auth_controller.dart';
 import '../theme.dart';
 
 class WorkedHoursReportScreen extends StatefulWidget {
@@ -138,7 +139,7 @@ class _WorkedHoursReportScreenState extends State<WorkedHoursReportScreen> {
                 color: const Color(0xFFEAE2D8),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: const Text('Chi nhánh Nguyễn Du', style: TextStyle(color: kBrownDark, fontSize: 13, fontWeight: FontWeight.w600)),
+              child: Text(context.watch<AuthController>().profile?.storeName ?? 'Chi nhánh Nguyễn Du', style: const TextStyle(color: kBrownDark, fontSize: 13, fontWeight: FontWeight.w600)),
             ),
           ),
         ],

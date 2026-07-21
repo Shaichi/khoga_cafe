@@ -38,7 +38,7 @@ class ManagerDashboardScreen extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Nguyễn Du Branch',
+              context.watch<AuthController>().profile?.storeName ?? 'Chi nhánh Nguyễn Du',
               style: const TextStyle(
                 fontFamily: 'Segoe UI',
                 fontSize: 12,

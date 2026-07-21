@@ -142,11 +142,18 @@ public class DataSeeder implements CommandLineRunner {
 
     private void seedDefaultStore() {
         if (storeRepository.count() > 0) {
+            storeRepository.findAll().forEach(s -> {
+                if ("Khoga Flagship".equals(s.getName())) {
+                    s.setName("Khoga Café - Nguyễn Du");
+                    s.setAddress("123 Nguyễn Du, Phường Bến Thành, Quận 1, TP. Hồ Chí Minh");
+                    storeRepository.save(s);
+                }
+            });
             return;
         }
         Store store = new Store();
-        store.setName("Khoga Flagship");
-        store.setAddress("123 Coffee Street");
+        store.setName("Khoga Café - Nguyễn Du");
+        store.setAddress("123 Nguyễn Du, Phường Bến Thành, Quận 1, TP. Hồ Chí Minh");
         store.setPhone("0900000000");
         store.setIsActive(true);
         storeRepository.save(store);

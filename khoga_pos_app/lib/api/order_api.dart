@@ -9,15 +9,25 @@ class OrderApi {
 
   /// Branch order history, newest first, optionally filtered by [status]
   /// (e.g. 'COMPLETED', 'CANCELLED') or dates. Returns the page's content.
-  Future<List<OrderSummary>> history({String? status, DateTime? startDate, DateTime? endDate, int page = 0}) async {
+  Future<List<OrderSummary>> history({
+    String? status,
+    DateTime? startDate,
+    DateTime? endDate,
+    int page = 0,
+  }) async {
     final q = <String>['page=$page'];
     if (status != null) q.add('status=$status');
-    if (startDate != null) q.add('startDate=${startDate.toIso8601String().split('T')[0]}');
-    if (endDate != null) q.add('endDate=${endDate.toIso8601String().split('T')[0]}');
-    
+    if (startDate != null)
+      q.add('startDate=${startDate.toIso8601String().split('T')[0]}');
+    if (endDate != null)
+      q.add('endDate=${endDate.toIso8601String().split('T')[0]}');
+
     final data = await _client.get('/orders?${q.join('&')}');
-    final content = (data as Map<String, dynamic>)['content'] as List? ?? const [];
-    return content.map((j) => OrderSummary.fromJson(j as Map<String, dynamic>)).toList();
+    final content =
+        (data as Map<String, dynamic>)['content'] as List? ?? const [];
+    return content
+        .map((j) => OrderSummary.fromJson(j as Map<String, dynamic>))
+        .toList();
   }
 
   /// Full detail for one order (UC-73).
@@ -29,7 +39,9 @@ class OrderApi {
   /// Live barista queue — active orders, oldest first (UC-57).
   Future<List<OrderSummary>> queue() async {
     final data = await _client.get('/queue');
-    return (data as List).map((j) => OrderSummary.fromJson(j as Map<String, dynamic>)).toList();
+    return (data as List)
+        .map((j) => OrderSummary.fromJson(j as Map<String, dynamic>))
+        .toList();
   }
 
   /// Advance an order to the next state (UC-58); returns the new state plus any
@@ -49,7 +61,12 @@ class OrderApi {
   }
 
   /// Refund or comp an order (UC-75).
-  Future<void> refund(String id, String type, String reason, String smPin) async {
+  Future<void> refund(
+    String id,
+    String type,
+    String reason,
+    String smPin,
+  ) async {
     await _client.post('/orders/$id/refund', {
       'refundType': type,
       'reason': reason,

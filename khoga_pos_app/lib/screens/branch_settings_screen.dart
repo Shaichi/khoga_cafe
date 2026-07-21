@@ -10,63 +10,42 @@ class BranchSettingsScreen extends StatefulWidget {
 }
 
 class _BranchSettingsScreenState extends State<BranchSettingsScreen> {
-  final _nameController = TextEditingController(text: 'Khoga Café - Nguyễn Du Branch');
-  final _timezoneController = TextEditingController();
-  final _hotlineController = TextEditingController(text: '0283930001');
-  final _emailController = TextEditingController(text: 'nguyendu@khogacafe.vn');
-  final _addressController = TextEditingController(text: '123 Nguyễn Du, Phường Bến Thành, Quận 1, TP. Hồ Chí Minh');
-
+  final _ipController = TextEditingController(text: '192.168.1.100');
+  bool _isConnected = false;
+  bool _isConnecting = false;
+  bool _isTesting = false;
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _timezoneController.dispose();
-    _hotlineController.dispose();
-    _emailController.dispose();
-    _addressController.dispose();
+    _ipController.dispose();
     super.dispose();
   }
 
-  Widget _buildLabel(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8, left: 4),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: kBrownDark,
-          fontWeight: FontWeight.bold,
-          fontSize: 14,
-        ),
-      ),
-    );
+  Future<void> _connect() async {
+    setState(() => _isConnecting = true);
+    // Simulate connection delay
+    await Future.delayed(const Duration(seconds: 1));
+    if (mounted) {
+      setState(() {
+        _isConnecting = false;
+        _isConnected = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã kết nối thành công với máy in!')),
+      );
+    }
   }
 
-  Widget _buildTextField(TextEditingController controller, {int maxLines = 1}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 24),
-      child: TextField(
-        controller: controller,
-        maxLines: maxLines,
-        style: const TextStyle(color: kBrownDark, fontSize: 15),
-        decoration: InputDecoration(
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFEBEBEB)),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFEBEBEB)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: kBrown),
-          ),
-        ),
-      ),
-    );
+  Future<void> _testPrint() async {
+    setState(() => _isTesting = true);
+    // Simulate print delay
+    await Future.delayed(const Duration(seconds: 1));
+    if (mounted) {
+      setState(() => _isTesting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã gửi lệnh in thử tới máy in!')),
+      );
+    }
   }
 
   @override
@@ -74,71 +53,160 @@ class _BranchSettingsScreenState extends State<BranchSettingsScreen> {
     return Scaffold(
       backgroundColor: kBg,
       appBar: AppBar(
-        backgroundColor: kBg,
+        backgroundColor: Colors.white,
         foregroundColor: kBrownDark,
         elevation: 0,
-        centerTitle: true,
         title: const Text(
-          'Cấu Hình Chi Nhánh',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+          'Cấu hình chi nhánh',
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(16),
           children: [
-            _buildLabel('Tên chi nhánh *'),
-            _buildTextField(_nameController),
-
-            _buildLabel('Múi giờ hoạt động *'),
-            _buildTextField(_timezoneController),
-
-            _buildLabel('Hotline liên hệ *'),
-            _buildTextField(_hotlineController),
-
-            _buildLabel('Địa chỉ Email *'),
-            _buildTextField(_emailController),
-
-            _buildLabel('Địa chỉ chi nhánh *'),
-            _buildTextField(_addressController, maxLines: 2),
-
-            // Bottom Actions (Now part of the scrolling list)
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: kBrownDark,
-                      side: const BorderSide(color: Color(0xFFEAE2D8)),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      minimumSize: const Size(0, 52),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      backgroundColor: Colors.white,
-                    ),
-                    child: const Text('HỦY', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
+            const Padding(
+              padding: EdgeInsets.only(left: 8, bottom: 8),
+              child: Text(
+                'MÁY IN HOÁ ĐƠN (POS)',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: kMuted,
+                  letterSpacing: 1.2,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Đã lưu cài đặt chi nhánh!')),
-                      );
-                      Navigator.pop(context);
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: kBorder),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.print_outlined, color: kBrown),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Kết nối mạng LAN',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: kBrownDark,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (_isConnected)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: kSuccess.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'Đã kết nối',
+                            style: TextStyle(
+                              color: kSuccess,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: kDanger.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'Chưa kết nối',
+                            style: TextStyle(
+                              color: kDanger,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Địa chỉ IP máy in', style: TextStyle(color: kBrownDark, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _ipController,
+                    decoration: InputDecoration(
+                      hintText: '192.168.1.100',
+                      filled: true,
+                      fillColor: kBg,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none,
+                      ),
+                      prefixIcon: const Icon(Icons.wifi, color: kMuted),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    onChanged: (val) {
+                      if (_isConnected) setState(() => _isConnected = false);
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3E2723), // Dark brown
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      minimumSize: const Size(0, 52),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('LƯU CÀI ĐẶT', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _isConnected && !_isTesting ? _testPrint : null,
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            side: const BorderSide(color: kBorder),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: _isTesting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: kBrownDark),
+                                )
+                              : const Text(
+                                  'In Thử',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: kBrownDark,
+                                  ),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _isConnecting ? null : _connect,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: kBrown,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: _isConnecting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Text(
+                                  'Kết Nối',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),

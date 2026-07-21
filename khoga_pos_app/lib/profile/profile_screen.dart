@@ -65,7 +65,7 @@ class ProfileScreen extends StatelessWidget {
                   _buildRow('Họ và tên', p.fullName),
                   _buildRow('Tên đăng nhập', p.username),
                   _buildRow('Vai trò', p.role),
-                  _buildRow('Chi nhánh', 'Nguyễn Du Branch'), // Placeholder, could use p.storeId mapping
+                  _buildRow('Chi nhánh', p.storeName ?? 'Chi nhánh Nguyễn Du'),
                   _buildRow('Email', p.email ?? 'Chưa cập nhật'),
                   _buildRow('Số điện thoại', p.phone ?? 'Chưa cập nhật'),
                   const SizedBox(height: 48),

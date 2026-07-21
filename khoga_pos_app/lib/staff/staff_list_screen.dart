@@ -86,13 +86,13 @@ class _StaffListScreenState extends State<StaffListScreen> {
           style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 22, color: cBrownDark),
         ),
         centerTitle: true,
-        actions: const [
+        actions: [
           Padding(
-            padding: EdgeInsets.only(right: 16.0),
+            padding: const EdgeInsets.only(right: 16.0),
             child: Center(
               child: Text(
-                'Nguyễn Du',
-                style: TextStyle(color: cBrownDark, fontWeight: FontWeight.w600, fontSize: 14, fontFamily: 'Segoe UI'),
+                context.watch<AuthController>().profile?.storeName ?? 'Nguyễn Du',
+                style: const TextStyle(color: cBrownDark, fontWeight: FontWeight.w600, fontSize: 14, fontFamily: 'Segoe UI'),
               ),
             ),
           ),

@@ -22,6 +22,7 @@ class Profile {
   final String? email;
   final String? phone;
   final String? storeId;
+  final String? storeName;
 
   Profile({
     required this.id,
@@ -31,6 +32,7 @@ class Profile {
     this.email,
     this.phone,
     this.storeId,
+    this.storeName,
   });
 
   factory Profile.fromJson(Map<String, dynamic> j) => Profile(
@@ -41,6 +43,7 @@ class Profile {
         email: j['email'] as String?,
         phone: j['phone'] as String?,
         storeId: j['storeId'] as String?,
+        storeName: j['storeName'] as String?,
       );
 }
 
