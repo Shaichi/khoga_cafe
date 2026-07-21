@@ -5,58 +5,58 @@ import '../api/api_client.dart';
 import '../auth/auth_controller.dart';
 import '../theme.dart';
 
-/// Screen — "Đổi Mật Khẩu" per Figma Node 28:232.
-/// Dedicated page allowing active users to update their password.
-class ChangePasswordScreen extends StatefulWidget {
-  const ChangePasswordScreen({super.key});
+/// Screen — "Chỉnh Sửa Thông Tin" per Figma Node 28:214.
+/// Dedicated mobile/desktop page allowing users to update personal contact info.
+class EditProfileScreen extends StatefulWidget {
+  const EditProfileScreen({super.key});
 
   @override
-  State<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
+  State<EditProfileScreen> createState() => _EditProfileScreenState();
 }
 
-class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
-  final _current = TextEditingController();
-  final _next = TextEditingController();
-  final _confirm = TextEditingController();
-
-  bool _obscureCurrent = true;
-  bool _obscureNext = true;
-  bool _obscureConfirm = true;
-
-  bool _submitting = false;
+class _EditProfileScreenState extends State<EditProfileScreen> {
+  late final TextEditingController _email;
+  late final TextEditingController _phone;
+  bool _saving = false;
   String? _error;
   bool _done = false;
 
   @override
+  void initState() {
+    super.initState();
+    final p = context.read<AuthController>().profile;
+    _email = TextEditingController(text: p?.email ?? '');
+    _phone = TextEditingController(text: p?.phone ?? '');
+  }
+
+  @override
   void dispose() {
-    _current.dispose();
-    _next.dispose();
-    _confirm.dispose();
+    _email.dispose();
+    _phone.dispose();
     super.dispose();
   }
 
-  Future<void> _submit() async {
-    if (_current.text.isEmpty || _next.text.isEmpty || _confirm.text.isEmpty) {
-      setState(() => _error = 'Vui lòng nhập đầy đủ các trường mật khẩu');
-      return;
-    }
-    if (_next.text != _confirm.text) {
-      setState(() => _error = 'Mật khẩu xác nhận không khớp');
+  Future<void> _save() async {
+    if (_email.text.trim().isEmpty || _phone.text.trim().isEmpty) {
+      setState(() => _error = 'Vui lòng điền đầy đủ email và số điện thoại');
       return;
     }
     setState(() {
       _error = null;
-      _submitting = true;
+      _saving = true;
     });
     try {
-      await context.read<AuthController>().changePassword(_current.text, _next.text);
+      await context.read<AuthController>().updateProfile(
+            email: _email.text.trim(),
+            phone: _phone.text.trim(),
+          );
       if (mounted) setState(() => _done = true);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } catch (_) {
       if (mounted) setState(() => _error = 'Không kết nối được máy chủ');
     } finally {
-      if (mounted) setState(() => _submitting = false);
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -104,7 +104,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       children: [
         const SizedBox(height: 8),
         const Text(
-          'Đổi Mật Khẩu',
+          'Chỉnh Sửa Thông Tin',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontFamily: 'Segoe UI',
@@ -115,7 +115,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         ),
         const SizedBox(height: 10),
         const Text(
-          'Thay đổi mật khẩu tài khoản đang hoạt động của bạn.',
+          'Cập nhật thông tin liên hệ cá nhân của bạn.',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontFamily: 'Segoe UI',
@@ -128,7 +128,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
         if (_error != null) ...[
           Container(
-            key: const Key('change-pw-error'),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: kDanger.withValues(alpha: 0.08),
@@ -143,48 +142,94 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           const SizedBox(height: 20),
         ],
 
-        // Field 1: Current Password
-        _buildPasswordField(
-          label: 'Mật khẩu hiện tại',
-          placeholder: 'Mật khẩu hiện tại',
-          controller: _current,
-          key: const Key('current-password'),
-          obscure: _obscureCurrent,
-          onToggleObscure: () => setState(() => _obscureCurrent = !_obscureCurrent),
+        // Field 1: Email liên hệ
+        const Text(
+          'Email liên hệ',
+          style: TextStyle(
+            fontFamily: 'Segoe UI',
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF5C3826),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _email,
+          keyboardType: TextInputType.emailAddress,
+          decoration: InputDecoration(
+            hintText: 'Nhập email liên hệ',
+            hintStyle: const TextStyle(
+              fontFamily: 'Arial',
+              fontSize: 15,
+              color: Color(0xFF9E9E9E),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            filled: true,
+            fillColor: const Color(0xFFFDFDFD),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE5DBCF)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE5DBCF)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF3D2314), width: 1.5),
+            ),
+          ),
         ),
         const SizedBox(height: 20),
 
-        // Field 2: New Password
-        _buildPasswordField(
-          label: 'Mật khẩu mới',
-          placeholder: 'Mật khẩu mới',
-          controller: _next,
-          key: const Key('new-password'),
-          obscure: _obscureNext,
-          onToggleObscure: () => setState(() => _obscureNext = !_obscureNext),
+        // Field 2: Số điện thoại
+        const Text(
+          'Số điện thoại',
+          style: TextStyle(
+            fontFamily: 'Segoe UI',
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF5C3826),
+          ),
         ),
-        const SizedBox(height: 20),
-
-        // Field 3: Confirm New Password
-        _buildPasswordField(
-          label: 'Xác nhận mật khẩu mới',
-          placeholder: 'Nhập lại mật khẩu mới',
-          controller: _confirm,
-          key: const Key('confirm-password'),
-          obscure: _obscureConfirm,
-          onToggleObscure: () => setState(() => _obscureConfirm = !_obscureConfirm),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _phone,
+          keyboardType: TextInputType.phone,
+          decoration: InputDecoration(
+            hintText: 'Nhập số điện thoại',
+            hintStyle: const TextStyle(
+              fontFamily: 'Arial',
+              fontSize: 15,
+              color: Color(0xFF9E9E9E),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            filled: true,
+            fillColor: const Color(0xFFFDFDFD),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE5DBCF)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE5DBCF)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF3D2314), width: 1.5),
+            ),
+          ),
         ),
 
-        // Spacer to push actions to bottom
+        // Spacer to push actions to the bottom
         const Spacer(),
         const SizedBox(height: 40),
 
-        // Primary Button: CẬP NHẬT MẬT KHẨU
+        // Primary Button: LƯU THAY ĐỔI
         SizedBox(
           height: 50,
           child: ElevatedButton(
-            key: const Key('change-pw-submit'),
-            onPressed: _submitting ? null : _submit,
+            onPressed: _saving ? null : _save,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF3D2314),
               foregroundColor: Colors.white,
@@ -193,14 +238,14 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: _submitting
+            child: _saving
                 ? const SizedBox(
                     height: 22,
                     width: 22,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
                 : const Text(
-                    'CẬP NHẬT MẬT KHẨU',
+                    'LƯU THAY ĐỔI',
                     style: TextStyle(
                       fontFamily: 'Arial',
                       fontSize: 16,
@@ -235,77 +280,15 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     );
   }
 
-  Widget _buildPasswordField({
-    required String label,
-    required String placeholder,
-    required TextEditingController controller,
-    required Key key,
-    required bool obscure,
-    required VoidCallback onToggleObscure,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontFamily: 'Segoe UI',
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF5C3826),
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          key: key,
-          controller: controller,
-          obscureText: obscure,
-          decoration: InputDecoration(
-            hintText: placeholder,
-            hintStyle: const TextStyle(
-              fontFamily: 'Arial',
-              fontSize: 15,
-              color: Color(0xFF9E9E9E),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            filled: true,
-            fillColor: const Color(0xFFFDFDFD),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE5DBCF)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE5DBCF)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF3D2314), width: 1.5),
-            ),
-            suffixIcon: IconButton(
-              icon: Icon(
-                obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                color: const Color(0xFF8C766C),
-                size: 20,
-              ),
-              onPressed: onToggleObscure,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildSuccess() {
     return Column(
-      key: const Key('change-pw-success'),
       mainAxisSize: MainAxisSize.min,
       children: [
         const SizedBox(height: 30),
         const Icon(Icons.check_circle_rounded, color: kSuccess, size: 68),
         const SizedBox(height: 16),
         const Text(
-          'Đổi mật khẩu thành công',
+          'Cập nhật thành công',
           style: TextStyle(
             fontFamily: 'Segoe UI',
             fontSize: 20,
@@ -315,7 +298,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Mật khẩu mới của bạn đã được cập nhật.',
+          'Thông tin cá nhân của bạn đã được cập nhật.',
           textAlign: TextAlign.center,
           style: TextStyle(color: Color(0xFF8C766C), fontSize: 14),
         ),

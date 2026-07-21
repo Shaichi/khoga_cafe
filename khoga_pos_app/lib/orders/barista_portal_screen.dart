@@ -6,8 +6,7 @@ import '../api/api_client.dart';
 import '../api/models.dart';
 import '../api/order_api.dart';
 import '../auth/auth_controller.dart';
-import '../auth/logout_dialog.dart';
-import '../profile/profile_screen.dart';
+import '../auth/logout_screen.dart';
 import '../profile/profile_screen.dart';
 import '../theme.dart';
 import 'order_labels.dart';
@@ -126,12 +125,9 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
           TextButton(
             key: const Key('portal-logout'),
             child: const Text('Đăng xuất', style: TextStyle(color: Colors.white)),
-            onPressed: () async {
-              final confirm = await showLogoutDialog(context);
-              if (confirm == true && context.mounted) {
-                auth.logout();
-              }
-            },
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const LogoutScreen()),
+            ),
           ),
           const SizedBox(width: 8),
         ],

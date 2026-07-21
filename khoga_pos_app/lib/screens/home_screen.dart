@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../auth/auth_controller.dart';
-import '../auth/logout_dialog.dart';
+import '../auth/logout_screen.dart';
 import '../format.dart';
 import '../inventory/stock_list_screen.dart';
 import '../orders/barista_portal_screen.dart';
@@ -40,12 +40,9 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
           IconButton(
-            onPressed: () async {
-              final confirm = await showLogoutDialog(context);
-              if (confirm == true && context.mounted) {
-                auth.logout();
-              }
-            },
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const LogoutScreen()),
+            ),
             icon: const Icon(Icons.logout),
             tooltip: 'Đăng xuất',
           ),

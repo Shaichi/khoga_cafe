@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../api/api_client.dart';
 import '../api/stock_api.dart';
 import '../auth/auth_controller.dart';
-import '../auth/logout_dialog.dart';
+import '../auth/logout_screen.dart';
 import '../inventory/stock_list_screen.dart';
 import '../screens/reports_hub_screen.dart';
 import '../staff/attendance_screen.dart';
@@ -177,12 +177,9 @@ class ManagerDashboardScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: ElevatedButton(
-                onPressed: () async {
-                  final confirm = await showLogoutDialog(context);
-                  if (confirm == true && context.mounted) {
-                    context.read<AuthController>().logout();
-                  }
-                },
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const LogoutScreen()),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kBrown,
                   foregroundColor: Colors.white,

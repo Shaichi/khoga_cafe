@@ -3,9 +3,10 @@ import 'package:provider/provider.dart';
 
 import '../api/api_client.dart';
 import '../auth/auth_controller.dart';
-import '../auth/logout_dialog.dart';
+import '../auth/logout_screen.dart';
 import '../theme.dart';
-import 'change_password_dialog.dart';
+import 'change_password_screen.dart';
+import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -71,9 +72,9 @@ class ProfileScreen extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton(
-                      onPressed: () => showDialog(
-                        context: context,
-                        builder: (_) => const _EditProfileDialog(),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const EditProfileScreen()),
                       ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: kBrownDark,
@@ -88,7 +89,10 @@ class ProfileScreen extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton(
-                      onPressed: () => showChangePasswordDialog(context),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
+                      ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: kBrownDark,
                         side: const BorderSide(color: kBorder),
@@ -102,12 +106,10 @@ class ProfileScreen extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton(
-                      onPressed: () async {
-                        final confirm = await showLogoutDialog(context);
-                        if (confirm == true && context.mounted) {
-                          auth.logout();
-                        }
-                      },
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const LogoutScreen()),
+                      ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: kDanger,
                         side: const BorderSide(color: Color(0xFFFDECEB)),
