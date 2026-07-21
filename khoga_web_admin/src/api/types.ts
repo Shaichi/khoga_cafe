@@ -21,9 +21,11 @@ export interface PageResponse<T> {
 
 /** com.khoga.auth.dto.LoginResponse */
 export interface LoginResponse {
-  token: string;
-  role: Role;
+  status?: string;          // 'AUTHENTICATED' | 'MFA_REQUIRED'
+  token: string | null;
+  role: Role | null;
   mustChangePassword: boolean;
+  mfaToken?: string | null; // present only when status === 'MFA_REQUIRED'
 }
 
 /** com.khoga.auth.dto.ProfileResponse */

@@ -75,14 +75,6 @@ export default function UserDetail() {
         </h1>
 
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <Link to="/users" style={{
-            height: '38px', padding: '0 16px', border: '1px solid #D1C4B9',
-            borderRadius: '8px', color: '#5C3826', background: 'transparent',
-            fontSize: '13px', fontFamily: 'Segoe UI, sans-serif',
-            textDecoration: 'none', display: 'flex', alignItems: 'center',
-          }}>
-            Quay lại danh sách
-          </Link>
           <Link to={`/users/${user.id}/edit`} style={{
             height: '38px', padding: '0 18px', background: '#3D2314',
             borderRadius: '8px', color: '#FFFFFF',

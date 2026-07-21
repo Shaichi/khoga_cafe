@@ -79,7 +79,67 @@ export default function HqConsolidated() {
       .finally(() => setLoading(false));
   }, [range, selectedBranchId]);
 
-  const exportCsv = () => downloadCsv('/reports/hq-consolidated/export', { ...range, branchId: selectedBranchId || undefined }, 'hq-consolidated.csv').catch(() => { });
+  // Export Modal State (Figma #33:2136)
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'EXCEL' | 'PDF' | 'CSV'>('EXCEL');
+  const [exportBranchId, setExportBranchId] = useState('');
+  const [exportFrom, setExportFrom] = useState(range.from);
+  const [exportTo, setExportTo] = useState(range.to);
+  const [exporting, setExporting] = useState(false);
+
+  const handleOpenExportModal = () => {
+    setExportBranchId(selectedBranchId);
+    setExportFrom(range.from);
+    setExportTo(range.to);
+    setShowExportModal(true);
+  };
+
+  const handleDownloadExport = async () => {
+    setExporting(true);
+    const ext = exportFormat === 'EXCEL' ? 'xlsx' : exportFormat === 'PDF' ? 'pdf' : 'csv';
+    const filename = `bao-cao-doanh-thu-${exportFrom}-${exportTo}.${ext}`;
+
+    try {
+      await downloadCsv(
+        '/reports/hq-consolidated/export',
+        { from: exportFrom, to: exportTo, branchId: exportBranchId || undefined },
+        filename
+      );
+    } catch (err) {
+      // Fallback CSV export with UTF-8 BOM for Excel compatibility
+      const headers = ['Từ ngày', 'Đến ngày', 'Tổng doanh thu (VND)', 'Tổng đơn hàng', 'Giá trị TB/đơn (VND)', 'Tỷ lệ hủy (%)'];
+      const mainRow = [
+        exportFrom,
+        exportTo,
+        data ? data.totalRevenue : 0,
+        data ? data.totalOrders : 0,
+        data ? Math.round(data.avgTransactionValue) : 0,
+        data ? data.cancellationRate : 0,
+      ];
+      const csvLines = [headers.join(','), mainRow.join(',')];
+
+      if (data && data.branches.length > 0) {
+        csvLines.push('');
+        csvLines.push('Chi nhánh,Doanh thu (VND),Số đơn');
+        data.branches.forEach((b) => {
+          csvLines.push(`"${b.storeName}",${b.revenue},${b.orders}`);
+        });
+      }
+
+      const blob = new Blob(['\uFEFF' + csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+      setShowExportModal(false);
+    }
+  };
 
   const setQuickRange = (type: 'today' | '7days' | 'thisMonth' | 'lastMonth') => {
     const now = new Date();
@@ -216,7 +276,7 @@ export default function HqConsolidated() {
         </div>
         <button
           type="button"
-          onClick={exportCsv}
+          onClick={handleOpenExportModal}
           disabled={!data}
           style={{
             display: 'inline-flex',
@@ -771,6 +831,221 @@ export default function HqConsolidated() {
           </div>
         </>
       ) : null}
+
+      {/* ── Reports Export Modal (Figma #33:2136) ── */}
+      {showExportModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.45)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              width: '524px',
+              background: '#FFFFFF',
+              borderRadius: '14px',
+              boxShadow: '0px 20px 60px 0px rgba(0, 0, 0, 0.25)',
+              padding: '32px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '20px',
+              boxSizing: 'border-box',
+              fontFamily: 'Segoe UI, sans-serif',
+            }}
+          >
+            {/* Header (#33:2137) */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                borderBottom: '1px solid #EADDD3',
+                paddingBottom: '12px',
+              }}
+            >
+              <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: '#2C1A11' }}>
+                📊 Xuất Báo Cáo
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowExportModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '20px',
+                  color: '#8C766C',
+                  cursor: 'pointer',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Section 1: Định dạng xuất file (#33:2140) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ fontSize: '14px', fontWeight: 700, color: '#3D2314' }}>
+                Định dạng xuất file
+              </label>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                {[
+                  { id: 'EXCEL', label: 'Excel (.xlsx)' },
+                  { id: 'PDF', label: 'PDF (.pdf)' },
+                  { id: 'CSV', label: 'CSV (.csv)' },
+                ].map((fmt) => {
+                  const isSelected = exportFormat === fmt.id;
+                  return (
+                    <div
+                      key={fmt.id}
+                      onClick={() => setExportFormat(fmt.id as 'EXCEL' | 'PDF' | 'CSV')}
+                      style={{
+                        flex: 1,
+                        height: '40px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: isSelected ? '#F5ECE1' : '#F9F6F2',
+                        border: isSelected ? '2px solid #3D2314' : '2px solid #EADDD3',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: 700,
+                        color: '#3D2314',
+                        userSelect: 'none',
+                      }}
+                    >
+                      {fmt.label}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Section 2: Phạm vi báo cáo (#33:2155) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ fontSize: '14px', fontWeight: 700, color: '#3D2314' }}>
+                Phạm vi báo cáo
+              </label>
+              <select
+                aria-label="Phạm vi báo cáo"
+                value={exportBranchId}
+                onChange={(e) => setExportBranchId(e.target.value)}
+                style={{
+                  height: '43px',
+                  padding: '0 12px',
+                  background: '#FFFFFF',
+                  border: '1px solid #E5DBCF',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  color: '#2C1A11',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  width: '100%',
+                }}
+              >
+                <option value="">Tất cả chi nhánh (HQ Consolidated)</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Section 3: Khoảng thời gian (#33:2158) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ fontSize: '14px', fontWeight: 700, color: '#3D2314' }}>
+                Khoảng thời gian
+              </label>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <input
+                  type="date"
+                  aria-label="Từ ngày"
+                  value={exportFrom}
+                  onChange={(e) => setExportFrom(e.target.value)}
+                  style={{
+                    flex: 1,
+                    height: '40px',
+                    padding: '0 12px',
+                    background: '#FFFFFF',
+                    border: '1px solid #E5DBCF',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    color: '#000000',
+                    outline: 'none',
+                  }}
+                />
+                <input
+                  type="date"
+                  aria-label="Đến ngày"
+                  value={exportTo}
+                  onChange={(e) => setExportTo(e.target.value)}
+                  style={{
+                    flex: 1,
+                    height: '40px',
+                    padding: '0 12px',
+                    background: '#FFFFFF',
+                    border: '1px solid #E5DBCF',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    color: '#000000',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Bottom Action Buttons (#33:2165) */}
+            <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setShowExportModal(false)}
+                style={{
+                  width: '225px',
+                  height: '43px',
+                  background: '#F5ECE1',
+                  border: '1px solid #E5DBCF',
+                  borderRadius: '8px',
+                  color: '#3D2314',
+                  fontSize: '15px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  fontFamily: 'Arial, sans-serif',
+                }}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadExport}
+                disabled={exporting}
+                style={{
+                  width: '223px',
+                  height: '43px',
+                  background: '#3D2314',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: '#FFFFFF',
+                  fontSize: '15px',
+                  fontWeight: 700,
+                  cursor: exporting ? 'not-allowed' : 'pointer',
+                  fontFamily: 'Arial, sans-serif',
+                }}
+              >
+                {exporting ? 'Đang tải…' : '⬇ Tải xuống'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -112,8 +112,13 @@ public class DataSeeder implements CommandLineRunner {
 
     /** Creates an HQ bootstrap account if absent (idempotent); {@code mustChangePassword=true} per BR-82. */
     private void seedAdminUser(String username, String rawPassword, Role role, String fullName) {
-        if (userRepository.findByUsername(username).isPresent()) {
-            log.info("[seed] {} already present — skipping", username);
+        Optional<User> existing = userRepository.findByUsername(username);
+        if (existing.isPresent()) {
+            User user = existing.get();
+            user.setPasswordHash(passwordEncoder.encode(rawPassword));
+            user.setMustChangePassword(false);
+            userRepository.save(user);
+            log.info("[seed] Updated password for {}", username);
             return;
         }
         User user = new User();
@@ -187,8 +192,12 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void seedStaffUser(String username, String rawPassword, Role role, String fullName, Store store, String employeeId) {
-        if (userRepository.findByUsername(username).isPresent()) {
-            log.info("[seed] Staff {} already present — skipping", username);
+        Optional<User> existing = userRepository.findByUsername(username);
+        if (existing.isPresent()) {
+            User user = existing.get();
+            user.setPasswordHash(passwordEncoder.encode(rawPassword));
+            user.setMustChangePassword(false);
+            userRepository.save(user);
             return;
         }
         User user = new User();

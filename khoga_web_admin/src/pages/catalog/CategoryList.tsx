@@ -61,7 +61,6 @@ export default function CategoryList() {
     <div>
       <div className="page-head page-head--row">
         <div>
-          <Link to="/catalog" className="back-link">← Thực đơn</Link>
           <h1 className="page-title">Quản Lý Danh Mục</h1>
           <p className="page-subtitle">Nhóm món trong thực đơn.</p>
         </div>

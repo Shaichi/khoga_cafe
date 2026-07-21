@@ -97,7 +97,6 @@ export default function VoucherForm() {
   return (
     <div>
       <div className="page-head">
-        <Link to="/vouchers" className="back-link">← Vouchers</Link>
         <h1 className="page-title">{isEdit ? 'Chỉnh Sửa Chiến Dịch Voucher' : 'Tạo Voucher Mới'}</h1>
       </div>
 

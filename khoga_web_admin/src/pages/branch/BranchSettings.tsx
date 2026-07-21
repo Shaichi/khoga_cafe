@@ -51,8 +51,7 @@ export default function BranchSettings() {
   return (
     <div>
       <div className="page-head">
-        <Link to="/branches" className="back-link">← Danh sách chi nhánh</Link>
-        <h1 className="page-title">Cấu hình chi nhánh</h1>
+        <h1 className="page-title">Cấu Hình Vận Hành Chi Nhánh</h1>
       </div>
 
       <form className="form-card" onSubmit={handleSubmit}>

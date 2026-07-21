@@ -51,8 +51,7 @@ export default function ProfileEdit() {
   return (
     <div>
       <div className="page-head">
-        <Link to="/profile" className="back-link">← Thông tin cá nhân</Link>
-        <h1 className="page-title">Chỉnh sửa thông tin</h1>
+        <h1 className="page-title">Chỉnh Sửa Hồ Sơ Cá Nhân</h1>
       </div>
 
       <form className="form-card" onSubmit={handleSubmit}>

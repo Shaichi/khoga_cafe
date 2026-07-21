@@ -85,6 +85,21 @@ export async function updateCustomer(id: string, input: UpdateCustomerInput): Pr
   const res = await apiClient.put<ApiResponse<Customer>>(`/customers/${id}`, input);
   return res.data.data;
 }
+export interface PointLogEntry {
+  id: string;
+  createdAt?: string;
+  date: string;
+  type: string;
+  pointsDelta: number;
+  reason: string;
+  performedBy: string;
+}
+
+export async function getCustomerPointLogs(id: string): Promise<PointLogEntry[]> {
+  const res = await apiClient.get<ApiResponse<PointLogEntry[]>>(`/customers/${id}/point-logs`);
+  return res.data.data;
+}
+
 export async function adjustPoints(id: string, input: PointAdjustmentInput): Promise<Customer> {
   const res = await apiClient.post<ApiResponse<Customer>>(`/customers/${id}/points`, input);
   return res.data.data;

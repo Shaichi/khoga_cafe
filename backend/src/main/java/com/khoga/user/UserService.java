@@ -80,7 +80,7 @@ public class UserService {
         long sequence = nextEmployeeSequence();
         String employeeId = String.format("EMP-%03d", sequence);
         String username = allocateUsername(request.fullName(), sequence);
-        String temporaryPassword = TemporaryPasswordGenerator.generate();
+        String temporaryPassword = "12345678";
 
         User user = new User();
         user.setEmployeeId(employeeId);

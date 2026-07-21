@@ -34,4 +34,7 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
 
     /** UC-78 — system events of one kind in a window (e.g. {@code "LoyaltyExpiry"} for expired points). */
     List<AuditLog> findByEntityAffectedAndCreatedAtBetween(String entityAffected, LocalDateTime from, LocalDateTime to);
+
+    @Query("select a from AuditLog a where a.entityAffected = 'Customer' and (a.oldValueJson like %:customerId% or a.newValueJson like %:customerId%) order by a.createdAt desc")
+    List<AuditLog> findPointLogsByCustomerId(@Param("customerId") String customerId);
 }

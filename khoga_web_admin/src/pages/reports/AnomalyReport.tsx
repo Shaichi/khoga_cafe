@@ -52,8 +52,8 @@ export default function AnomalyReport() {
   }, [range, selectedBranchId]);
 
   const activeBranchName = selectedBranchId 
-    ? branches.find(b => b.id === selectedBranchId)?.name || 'Chi nhánh'
-    : 'Nguyễn Du';
+    ? (branches.find(b => b.id === selectedBranchId)?.name || 'Chi nhánh')
+    : 'Tất cả chi nhánh';
 
   // Client-side CSV export (using backend format but incorporating custom threshold)
   const exportToCsv = () => {
@@ -137,7 +137,7 @@ export default function AnomalyReport() {
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #EADDD3', paddingBottom: '16px' }}>
           <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#3D2314', margin: 0, fontFamily: 'Roboto, sans-serif' }}>
-            Báo Cáo Bất Thường Thu Ngân - Chi nhánh {activeBranchName}
+            Báo Cáo Bất Thường Thu Ngân - {selectedBranchId ? `Chi nhánh ${activeBranchName}` : activeBranchName}
           </h1>
           <button
             type="button"

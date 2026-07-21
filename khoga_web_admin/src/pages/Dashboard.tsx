@@ -9,6 +9,12 @@ export default function Dashboard() {
   if (user?.role === 'CEOVIEWER') {
     return <Navigate to="/reports/hq-consolidated" replace />;
   }
+  if (user?.role === 'SSADMIN') {
+    return <Navigate to="/branches" replace />;
+  }
+  if (user?.role === 'BUSINESSADMIN') {
+    return <Navigate to="/catalog" replace />;
+  }
 
   const modules = user ? dashModulesForRole(user.role) : [];
   const roleLabel = user ? ROLE_LABELS[user.role] : '';

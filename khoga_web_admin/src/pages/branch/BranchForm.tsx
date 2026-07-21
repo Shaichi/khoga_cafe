@@ -5,6 +5,7 @@ import {
   getBranch,
   updateBranch,
   deactivateBranch,
+  activateBranch,
   type BranchInput,
 } from '../../api/branches';
 import { errorMessage } from '../../api/client';
@@ -19,6 +20,7 @@ export default function BranchForm() {
 
   const [form, setForm] = useState<BranchInput>({ name: '', address: '', phone: '' });
   const [active, setActive] = useState(true);
+  const [initialActive, setInitialActive] = useState(true);
   const [loading, setLoading] = useState(isEdit);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -29,6 +31,7 @@ export default function BranchForm() {
       .then((b) => {
         setForm({ name: b.name, address: b.address, phone: b.phone });
         setActive(b.active);
+        setInitialActive(b.active);
       })
       .catch((e) => setError(errorMessage(e)))
       .finally(() => setLoading(false));
@@ -47,13 +50,18 @@ export default function BranchForm() {
     setSubmitting(true);
     try {
       if (isEdit && id) {
-        if (!active) {
-          // If status set to inactive, trigger confirmation
-          if (!window.confirm('Vô hiệu hóa chi nhánh này? Tài khoản nhân sự của chi nhánh sẽ bị khóa và lịch làm việc tương lai bị xóa.')) {
-            setSubmitting(false);
-            return;
+        if (active !== initialActive) {
+          if (!active) {
+            // If status changed to inactive, trigger confirmation
+            if (!window.confirm('Vô hiệu hóa chi nhánh này? Tài khoản nhân sự của chi nhánh sẽ bị khóa và lịch làm việc tương lai bị xóa.')) {
+              setSubmitting(false);
+              return;
+            }
+            await deactivateBranch(id);
+          } else {
+            // Reactivate inactive branch
+            await activateBranch(id);
           }
-          await deactivateBranch(id);
         }
         await updateBranch(id, form);
       } else {
@@ -204,33 +212,35 @@ export default function BranchForm() {
           />
         </div>
 
-        {/* Active Status */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <label style={{ fontSize: '16px', fontWeight: 700, color: '#3D2314', fontFamily: 'Segoe UI, sans-serif' }}>
-            Trạng Thái Hoạt Động
-          </label>
-          <select
-            aria-label="Trạng Thái Hoạt Động"
-            value={active ? 'ACTIVE' : 'INACTIVE'}
-            onChange={(e) => setActive(e.target.value === 'ACTIVE')}
-            style={{
-              width: '100%',
-              height: '46px',
-              padding: '12px 14px',
-              background: '#FFFFFF',
-              border: '1px solid #E5DBCF',
-              borderRadius: '8px',
-              fontSize: '15px',
-              color: '#2C1A11',
-              fontFamily: 'Segoe UI, sans-serif',
-              outline: 'none',
-              cursor: 'pointer'
-            }}
-          >
-            <option value="ACTIVE">Hoạt động</option>
-            <option value="INACTIVE">Vô hiệu hóa</option>
-          </select>
-        </div>
+        {/* Active Status (Only shown when editing, new branches default to active) */}
+        {isEdit && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '16px', fontWeight: 700, color: '#3D2314', fontFamily: 'Segoe UI, sans-serif' }}>
+              Trạng Thái Hoạt Động
+            </label>
+            <select
+              aria-label="Trạng Thái Hoạt Động"
+              value={active ? 'ACTIVE' : 'INACTIVE'}
+              onChange={(e) => setActive(e.target.value === 'ACTIVE')}
+              style={{
+                width: '100%',
+                height: '46px',
+                padding: '12px 14px',
+                background: '#FFFFFF',
+                border: '1px solid #E5DBCF',
+                borderRadius: '8px',
+                fontSize: '15px',
+                color: '#2C1A11',
+                fontFamily: 'Segoe UI, sans-serif',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="ACTIVE">Hoạt động</option>
+              <option value="INACTIVE">Vô hiệu hóa</option>
+            </select>
+          </div>
+        )}
 
         {/* Form Actions */}
         <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
