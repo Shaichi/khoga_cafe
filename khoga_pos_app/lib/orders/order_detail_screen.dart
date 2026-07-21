@@ -327,16 +327,20 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label, style: const TextStyle(fontFamily: 'Segoe UI', color: Color(0xFF5C3826), fontSize: 13)),
-          Text(
-            value,
-            style: TextStyle(
-              fontFamily: 'Segoe UI',
-              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-              color: color ?? const Color(0xFF2C1A11),
-              fontSize: 12.5,
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontFamily: 'Segoe UI',
+                fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+                color: color ?? const Color(0xFF2C1A11),
+                fontSize: 12.5,
+              ),
             ),
           ),
         ],
