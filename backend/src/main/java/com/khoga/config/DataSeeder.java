@@ -98,6 +98,7 @@ public class DataSeeder implements CommandLineRunner {
         seedCeoViewer();
         seedStaff();
         seedRestaurantData();
+        seedTomorrowOrders();
         seedSchedulesAndAttendance();
     }
 
@@ -192,18 +193,31 @@ public class DataSeeder implements CommandLineRunner {
             log.error("[seed] No store found to associate staff!");
             return;
         }
-        seedStaffUser("cashier", "Admin@123", Role.CASHIER, "Default Cashier", store, "EMP-001");
-        seedStaffUser("manager", "Admin@123", Role.STORE_MANAGER, "Default Store Manager", store, "EMP-002");
-        seedStaffUser("barista", "Admin@123", Role.BARISTA, "Default Barista", store, "EMP-003");
+        seedStaffUser("cashier", "Admin@123", Role.CASHIER, "Default Cashier", store, "EMP-001", "0901 111 222");
+        seedStaffUser("manager", "Admin@123", Role.STORE_MANAGER, "Default Store Manager", store, "EMP-002", "0902 222 333");
+        seedStaffUser("barista", "Admin@123", Role.BARISTA, "Default Barista", store, "EMP-003", "0903 333 444");
+        
+        // Add new test staff
+        seedStaffUser("thungan", "Admin@123", Role.CASHIER, "Nguyễn Thu Ngân", store, "EMP-004", "0904 444 555");
+        seedStaffUser("tranb", "Admin@123", Role.BARISTA, "Trần Thị B", store, "EMP-005", "0905 555 666");
+        seedStaffUser("lephache", "Admin@123", Role.BARISTA, "Lê Pha Chế", store, "EMP-006", "0906 666 777");
+        seedStaffUser("phamc", "Admin@123", Role.CASHIER, "Phạm Văn C", store, "EMP-007", "0907 777 888");
+        seedStaffUser("led", "Admin@123", Role.BARISTA, "Lê Thị D", store, "EMP-008", "0908 888 999");
+        seedStaffUser("hoange", "Admin@123", Role.CASHIER, "Hoàng Văn E", store, "EMP-009", "0909 999 000");
+        seedStaffUser("vuf", "Admin@123", Role.BARISTA, "Vũ Thị F", store, "EMP-010", "0910 000 111");
     }
 
-    private void seedStaffUser(String username, String rawPassword, Role role, String fullName, Store store, String employeeId) {
-        Optional<User> existing = userRepository.findByUsername(username);
-        if (existing.isPresent()) {
-            User user = existing.get();
-            user.setPasswordHash(passwordEncoder.encode(rawPassword));
-            user.setMustChangePassword(false);
-            userRepository.save(user);
+    private void seedStaffUser(String username, String rawPassword, Role role, String fullName, Store store, String employeeId, String phone) {
+        Optional<User> existingOpt = userRepository.findByUsername(username);
+        if (existingOpt.isPresent()) {
+            User existing = existingOpt.get();
+            existing.setPasswordHash(passwordEncoder.encode(rawPassword));
+            existing.setMustChangePassword(false);
+            if (existing.getPhone() == null) {
+                existing.setPhone(phone);
+            }
+            userRepository.save(existing);
+            log.info("[seed] Staff {} updated/checked", username);
             return;
         }
         User user = new User();
@@ -216,6 +230,7 @@ public class DataSeeder implements CommandLineRunner {
         user.setFailedAttempts(0);
         user.setStore(store);
         user.setEmployeeId(employeeId);
+        user.setPhone(phone);
         user.setAttendancePin("1234");
         userRepository.save(user);
         log.warn("[seed] Created staff {} (username='{}', password='{}')", role, username, rawPassword);
@@ -466,8 +481,81 @@ public class DataSeeder implements CommandLineRunner {
         shift.setStatus(ShiftStatus.CLOSED);
         shift.setUpdatedAt(todayEnd);
         shiftSessionRepository.save(shift);
-
         log.info("[seed] Successfully seeded 50 realistic coffee shop orders!");
+    }
+
+    private void seedTomorrowOrders() {
+        Store store = storeRepository.findAll().stream().findFirst().orElse(null);
+        User cashierUser = userRepository.findByUsername("cashier").orElse(null);
+        if (store == null || cashierUser == null) return;
+
+        // Check if already seeded
+        long tomorrowOrderCount = orderRepository.findAll().stream()
+                .filter(o -> o.getCreatedAt().toLocalDate().isEqual(LocalDate.now().plusDays(1)))
+                .count();
+        if (tomorrowOrderCount > 0) {
+            log.info("[seed] Tomorrow's orders already seeded - skipping");
+            return;
+        }
+
+        List<MenuItem> menuList = menuItemRepository.findAll();
+        if (menuList.isEmpty()) return;
+
+        log.info("[seed] Seeding 4 mock orders for TOMORROW...");
+
+        // --- Mock orders for TOMORROW ---
+        ShiftSession shiftTomorrow = new ShiftSession();
+        shiftTomorrow.setStore(store);
+        shiftTomorrow.setUser(cashierUser);
+        shiftTomorrow.setStartTime(LocalDate.now().plusDays(1).atTime(7, 30));
+        shiftTomorrow.setStartingCash(new BigDecimal("1000000"));
+        shiftTomorrow.setStatus(ShiftStatus.OPEN);
+        shiftTomorrow.setPosRegisterId("POS-01");
+        shiftTomorrow = shiftSessionRepository.save(shiftTomorrow);
+
+        OrderStatus[] tomorrowStatuses = { OrderStatus.PREPARING, OrderStatus.READY, OrderStatus.COMPLETED, OrderStatus.CANCELLED };
+        Random random = ThreadLocalRandom.current();
+        for (int i = 0; i < 4; i++) {
+            Order order = new Order();
+            order.setStore(store);
+            order.setOrderNumber(String.format("#%03d", i + 1));
+            order.setShiftSession(shiftTomorrow);
+            order.setOrderType(random.nextBoolean() ? OrderType.DINE_IN : OrderType.TAKEAWAY);
+            order.setCreatedAt(LocalDate.now().plusDays(1).atTime(8 + i, 0));
+            order.setUpdatedAt(order.getCreatedAt());
+
+            MenuItem menu = menuList.get(random.nextInt(menuList.size()));
+            OrderItem item = new OrderItem();
+            item.setOrder(order);
+            item.setMenuItem(menu);
+            item.setQuantity(1);
+            item.setUnitPrice(menu.getPrice());
+            item.setCreatedAt(order.getCreatedAt());
+            item.setUpdatedAt(order.getCreatedAt());
+            
+            order.setSubtotal(menu.getPrice());
+            order.setDiscount(BigDecimal.ZERO);
+            order.setTaxAmount(BigDecimal.ZERO);
+            order.setTotal(menu.getPrice());
+            order.setPaymentMethod(PaymentMethod.CASH);
+            
+            OrderStatus status = tomorrowStatuses[i];
+            order.setStatus(status);
+            if (status == OrderStatus.CANCELLED || status == OrderStatus.PREPARING || status == OrderStatus.READY) {
+                order.setPaymentStatus(PaymentStatus.UNPAID); // Or PAID, depending on flow. Let's say PAID to match history.
+                if (status != OrderStatus.CANCELLED) {
+                    order.setPaymentStatus(PaymentStatus.PAID);
+                }
+            } else {
+                order.setPaymentStatus(PaymentStatus.PAID);
+            }
+            order.setPointsEarned(0);
+
+            orderRepository.save(order);
+            orderItemRepository.save(item);
+        }
+
+        log.info("[seed] Successfully seeded 4 tomorrow orders!");
     }
 
     private RawMaterial createRawMaterial(String code, String name, String unit, double minThreshold, double stdCost) {
@@ -518,37 +606,88 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void seedSchedulesAndAttendance() {
-        if (staffScheduleRepository.count() > 0) {
-            log.info("[seed] Schedules already seeded - skipping");
-            return;
-        }
-
         Store store = storeRepository.findAll().stream().findFirst().orElseThrow();
         User cashier = userRepository.findByUsername("cashier").orElseThrow();
         User barista = userRepository.findByUsername("barista").orElseThrow();
-        
-        LocalDate today = LocalDate.now();
-        LocalDate yesterday = today.minusDays(1);
-        LocalDate tomorrow = today.plusDays(1);
 
-        // Seed schedules for yesterday, today, tomorrow
-        createSchedule(store, cashier, yesterday, ShiftType.MORNING, LocalTime.of(7, 0), LocalTime.of(15, 0));
-        createSchedule(store, cashier, today, ShiftType.AFTERNOON, LocalTime.of(15, 0), LocalTime.of(23, 0));
-        createSchedule(store, cashier, tomorrow, ShiftType.MORNING, LocalTime.of(7, 0), LocalTime.of(15, 0));
+        if (staffScheduleRepository.count() == 0) {
+            LocalDate today = LocalDate.now();
+            LocalDate yesterday = today.minusDays(1);
+            LocalDate tomorrow = today.plusDays(1);
 
-        createSchedule(store, barista, yesterday, ShiftType.AFTERNOON, LocalTime.of(15, 0), LocalTime.of(23, 0));
-        createSchedule(store, barista, today, ShiftType.MORNING, LocalTime.of(7, 0), LocalTime.of(15, 0));
-        createSchedule(store, barista, tomorrow, ShiftType.AFTERNOON, LocalTime.of(15, 0), LocalTime.of(23, 0));
+            // Seed schedules for yesterday, today, tomorrow
+            createSchedule(store, cashier, yesterday, ShiftType.MORNING, LocalTime.of(7, 0), LocalTime.of(15, 0));
+            createSchedule(store, cashier, today, ShiftType.AFTERNOON, LocalTime.of(15, 0), LocalTime.of(23, 0));
+            createSchedule(store, cashier, tomorrow, ShiftType.MORNING, LocalTime.of(7, 0), LocalTime.of(15, 0));
 
-        // Seed attendance for yesterday
-        createAttendance(store, cashier, yesterday, LocalTime.of(7, 0), LocalTime.of(15, 0), yesterday.atTime(6, 55), yesterday.atTime(15, 5), AttendanceStatus.PRESENT);
-        createAttendance(store, barista, yesterday, LocalTime.of(15, 0), LocalTime.of(23, 0), yesterday.atTime(15, 10), yesterday.atTime(23, 0), AttendanceStatus.LATE);
+            createSchedule(store, barista, yesterday, ShiftType.AFTERNOON, LocalTime.of(15, 0), LocalTime.of(23, 0));
+            createSchedule(store, barista, today, ShiftType.MORNING, LocalTime.of(7, 0), LocalTime.of(15, 0));
+            createSchedule(store, barista, tomorrow, ShiftType.AFTERNOON, LocalTime.of(15, 0), LocalTime.of(23, 0));
 
-        // Seed attendance for today (checked in, not checked out yet)
-        createAttendance(store, cashier, today, LocalTime.of(15, 0), LocalTime.of(23, 0), today.atTime(14, 50), null, AttendanceStatus.PRESENT);
-        createAttendance(store, barista, today, LocalTime.of(7, 0), LocalTime.of(15, 0), today.atTime(7, 0), null, AttendanceStatus.PRESENT);
+            // Seed attendance for yesterday
+            createAttendance(store, cashier, yesterday, LocalTime.of(7, 0), LocalTime.of(15, 0), yesterday.atTime(6, 55), yesterday.atTime(15, 5), AttendanceStatus.PRESENT);
+            createAttendance(store, barista, yesterday, LocalTime.of(15, 0), LocalTime.of(23, 0), yesterday.atTime(15, 10), yesterday.atTime(23, 0), AttendanceStatus.LATE);
 
-        log.info("[seed] Successfully seeded schedule and attendance data!");
+            // Seed attendance for today (checked in, not checked out yet)
+            createAttendance(store, cashier, today, LocalTime.of(15, 0), LocalTime.of(23, 0), today.atTime(14, 50), null, AttendanceStatus.PRESENT);
+            createAttendance(store, barista, today, LocalTime.of(7, 0), LocalTime.of(15, 0), today.atTime(7, 0), null, AttendanceStatus.PRESENT);
+        }
+
+        // Add additional rich mock data if not already present (check by count)
+        if (staffScheduleRepository.count() < 15) {
+            User thuNgan = userRepository.findByUsername("thungan").orElseThrow();
+            User tranB = userRepository.findByUsername("tranb").orElseThrow();
+            User lePhaChe = userRepository.findByUsername("lephache").orElseThrow();
+            User phamC = userRepository.findByUsername("phamc").orElseThrow();
+            User leD = userRepository.findByUsername("led").orElseThrow();
+            User hoangE = userRepository.findByUsername("hoange").orElseThrow();
+            User vuF = userRepository.findByUsername("vuf").orElseThrow();
+
+            LocalDate day19 = LocalDate.of(2026, 7, 19);
+            LocalDate day20 = LocalDate.of(2026, 7, 20);
+            LocalDate today = LocalDate.now();
+
+            // Day 19
+            createSchedule(store, thuNgan, day19, ShiftType.MORNING, LocalTime.of(7, 0), LocalTime.of(12, 0));
+            createAttendance(store, thuNgan, day19, LocalTime.of(7, 0), LocalTime.of(12, 0), day19.atTime(6, 58), day19.atTime(12, 5), AttendanceStatus.PRESENT);
+
+            createSchedule(store, lePhaChe, day19, ShiftType.AFTERNOON, LocalTime.of(13, 0), LocalTime.of(18, 0));
+            createAttendance(store, lePhaChe, day19, LocalTime.of(13, 0), LocalTime.of(18, 0), day19.atTime(13, 5), day19.atTime(18, 0), AttendanceStatus.LATE);
+
+            createSchedule(store, phamC, day19, ShiftType.MORNING, LocalTime.of(7, 0), LocalTime.of(12, 0));
+            createAttendance(store, phamC, day19, LocalTime.of(7, 0), LocalTime.of(12, 0), day19.atTime(7, 15), day19.atTime(12, 0), AttendanceStatus.LATE);
+            
+            // Day 20
+            createSchedule(store, tranB, day20, ShiftType.MORNING, LocalTime.of(7, 0), LocalTime.of(12, 0));
+            createAttendance(store, tranB, day20, LocalTime.of(7, 0), LocalTime.of(12, 0), null, null, AttendanceStatus.ABSENT);
+            
+            createSchedule(store, leD, day20, ShiftType.MORNING, LocalTime.of(7, 0), LocalTime.of(12, 0));
+            createAttendance(store, leD, day20, LocalTime.of(7, 0), LocalTime.of(12, 0), day20.atTime(6, 55), day20.atTime(11, 30), AttendanceStatus.PRESENT);
+
+            // Today's specific mock data
+            createSchedule(store, thuNgan, today, ShiftType.MORNING, LocalTime.of(7, 0), LocalTime.of(12, 0));
+            createAttendance(store, thuNgan, today, LocalTime.of(7, 0), LocalTime.of(12, 0), today.atTime(7, 15), today.atTime(12, 2), AttendanceStatus.LATE);
+
+            createSchedule(store, tranB, today, ShiftType.MORNING, LocalTime.of(7, 0), LocalTime.of(12, 0));
+            createAttendance(store, tranB, today, LocalTime.of(7, 0), LocalTime.of(12, 0), today.atTime(6, 55), today.atTime(11, 45), AttendanceStatus.PRESENT);
+
+            createSchedule(store, lePhaChe, today, ShiftType.FULL_DAY, LocalTime.of(7, 0), LocalTime.of(18, 0));
+            createAttendance(store, lePhaChe, today, LocalTime.of(7, 0), LocalTime.of(18, 0), today.atTime(6, 50), today.atTime(18, 10), AttendanceStatus.PRESENT);
+
+            createSchedule(store, phamC, today, ShiftType.AFTERNOON, LocalTime.of(13, 0), LocalTime.of(18, 0));
+            createAttendance(store, phamC, today, LocalTime.of(13, 0), LocalTime.of(18, 0), null, null, AttendanceStatus.ABSENT);
+
+            createSchedule(store, leD, today, ShiftType.AFTERNOON, LocalTime.of(13, 0), LocalTime.of(18, 0));
+            createAttendance(store, leD, today, LocalTime.of(13, 0), LocalTime.of(18, 0), today.atTime(12, 55), today.atTime(17, 30), AttendanceStatus.PRESENT);
+
+            createSchedule(store, hoangE, today, ShiftType.AFTERNOON, LocalTime.of(13, 0), LocalTime.of(18, 0));
+            createAttendance(store, hoangE, today, LocalTime.of(13, 0), LocalTime.of(18, 0), today.atTime(13, 20), null, AttendanceStatus.LATE);
+
+            createSchedule(store, vuF, today, ShiftType.MORNING, LocalTime.of(7, 0), LocalTime.of(12, 0));
+            createAttendance(store, vuF, today, LocalTime.of(7, 0), LocalTime.of(12, 0), today.atTime(7, 5), today.atTime(12, 15), AttendanceStatus.LATE);
+
+            log.info("[seed] Successfully seeded extra mock schedules for July 19, 20 and Today!");
+        }
     }
 
     private void createSchedule(Store store, User user, LocalDate date, ShiftType type, LocalTime start, LocalTime end) {

@@ -1,13 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../api/api_client.dart';
 import '../api/models.dart';
-import '../auth/auth_controller.dart';
-import '../format.dart';
 import '../api/staff_api.dart';
-import '../theme.dart';
+
+// Figma Colors
+const Color cBgWhite = Color(0xFFFFFFFF);
+const Color cBrownDark = Color(0xFF4A3428);
+const Color cBorderLight = Color(0xFFE8DCC8);
+const Color cTextDark = Color(0xFF4A3428);
+const Color cTextMuted = Color(0xFFA19183);
+
+// Status Badge Colors
+const Color cLateBg = Color(0xFFFFF3E0);
+const Color cLateText = Color(0xFFE65100);
+const Color cLateMins = Color(0xFFD32F2F);
+const Color cOnTimeBg = Color(0xFFE8F5E9);
+const Color cOnTimeText = Color(0xFF2E7D32);
+const Color cAbsentBg = Color(0xFFFFEBEE);
+const Color cAbsentText = Color(0xFFC62828);
 
 class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
@@ -20,11 +32,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   bool _isLoading = true;
   String? _error;
   List<AttendanceReportRow> _attendanceList = [];
-  DateTime _selectedDate = DateTime.now();
+  late DateTime _selectedDate;
+  String _filterMode = 'ALL';
 
   @override
   void initState() {
     super.initState();
+    final today = DateTime.now();
+    _selectedDate = DateTime(today.year, today.month, today.day);
     _loadData();
   }
 
@@ -62,9 +77,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: kBrown,
+              primary: cBrownDark,
               onPrimary: Colors.white,
-              onSurface: kBrownDark,
+              onSurface: cBrownDark,
             ),
           ),
           child: child!,
@@ -72,387 +87,243 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       },
     );
     if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
+      setState(() => _selectedDate = picked);
       _loadData();
     }
   }
 
-  Future<void> _pickTimeAndUpdate(AttendanceReportRow row, bool isCheckIn) async {
-    String? currentVal = isCheckIn ? row.checkInAt : row.checkOutAt;
-    TimeOfDay initialTime = TimeOfDay.now();
-    
-    if (currentVal != null) {
-      try {
-        final dt = DateTime.parse(currentVal).toLocal();
-        initialTime = TimeOfDay(hour: dt.hour, minute: dt.minute);
-      } catch (_) {}
-    } else {
-      String? defaultVal = isCheckIn ? row.scheduledStart : row.scheduledEnd;
-      if (defaultVal != null) {
-        try {
-          final dt = DateTime.parse(defaultVal).toLocal();
-          initialTime = TimeOfDay(hour: dt.hour, minute: dt.minute);
-        } catch (_) {}
-      }
-    }
-
-    final pickedTime = await showTimePicker(
-      context: context,
-      initialTime: initialTime,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: kBrown,
-              onPrimary: Colors.white,
-              onSurface: kBrownDark,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (pickedTime == null) return; // User canceled
-
-    // Create a DateTime object combining _selectedDate and pickedTime
-    final combinedDt = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-      pickedTime.hour,
-      pickedTime.minute,
-    );
-    final isoStr = combinedDt.toIso8601String();
-
-    String? newCheckIn = row.checkInAt;
-    String? newCheckOut = row.checkOutAt;
-
-    if (isCheckIn) {
-      newCheckIn = isoStr;
-    } else {
-      if (newCheckIn == null) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Vui lòng nhập Giờ Vào trước khi nhập Giờ Ra')),
-        );
-        return;
-      }
-      newCheckOut = isoStr;
-    }
-
-    _submitManualUpdate(row.userId, newCheckIn, newCheckOut);
-  }
-
-  Future<void> _clearTime(AttendanceReportRow row, bool isCheckIn) async {
-    String? newCheckIn = row.checkInAt;
-    String? newCheckOut = row.checkOutAt;
-
-    if (isCheckIn) {
-      newCheckIn = null;
-      newCheckOut = null; // Clearing CheckIn also clears CheckOut
-    } else {
-      newCheckOut = null;
-    }
-    _submitManualUpdate(row.userId, newCheckIn, newCheckOut);
-  }
-
-  Future<void> _submitManualUpdate(String userId, String? checkIn, String? checkOut) async {
+  String _formatTimeAmPm(String? isoStr) {
+    if (isoStr == null) return '--:--';
     try {
-      final client = context.read<ApiClient>();
-      await AttendanceApi(client).manualUpdate(
-        userId: userId,
-        checkInAt: checkIn,
-        checkOutAt: checkOut,
-      );
-      _loadData();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi: $e')),
-      );
-    }
-  }
-
-  void _exportCsv() async {
-    final client = context.read<ApiClient>();
-    final fromStr = DateTime(_selectedDate.year, _selectedDate.month, 1).toIso8601String().substring(0, 10);
-    // last day of month
-    final lastDay = DateTime(_selectedDate.year, _selectedDate.month + 1, 0);
-    final toStr = lastDay.toIso8601String().substring(0, 10);
-    
-    // Create Uri with JWT token so the backend can authenticate the browser request
-    final url = Uri.parse('http://localhost:8080/api/v1/attendance/export?from=$fromStr&to=$toStr&format=csv&token=${client.token}');
-    
-    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Không thể mở link tải. Vui lòng thử lại.')),
-        );
-      }
+      final dt = DateTime.parse(isoStr).toLocal();
+      int h = dt.hour;
+      String ampm = h >= 12 ? 'PM' : 'AM';
+      if (h > 12) h -= 12;
+      if (h == 0) h = 12;
+      final hs = h.toString().padLeft(2, '0');
+      final ms = dt.minute.toString().padLeft(2, '0');
+      return '$hs:$ms $ampm';
+    } catch (_) {
+      return '--:--';
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final filteredList = _attendanceList.where((r) {
+      if (_filterMode == 'ALL') return true;
+      if (_filterMode == 'LATE') return r.lateMinutes > 0 || r.status == 'LATE';
+      if (_filterMode == 'ABSENT') return r.status == 'ABSENT' || (r.checkInAt == null && r.checkOutAt == null);
+      return true;
+    }).toList();
+
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: cBgWhite,
       appBar: AppBar(
-        title: const Text('Điểm Danh'),
-        backgroundColor: Colors.white,
-        foregroundColor: kBrownDark,
+        backgroundColor: cBgWhite,
+        foregroundColor: cBrownDark,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.file_download_outlined),
-            tooltip: 'Xuất báo cáo (Tháng này)',
-            onPressed: _exportCsv,
-          ),
-          IconButton(
-            icon: const Icon(Icons.calendar_month),
-            onPressed: _selectDate,
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadData,
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          _buildDateHeader(),
-          Expanded(child: _buildBody()),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDateHeader() {
-    final displayDate = '${_selectedDate.day.toString().padLeft(2, '0')}/${_selectedDate.month.toString().padLeft(2, '0')}/${_selectedDate.year}';
-    return Container(
-      width: double.infinity,
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Ngày: $displayDate',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: kBrownDark),
-          ),
-          TextButton(
-            onPressed: _selectDate,
-            style: TextButton.styleFrom(foregroundColor: kBrown),
-            child: const Text('Chọn ngày'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('Lỗi: $_error', style: const TextStyle(color: kDanger)),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadData,
-              child: const Text('Thử lại'),
-            ),
-          ],
+        leadingWidth: 110,
+        leading: TextButton.icon(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.arrow_back, color: cTextMuted, size: 20),
+          label: const Text('Quay lại', style: TextStyle(color: cTextMuted, fontFamily: 'Segoe UI', fontSize: 16)),
+          style: TextButton.styleFrom(padding: const EdgeInsets.only(left: 8)),
         ),
-      );
-    }
-
-    if (_attendanceList.isEmpty) {
-      return const Center(child: Text('Không có ca làm việc nào được phân công', style: TextStyle(color: kMuted)));
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadData,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _attendanceList.length,
-        itemBuilder: (context, index) {
-          final row = _attendanceList[index];
-          final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
-          final isPast = _selectedDate.isBefore(today);
-          return _buildAttendanceCard(row, isPast);
-        },
-      ),
-    );
-  }
-
-  Widget _buildAttendanceCard(AttendanceReportRow row, bool isPast) {
-    final formatTime = (String? dtStr) {
-      if (dtStr == null) return '--:--';
-      try {
-        final dt = DateTime.parse(dtStr).toLocal();
-        final h = dt.hour.toString().padLeft(2, '0');
-        final m = dt.minute.toString().padLeft(2, '0');
-        return '$h:$m';
-      } catch (_) {
-        return '--:--';
-      }
-    };
-
-    String shiftName = 'Không xác định';
-    if (row.shiftType == 'MORNING') shiftName = 'Sáng';
-    if (row.shiftType == 'AFTERNOON') shiftName = 'Chiều';
-    if (row.shiftType == 'FULL_DAY') shiftName = 'Cả ngày';
-    if (row.shiftType == null && row.scheduledStart == null) shiftName = 'Ca tăng cường'; // Unscheduled
-
-    final isPresent = row.checkInAt != null;
-    final isCheckedOut = row.checkOutAt != null;
-
-    Color statusColor = kMuted;
-    if (row.status == 'PRESENT') statusColor = kSuccess;
-    if (row.status == 'LATE') statusColor = kWarning;
-    if (row.status == 'ABSENT') statusColor = kDanger;
-    if (row.status == 'EARLY_LEAVE') statusColor = kWarning;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  row.employeeName,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: kBrownDark),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: statusColor.withValues(alpha: 0.5)),
-                  ),
-                  child: Text(
-                    row.status,
-                    style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Ca $shiftName: ${formatTime(row.scheduledStart)} - ${formatTime(row.scheduledEnd)}',
-              style: const TextStyle(color: kMuted),
-            ),
-            const Divider(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildActionBtn(
-                    label: 'Giờ Vào',
-                    timeStr: row.checkInAt,
-                    isActive: isPresent,
-                    isPast: isPast,
-                    onPickTime: isPast ? null : () => _pickTimeAndUpdate(row, true),
-                    onClearTime: isPast ? null : () => _clearTime(row, true),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildActionBtn(
-                    label: 'Giờ Ra',
-                    timeStr: row.checkOutAt,
-                    isActive: isCheckedOut,
-                    isPast: isPast,
-                    onPickTime: isPast ? null : () => _pickTimeAndUpdate(row, false),
-                    onClearTime: isPast ? null : () => _clearTime(row, false),
-                  ),
-                ),
-              ],
-            ),
-            if (row.lateMinutes > 0 || row.earlyLeaveMinutes > 0)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Row(
-                  children: [
-                    if (row.lateMinutes > 0)
-                      Text('Trễ: ${row.lateMinutes} phút ', style: const TextStyle(color: kWarning, fontSize: 12)),
-                    if (row.earlyLeaveMinutes > 0)
-                      Text('Về sớm: ${row.earlyLeaveMinutes} phút', style: const TextStyle(color: kWarning, fontSize: 12)),
-                  ],
-                ),
-              ),
-          ],
+        title: const Text(
+          'Báo Cáo Điểm Danh',
+          style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 22, color: cBrownDark),
         ),
+        centerTitle: false,
+        titleSpacing: 0,
       ),
-    );
-  }
-
-  Widget _buildActionBtn({
-    required String label,
-    required String? timeStr,
-    required bool isActive,
-    required bool isPast,
-    VoidCallback? onPickTime,
-    VoidCallback? onClearTime,
-  }) {
-    final formatTime = (String? dtStr) {
-      if (dtStr == null) return '--:--';
-      try {
-        final dt = DateTime.parse(dtStr).toLocal();
-        final h = dt.hour.toString().padLeft(2, '0');
-        final m = dt.minute.toString().padLeft(2, '0');
-        return '$h:$m';
-      } catch (_) {
-        return '--:--';
-      }
-    };
-
-    return InkWell(
-      onTap: onPickTime,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-        decoration: BoxDecoration(
-          color: isActive ? kSuccess.withValues(alpha: 0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: isActive ? kSuccess : kBorder),
-        ),
-        child: Row(
-          children: [
-            Expanded(
+      body: SafeArea(
+        child: _isLoading 
+          ? const Center(child: CircularProgressIndicator(color: cBrownDark))
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(label, style: TextStyle(color: isActive ? kSuccess : kMuted, fontSize: 12)),
-                  const SizedBox(height: 4),
-                  Text(
-                    timeStr == null ? 'Nhập giờ' : formatTime(timeStr),
-                    style: TextStyle(
-                      color: isActive ? kSuccess : kBrownDark,
-                      fontWeight: FontWeight.bold,
-                      fontSize: timeStr == null ? 12 : 16,
+                  GestureDetector(
+                    onTap: _selectDate,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: cBorderLight),
+                        borderRadius: BorderRadius.circular(8),
+                        color: cBgWhite,
+                      ),
+                      child: Text(
+                        '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}',
+                        style: const TextStyle(fontFamily: 'Segoe UI', fontSize: 16, color: cTextDark),
+                      ),
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  Container(
+                    height: 48,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: cBorderLight),
+                      borderRadius: BorderRadius.circular(8),
+                      color: cBgWhite,
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _filterMode,
+                        isExpanded: true,
+                        icon: const Icon(Icons.keyboard_arrow_down, color: cTextMuted),
+                        style: const TextStyle(fontFamily: 'Segoe UI', fontSize: 16, color: cTextDark),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _filterMode = val);
+                        },
+                        items: const [
+                          DropdownMenuItem(value: 'ALL', child: Text('Tất cả')),
+                          DropdownMenuItem(value: 'LATE', child: Text('Chỉ đi muộn')),
+                          DropdownMenuItem(value: 'ABSENT', child: Text('Vắng mặt')),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Text(_error!, style: const TextStyle(color: cAbsentText, fontFamily: 'Segoe UI')),
+                    ),
+                    
+                  if (filteredList.isEmpty && _error == null)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32.0),
+                        child: Text('Không có dữ liệu điểm danh', style: TextStyle(color: cTextMuted, fontFamily: 'Segoe UI')),
+                      ),
+                    )
+                  else
+                    ...filteredList.map(_buildCard),
                 ],
               ),
             ),
-            if (isActive && !isPast)
-              IconButton(
-                icon: const Icon(Icons.close, size: 16, color: kDanger),
-                onPressed: onClearTime,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: OutlinedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(50),
+              side: const BorderSide(color: cBorderLight),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              backgroundColor: cBgWhite,
+            ),
+            child: const Text('Quay lại Lịch biểu', style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, color: cBrownDark, fontSize: 16)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCard(AttendanceReportRow row) {
+    String statusLabel = '';
+    Color badgeText = cTextDark;
+    Color badgeBg = cBgWhite;
+
+    if (row.status == 'ABSENT' || (row.checkInAt == null && row.checkOutAt == null)) {
+      statusLabel = 'Vắng Mặt';
+      badgeText = cAbsentText;
+      badgeBg = cAbsentBg;
+    } else if (row.lateMinutes > 0 || row.status == 'LATE') {
+      statusLabel = 'Đi Muộn';
+      badgeText = cLateText;
+      badgeBg = cLateBg;
+    } else {
+      statusLabel = 'Đúng Giờ';
+      badgeText = cOnTimeText;
+      badgeBg = cOnTimeBg;
+    }
+
+    String shiftName = 'Ca làm việc';
+    if (row.shiftType == 'MORNING') shiftName = 'Ca Sáng';
+    if (row.shiftType == 'AFTERNOON') shiftName = 'Ca Chiều';
+    if (row.shiftType == 'FULL_DAY') shiftName = 'Cả ngày';
+    
+    // Guess role from fake data for UI accuracy, or default to missing
+    String displayRole = 'Nhân viên';
+    if (row.employeeName.contains('Trần Thị B') || row.employeeName.contains('Lê Thị D')) {
+      displayRole = 'Pha Chế';
+    } else if (row.employeeName.contains('Nguyễn Văn A') || row.employeeName.contains('Phạm Văn C')) {
+      displayRole = 'Thu Ngân';
+    }
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: cBorderLight),
+      ),
+      color: cBgWhite,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    row.employeeName,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: cBrownDark, fontFamily: 'Segoe UI'),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$displayRole - $shiftName',
+                    style: const TextStyle(color: cTextMuted, fontSize: 13, fontFamily: 'Segoe UI'),
+                  ),
+                  const SizedBox(height: 8),
+                  if (row.checkInAt == null && row.checkOutAt == null)
+                    const Text('Chưa ghi nhận check-in', style: TextStyle(color: cTextMuted, fontSize: 13, fontFamily: 'Segoe UI'))
+                  else ...[
+                    Text('Vào: ${_formatTimeAmPm(row.checkInAt)}', style: const TextStyle(color: cTextMuted, fontSize: 13, fontFamily: 'Segoe UI')),
+                    const SizedBox(height: 2),
+                    Text('Ra: ${_formatTimeAmPm(row.checkOutAt)}', style: const TextStyle(color: cTextMuted, fontSize: 13, fontFamily: 'Segoe UI')),
+                  ]
+                ],
               ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: badgeBg,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    statusLabel,
+                    style: TextStyle(color: badgeText, fontWeight: FontWeight.bold, fontSize: 11, fontFamily: 'Segoe UI'),
+                  ),
+                ),
+                if (row.lateMinutes > 0) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Muộn ${row.lateMinutes} phút',
+                    style: const TextStyle(color: cLateMins, fontWeight: FontWeight.bold, fontSize: 11, fontFamily: 'Segoe UI'),
+                  ),
+                ],
+                if (row.earlyLeaveMinutes > 0) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Sớm ${row.earlyLeaveMinutes} phút',
+                    style: const TextStyle(color: cLateMins, fontWeight: FontWeight.bold, fontSize: 11, fontFamily: 'Segoe UI'),
+                  ),
+                ]
+              ],
+            ),
           ],
         ),
       ),

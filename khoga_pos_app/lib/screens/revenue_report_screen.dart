@@ -94,44 +94,99 @@ class _RevenueReportScreenState extends State<RevenueReportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Filter bar
-        Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                const Icon(Icons.date_range, color: kBrownDark),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: _selectDateRange,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: kBorder),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '${_fromDate.day}/${_fromDate.month}/${_fromDate.year}  -  ${_toDate.day}/${_toDate.month}/${_toDate.year}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: kBrownDark),
-                      ),
-                    ),
+    return Scaffold(
+      backgroundColor: kBg,
+      appBar: AppBar(
+        backgroundColor: kBg,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        titleSpacing: 16,
+        title: Row(
+          children: [
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: const Row(
+                children: [
+                  Icon(Icons.arrow_back, color: kMuted, size: 20),
+                  SizedBox(width: 4),
+                  Text('Quay lại', style: TextStyle(color: kMuted, fontSize: 14)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text('Báo Cáo Doanh Thu', style: TextStyle(color: kBrownDark, fontWeight: FontWeight.bold, fontSize: 20)),
+          ],
+        ),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: GestureDetector(
+                onTap: _selectDateRange,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: kBorder),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _fromDate.year == _toDate.year && _fromDate.month == _toDate.month && _fromDate.day == _toDate.day
+                        ? _fromDate.toIso8601String().substring(0, 10)
+                        : '${_fromDate.toIso8601String().substring(0, 10)}  -  ${_toDate.toIso8601String().substring(0, 10)}',
+                    style: const TextStyle(color: kBrownDark, fontSize: 15),
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-          
-          const SizedBox(height: 8),
-
-          // Content
-          Expanded(
-            child: _buildContent(),
-          ),
-        ],
-      );
+            Expanded(
+              child: _buildContent(),
+            ),
+            // Bottom Actions
+            Container(
+              padding: const EdgeInsets.all(16),
+              color: kBg,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _showExportDialog,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF3E2723), // Dark brown
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('XUẤT BÁO CÁO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: kBrownDark,
+                        side: const BorderSide(color: kBorder),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        backgroundColor: Colors.white,
+                      ),
+                      child: const Text('Quay lại Trang chủ', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildContent() {
@@ -159,83 +214,19 @@ class _RevenueReportScreenState extends State<RevenueReportScreen> {
     final r = _report!;
     return RefreshIndicator(
       onRefresh: _loadReport,
+      color: kBrownDark,
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildSummaryCard(
-            title: 'Doanh thu thuần',
-            value: '${formatVnd(r.netRevenue)}đ',
-            icon: Icons.account_balance_wallet,
-            color: kSuccess,
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _buildSummaryCard(
-                  title: 'Đơn thành công',
-                  value: '${r.completedOrders}',
-                  icon: Icons.receipt_long,
-                  color: kBrownDark,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildSummaryCard(
-                  title: 'Chênh lệch két',
-                  value: '${formatVnd(r.discrepancyTotal)}đ',
-                  icon: Icons.money_off,
-                  color: r.discrepancyTotal < 0 ? kDanger : (r.discrepancyTotal > 0 ? kSuccess : kMuted),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Phương thức thanh toán',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kBrownDark),
-          ),
-          const SizedBox(height: 12),
-          _buildPaymentBreakdown(r.payments),
+          _buildSummaryCard(r),
+          const SizedBox(height: 16),
+          _buildPaymentBreakdownCard(r.payments),
         ],
       ),
     );
   }
 
-  Widget _buildSummaryCard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 20, color: color),
-              const SizedBox(width: 8),
-              Text(title, style: const TextStyle(color: kMuted, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPaymentBreakdown(PaymentBreakdown pb) {
+  Widget _buildSummaryCard(StoreRevenueReport r) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -243,46 +234,186 @@ class _RevenueReportScreenState extends State<RevenueReportScreen> {
         border: Border.all(color: kBorder),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildPaymentRow('Tiền mặt', '${formatVnd(pb.cash)}đ', Icons.money),
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('Tóm tắt doanh số chi nhánh', style: TextStyle(fontWeight: FontWeight.bold, color: kMuted, fontSize: 13)),
+          ),
           const Divider(height: 1, color: kBorder),
-          _buildPaymentRow('Thẻ ngân hàng', '${formatVnd(pb.card)}đ', Icons.credit_card),
-          const Divider(height: 1, color: kBorder),
-          _buildPaymentRow('VietQR', '${formatVnd(pb.vietqr)}đ', Icons.qr_code),
-          const Divider(height: 1, color: kBorder),
-          Container(
+          Padding(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: kBrown.withValues(alpha: 0.1),
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
               children: [
-                const Text('Tổng thu', style: TextStyle(fontWeight: FontWeight.bold, color: kBrownDark)),
-                Text(
-                  '${formatVnd(pb.total)}đ',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: kBrownDark),
-                ),
+                _buildInfoRow('Doanh thu thuần', '${formatVnd(r.netRevenue)} VND', valueColor: kSuccess),
+                const SizedBox(height: 12),
+                _buildInfoRow('Đơn hàng hoàn thành', '${r.completedOrders} đơn'),
+                const SizedBox(height: 12),
+                _buildInfoRow('Tổng sai lệch két', '${formatVnd(r.discrepancyTotal)} VND'),
               ],
             ),
-          )
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildPaymentRow(String label, String amount, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
+  Widget _buildPaymentBreakdownCard(PaymentBreakdown pb) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Icon(icon, size: 20, color: kMuted),
-          const SizedBox(width: 12),
-          Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: kBrownDark)),
-          const Spacer(),
-          Text(amount, style: const TextStyle(fontWeight: FontWeight.bold)),
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('Hình thức thanh toán', style: TextStyle(fontWeight: FontWeight.bold, color: kMuted, fontSize: 13)),
+          ),
+          const Divider(height: 1, color: kBorder),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                _buildPaymentRow('Tiền mặt (Cash)', '${formatVnd(pb.cash)} VND', const Color(0xFF4CAF50)),
+                const SizedBox(height: 12),
+                _buildPaymentRow('Thẻ ngân hàng (Card)', '${formatVnd(pb.card)} VND', const Color(0xFF2196F3)),
+                const SizedBox(height: 12),
+                _buildPaymentRow('Chuyển khoản VietQR', '${formatVnd(pb.vietqr)} VND', const Color(0xFFFF9800)),
+              ],
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value, {Color? valueColor}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: kBrownDark)),
+        Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: valueColor ?? kBrownDark, fontSize: valueColor != null ? 16 : 14)),
+      ],
+    );
+  }
+
+  Widget _buildPaymentRow(String label, String value, Color dotColor) {
+    return Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: kBrownDark)),
+        const Spacer(),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, color: kBrownDark)),
+      ],
+    );
+  }
+
+  void _showExportDialog() {
+    String selectedFormat = 'pdf';
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text('Xuất Báo Cáo', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: kBrownDark)),
+                    const SizedBox(height: 24),
+                    const Text('Định dạng file xuất', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: kBrown)),
+                    const SizedBox(height: 12),
+                    _buildRadioOption('pdf', 'Tài liệu PDF (.pdf)', selectedFormat, (v) => setState(() => selectedFormat = v!)),
+                    _buildRadioOption('xlsx', 'Bảng tính Excel (.xlsx)', selectedFormat, (v) => setState(() => selectedFormat = v!)),
+                    _buildRadioOption('csv', 'File dữ liệu CSV (.csv)', selectedFormat, (v) => setState(() => selectedFormat = v!)),
+                    const SizedBox(height: 20),
+                    const Text('Phạm vi dữ liệu', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: kBrown)),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF5F5F5),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFEBEBEB)),
+                      ),
+                      child: Text(
+                        _fromDate.year == _toDate.year && _fromDate.month == _toDate.month && _fromDate.day == _toDate.day
+                            ? _fromDate.toIso8601String().substring(0, 10)
+                            : '${_fromDate.toIso8601String().substring(0, 10)}  -  ${_toDate.toIso8601String().substring(0, 10)}',
+                        style: const TextStyle(color: kMuted, fontSize: 15),
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: kBrownDark,
+                              side: const BorderSide(color: Color(0xFFEBEBEB)),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: const Text('HỦY', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đang tải xuống...')));
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: kBrownDark,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: const Text('TẢI XUỐNG', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+        );
+      },
+    );
+  }
+
+  Widget _buildRadioOption(String value, String label, String groupValue, ValueChanged<String?> onChanged) {
+    return GestureDetector(
+      onTap: () => onChanged(value),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          children: [
+            Icon(
+              groupValue == value ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+              color: kBrownDark,
+              size: 22,
+            ),
+            const SizedBox(width: 10),
+            Text(label, style: const TextStyle(color: Colors.black87, fontSize: 15)),
+          ],
+        ),
       ),
     );
   }

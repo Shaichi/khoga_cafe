@@ -5,9 +5,22 @@ import '../api/api_client.dart';
 import '../api/models.dart';
 import '../api/stock_api.dart';
 import '../format.dart';
-import '../theme.dart';
 
-/// Screen 26a — stock movement ledger (UC-61). History Log based on Figma design.
+// Figma Colors
+const Color cBgWhite = Color(0xFFFFFFFF);
+const Color cBorderLight = Color(0xFFEADDD3);
+const Color cTextDark = Color(0xFF2C1A11);
+const Color cTextMuted = Color(0xFF8C766C);
+const Color cBrownDark = Color(0xFF3D2314);
+const Color cPrimary = Color(0xFF5C3826);
+
+const Color cImportBg = Color(0xFFE8F5E9);
+const Color cImportText = Color(0xFF2E7D32);
+const Color cExportBg = Color(0xFFFFEBEE);
+const Color cExportText = Color(0xFFC62828);
+const Color cAuditBg = Color(0xFFFFFDE7);
+const Color cAuditText = Color(0xFFF57F17);
+
 class StockTransactionsScreen extends StatefulWidget {
   const StockTransactionsScreen({super.key});
 
@@ -17,16 +30,25 @@ class StockTransactionsScreen extends StatefulWidget {
 
 class _StockTransactionsScreenState extends State<StockTransactionsScreen> {
   static const _filters = [
-    (null, 'Tất cả'),
-    ('IMPORT', 'Nhập'),
-    ('EXPORT', 'Xuất'),
-    ('RECIPE_DEDUCTION', 'Bán hàng'),
-    ('AUDIT_ADJUSTMENT', 'Kiểm kê'),
+    (null, 'Tất cả loại'),
+    ('IMPORT', 'Nhập Kho'),
+    ('EXPORT', 'Xuất Kho'),
+    ('RECIPE_DEDUCTION', 'Bán Hàng'),
+    ('AUDIT_ADJUSTMENT', 'Kiểm Kê'),
+  ];
+
+  static const _timeFilters = [
+    ('ALL', 'Mọi lúc'),
+    ('TODAY', 'Hôm nay'),
+    ('WEEK', '7 ngày qua'),
+    ('MONTH', '30 ngày qua'),
   ];
 
   late final StockApi _api;
   String? _type;
+  String _timeFilter = 'ALL';
   DateTimeRange? _dateRange;
+  
   List<StockTransaction> _items = const [];
   bool _loading = true;
   String? _error;
@@ -35,6 +57,28 @@ class _StockTransactionsScreenState extends State<StockTransactionsScreen> {
   void initState() {
     super.initState();
     _api = StockApi(context.read<ApiClient>());
+    _load();
+  }
+
+  void _onTimeChanged(String? val) {
+    if (val == null) return;
+    setState(() {
+      _timeFilter = val;
+      final now = DateTime.now();
+      switch (_timeFilter) {
+        case 'TODAY':
+          _dateRange = DateTimeRange(start: DateTime(now.year, now.month, now.day), end: now);
+          break;
+        case 'WEEK':
+          _dateRange = DateTimeRange(start: now.subtract(const Duration(days: 7)), end: now);
+          break;
+        case 'MONTH':
+          _dateRange = DateTimeRange(start: now.subtract(const Duration(days: 30)), end: now);
+          break;
+        default:
+          _dateRange = null;
+      }
+    });
     _load();
   }
 
@@ -51,105 +95,108 @@ class _StockTransactionsScreenState extends State<StockTransactionsScreen> {
       );
       if (mounted) setState(() => _items = list);
     } catch (e) {
-      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Không tải được lịch sử kho');
+      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Không tải được lịch sử giao dịch');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  Map<String, List<StockTransaction>> _groupTransactions() {
-    final map = <String, List<StockTransaction>>{};
-    for (final t in _items) {
-      if (t.createdAt == null) continue;
-      try {
-        final dt = DateTime.parse(t.createdAt!).toLocal();
-        final dateStr = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
-        map.putIfAbsent(dateStr, () => []).add(t);
-      } catch (_) {}
-    }
-    return map;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: cBgWhite,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: kBrownDark,
-        elevation: 1,
-        title: const Text('Lịch sử kho', style: TextStyle(fontWeight: FontWeight.bold)),
-        actions: [
-          IconButton(
-            icon: Icon(_dateRange == null ? Icons.calendar_month_outlined : Icons.calendar_month, color: kBrown),
-            onPressed: () async {
-              final picked = await showDateRangePicker(
-                context: context,
-                firstDate: DateTime(2020),
-                lastDate: DateTime.now().add(const Duration(days: 1)),
-                initialDateRange: _dateRange,
-                builder: (context, child) {
-                  return Theme(
-                    data: Theme.of(context).copyWith(
-                      colorScheme: const ColorScheme.light(
-                        primary: kBrown,
-                        onPrimary: Colors.white,
-                        surface: Colors.white,
-                        onSurface: kBrownDark,
-                      ),
-                    ),
-                    child: child!,
-                  );
-                },
-              );
-              if (picked != null) {
-                setState(() => _dateRange = picked);
-                _load();
-              }
-            },
+        backgroundColor: cBgWhite,
+        foregroundColor: cBrownDark,
+        elevation: 0,
+        leadingWidth: 110,
+        leading: InkWell(
+          onTap: () => Navigator.of(context).pop(),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.arrow_back, color: cTextMuted, size: 20),
+              SizedBox(width: 4),
+              Text('Quay lại', style: TextStyle(color: cTextMuted, fontSize: 16, fontFamily: 'Segoe UI')),
+            ],
           ),
-          if (_dateRange != null)
-            IconButton(
-              icon: const Icon(Icons.clear, color: kDanger),
-              onPressed: () {
-                setState(() => _dateRange = null);
-                _load();
-              },
-            ),
-        ],
+        ),
+        title: const Text(
+          'Lịch Sử Giao Dịch',
+          style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 22, color: cBrownDark),
+        ),
       ),
       body: SafeArea(
         child: Column(
           children: [
+            // Filter Box
             Container(
-              color: Colors.white,
-              height: 60,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              decoration: BoxDecoration(
+                color: cBgWhite,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: cBorderLight),
+              ),
+              child: Row(
                 children: [
-                  for (final f in _filters)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(f.$2, style: TextStyle(
-                          color: _type == f.$1 ? Colors.white : kBrownDark,
-                          fontWeight: _type == f.$1 ? FontWeight.bold : FontWeight.normal,
-                        )),
-                        selected: _type == f.$1,
-                        selectedColor: kBrown,
-                        backgroundColor: kBg,
-                        onSelected: (_) {
-                          setState(() => _type = f.$1);
+                  Expanded(
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _timeFilter,
+                        isExpanded: true,
+                        icon: const Icon(Icons.keyboard_arrow_down, color: cTextMuted),
+                        items: _timeFilters.map((f) => DropdownMenuItem(
+                          value: f.$1,
+                          child: Text(f.$2, style: const TextStyle(fontFamily: 'Segoe UI', color: cBrownDark, fontWeight: FontWeight.bold, fontSize: 14)),
+                        )).toList(),
+                        onChanged: _onTimeChanged,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    width: 1,
+                    height: 30,
+                    color: cBorderLight,
+                    margin: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                  Expanded(
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _type,
+                        isExpanded: true,
+                        icon: const Icon(Icons.keyboard_arrow_down, color: cTextMuted),
+                        items: _filters.map((f) => DropdownMenuItem(
+                          value: f.$1,
+                          child: Text(f.$2, style: const TextStyle(fontFamily: 'Segoe UI', color: cBrownDark, fontWeight: FontWeight.bold, fontSize: 14)),
+                        )).toList(),
+                        onChanged: (val) {
+                          setState(() => _type = val);
                           _load();
                         },
                       ),
                     ),
+                  ),
                 ],
               ),
             ),
-            const Divider(height: 1, color: kBorder),
+            
+            // List
             Expanded(child: _buildList()),
+            
+            // Footer
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: OutlinedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                  side: const BorderSide(color: cBorderLight),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text('Quay lại Kho hàng', style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, color: cBrownDark, fontSize: 16)),
+              ),
+            ),
           ],
         ),
       ),
@@ -158,161 +205,165 @@ class _StockTransactionsScreenState extends State<StockTransactionsScreen> {
 
   Widget _buildList() {
     if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_error != null) return Center(child: Text(_error!, style: const TextStyle(color: kDanger)));
-    if (_items.isEmpty) return const Center(child: Text('Chưa có giao dịch nào', style: TextStyle(color: kMuted, fontSize: 16)));
+    if (_error != null) return Center(child: Text(_error!, style: const TextStyle(color: cExportText)));
+    if (_items.isEmpty) return const Center(child: Text('Chưa có giao dịch nào', style: TextStyle(color: cTextMuted, fontFamily: 'Segoe UI')));
     
-    final grouped = _groupTransactions();
-    final dates = grouped.keys.toList(); // Assuming already sorted descending by API
-
     return ListView.builder(
-      key: const Key('tx-list'),
-      padding: const EdgeInsets.all(16),
-      itemCount: dates.length,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: _items.length,
       itemBuilder: (context, index) {
-        final dateStr = dates[index];
-        final dayItems = grouped[dateStr]!;
-        
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12, top: 8),
-              child: Text(
-                dateStr,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: kBrownDark),
-              ),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: kBorder),
-              ),
-              child: ListView.separated(
-                physics: const NeverScrollableScrollPhysics(),
-                shrinkWrap: true,
-                itemCount: dayItems.length,
-                separatorBuilder: (_, __) => const Divider(height: 1, color: kBorder),
-                itemBuilder: (_, i) => _buildTransactionRow(dayItems[i]),
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-        );
+        return _buildTransactionCard(_items[index]);
       },
     );
   }
 
-  Widget _buildTransactionRow(StockTransaction t) {
-    final inbound = t.quantity >= 0;
-    
+  Widget _buildTransactionCard(StockTransaction t) {
     // Parse time
     String timeStr = '';
     if (t.createdAt != null) {
       try {
         final dt = DateTime.parse(t.createdAt!).toLocal();
-        timeStr = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+        timeStr = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
       } catch (_) {}
     }
 
-    // Config style based on type
-    IconData icon;
-    Color iconColor;
+    Color badgeBg;
+    Color badgeText;
+    String typeLabel;
+    String qtyPrefix = '';
+    
     switch (t.transactionType) {
       case 'IMPORT':
-        icon = Icons.download_rounded;
-        iconColor = kSuccess;
+        badgeBg = cImportBg;
+        badgeText = cImportText;
+        typeLabel = 'Nhập Kho';
+        qtyPrefix = '+';
         break;
       case 'EXPORT':
-        icon = Icons.upload_rounded;
-        iconColor = kDanger;
+        badgeBg = cExportBg;
+        badgeText = cExportText;
+        typeLabel = 'Xuất Kho';
         break;
       case 'AUDIT_ADJUSTMENT':
-        icon = Icons.fact_check_rounded;
-        iconColor = Colors.orange;
-        break;
-      case 'RECIPE_DEDUCTION':
-        icon = Icons.local_cafe_rounded;
-        iconColor = Colors.blueGrey;
+        badgeBg = cAuditBg;
+        badgeText = cAuditText;
+        typeLabel = 'Kiểm Kê';
+        qtyPrefix = t.quantity > 0 ? '+' : '';
         break;
       default:
-        icon = Icons.swap_horiz_rounded;
-        iconColor = kMuted;
+        badgeBg = const Color(0xFFF5F5F5);
+        badgeText = const Color(0xFF616161);
+        typeLabel = 'Khác';
+        qtyPrefix = t.quantity > 0 ? '+' : '';
     }
 
-    return Padding(
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
-      child: Row(
+      decoration: BoxDecoration(
+        color: cBgWhite,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cBorderLight),
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: iconColor, size: 24),
+          // Top row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(timeStr, style: const TextStyle(color: cTextMuted, fontWeight: FontWeight.bold, fontSize: 13, fontFamily: 'Segoe UI')),
+              Text('Người thực hiện: ${t.managerName ?? 'Manager'}', style: const TextStyle(color: cTextMuted, fontWeight: FontWeight.bold, fontSize: 13, fontFamily: 'Segoe UI')),
+            ],
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        t.materialName,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: kBrownDark),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Text(
-                      '${inbound ? '+' : ''}${formatVnd(t.quantity)}',
-                      style: TextStyle(fontWeight: FontWeight.bold, color: inbound ? kSuccess : kDanger, fontSize: 16),
-                    ),
-                  ],
+          const SizedBox(height: 12),
+          
+          // Title row
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  t.materialName,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: cBrownDark, fontFamily: 'Segoe UI'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Text(timeStr, style: const TextStyle(color: kMuted, fontSize: 13, fontWeight: FontWeight.bold)),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: kBg,
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: kBorder),
-                      ),
-                      child: Text(_typeLabel(t.transactionType), style: const TextStyle(fontSize: 11, color: kBrown)),
-                    ),
-                    if (t.managerName != null) ...[
-                      const Text(' · ', style: TextStyle(color: kMuted)),
-                      Text(t.managerName!, style: const TextStyle(fontSize: 12, color: kMuted)),
-                    ],
-                  ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                margin: const EdgeInsets.only(left: 8, right: 8),
+                decoration: BoxDecoration(
+                  color: badgeBg,
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                if (t.reason != null && t.reason!.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text('Ghi chú: ${t.reason}', style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic, color: kBrown)),
-                ],
-              ],
-            ),
+                child: Text(typeLabel, style: TextStyle(color: badgeText, fontSize: 11, fontWeight: FontWeight.bold, fontFamily: 'Segoe UI')),
+              ),
+              Text(
+                '$qtyPrefix${formatVnd(t.quantity)}',
+                style: TextStyle(fontWeight: FontWeight.bold, color: badgeText, fontSize: 16, fontFamily: 'Segoe UI'),
+              ),
+            ],
           ),
+          const SizedBox(height: 12),
+          
+          // Inner box details
+          _buildDetails(t),
         ],
       ),
     );
   }
 
-  String _typeLabel(String t) => switch (t) {
-        'IMPORT' => 'Nhập kho',
-        'EXPORT' => 'Xuất kho',
-        'RECIPE_DEDUCTION' => 'Bán hàng',
-        'AUDIT_ADJUSTMENT' => 'Kiểm kê',
-        'PHANTOM_USAGE' => 'Hao hụt',
-        _ => t,
-      };
+  Widget _buildDetails(StockTransaction t) {
+    List<Widget> rows = [];
+    
+    if (t.transactionType == 'IMPORT') {
+      rows.add(_buildDetailRow('Nhà CC:', 'Nhà cung cấp nội bộ'));
+      rows.add(_buildDetailRow('Đơn giá:', 'Theo hệ thống'));
+      rows.add(_buildDetailRow('Ghi chú:', t.reason ?? '-'));
+    } else if (t.transactionType == 'EXPORT') {
+      rows.add(_buildDetailRow('Lý do:', 'Xuất kho / Hủy'));
+      rows.add(_buildDetailRow('Ghi chú:', t.reason ?? '-'));
+    } else if (t.transactionType == 'AUDIT_ADJUSTMENT') {
+      rows.add(_buildDetailRow('Kiểm kê thực tế:', '${formatVnd(t.quantityAfter)} (Hệ thống: ${formatVnd(t.quantityBefore)})'));
+      rows.add(_buildDetailRow('Sai lệch:', '${t.quantity > 0 ? '+' : ''}${formatVnd(t.quantity)}'));
+      rows.add(_buildDetailRow('Ghi chú giải trình:', t.reason ?? '-'));
+    } else {
+      rows.add(_buildDetailRow('Ghi chú:', t.reason ?? '-'));
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFBF8F6),
+        borderRadius: BorderRadius.only(
+          topRight: Radius.circular(8),
+          bottomRight: Radius.circular(8),
+          topLeft: Radius.circular(4),
+          bottomLeft: Radius.circular(4),
+        ),
+        border: Border(left: BorderSide(color: cBorderLight, width: 4)),
+      ),
+      child: Column(
+        children: rows,
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 140,
+            child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: cBrownDark, fontSize: 13, fontFamily: 'Segoe UI')),
+          ),
+          Expanded(
+            child: Text(value, style: const TextStyle(color: cTextMuted, fontSize: 13, fontFamily: 'Segoe UI'), textAlign: TextAlign.right),
+          ),
+        ],
+      ),
+    );
+  }
 }

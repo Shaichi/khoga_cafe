@@ -4,10 +4,19 @@ import 'package:provider/provider.dart';
 import '../api/api_client.dart';
 import '../api/models.dart';
 import '../api/staff_api.dart';
-import '../theme.dart';
+import 'attendance_screen.dart';
 import 'schedule_form_screen.dart';
 
-/// Screen 30 — staff schedule. Store Manager view.
+// Figma Colors
+const Color cBgWhite = Color(0xFFFFFFFF);
+const Color cBorderLight = Color(0xFFEADDD3);
+const Color cTextDark = Color(0xFF2C1A11);
+const Color cTextMuted = Color(0xFF8C766C);
+const Color cBrownDark = Color(0xFF3D2314);
+const Color cPrimary = Color(0xFF5C3826);
+const Color cDanger = Color(0xFFC62828);
+
+/// Screen 30 — staff schedule. Store Manager view based on Figma design.
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key});
 
@@ -21,29 +30,15 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   bool _loading = true;
   String? _error;
 
-  late DateTime _today;
   late DateTime _selectedDate;
-  late DateTime _startDate;
-  late DateTime _endDate;
-  late List<DateTime> _dates;
+  String _roleFilter = 'Tất cả';
 
   @override
   void initState() {
     super.initState();
     _api = ScheduleApi(context.read<ApiClient>());
-    
-    _today = DateTime.now();
-    _selectedDate = DateTime(_today.year, _today.month, _today.day);
-    
-    // Generate 38 days (-7 to +30)
-    _startDate = _selectedDate.subtract(const Duration(days: 7));
-    _endDate = _selectedDate.add(const Duration(days: 30));
-    
-    _dates = [];
-    for (int i = 0; i <= 37; i++) {
-      _dates.add(_startDate.add(Duration(days: i)));
-    }
-
+    final today = DateTime.now();
+    _selectedDate = DateTime(today.year, today.month, today.day);
     _load();
   }
 
@@ -53,8 +48,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       _error = null;
     });
     try {
-      final fromStr = '${_startDate.year}-${_startDate.month.toString().padLeft(2, '0')}-${_startDate.day.toString().padLeft(2, '0')}';
-      final toStr = '${_endDate.year}-${_endDate.month.toString().padLeft(2, '0')}-${_endDate.day.toString().padLeft(2, '0')}';
+      final start = _selectedDate.subtract(const Duration(days: 7));
+      final end = _selectedDate.add(const Duration(days: 30));
+      final fromStr = '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')}';
+      final toStr = '${end.year}-${end.month.toString().padLeft(2, '0')}-${end.day.toString().padLeft(2, '0')}';
       
       final shifts = await _api.list(from: fromStr, to: toStr);
       if (mounted) {
@@ -72,11 +69,12 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   Future<void> _openForm([ScheduleShift? existing]) async {
     // Không cho phép mở form để thêm ca mới vào ngày quá khứ
     if (existing == null) {
-      final today = DateTime(_today.year, _today.month, _today.day);
-      if (_selectedDate.isBefore(today)) {
+      final today = DateTime.now();
+      final todayOnly = DateTime(today.year, today.month, today.day);
+      if (_selectedDate.isBefore(todayOnly)) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Không thể thêm ca làm việc trong quá khứ', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
+            const SnackBar(content: Text('Không thể thêm ca làm việc trong quá khứ', style: TextStyle(color: Colors.white)), backgroundColor: cDanger),
           );
         }
         return;
@@ -95,103 +93,177 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: cBgWhite,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: kBrownDark,
-        elevation: 1,
-        title: const Text('Lịch làm việc', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: cBgWhite,
+        foregroundColor: cBrownDark,
+        elevation: 0,
+        leadingWidth: 110,
+        leading: InkWell(
+          onTap: () => Navigator.of(context).pop(),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.arrow_back, color: cTextMuted, size: 20),
+              SizedBox(width: 4),
+              Text('Quay lại', style: TextStyle(color: cTextMuted, fontSize: 16, fontFamily: 'Segoe UI')),
+            ],
+          ),
+        ),
+        title: const Text(
+          'Lịch Làm Việc',
+          style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 22, color: cBrownDark),
+        ),
       ),
       body: SafeArea(
         child: Column(
           children: [
-            _buildCalendarStrip(),
-            const Divider(height: 1, color: kBorder),
+            _buildDateSelector(),
+            _buildRoleFilter(),
+            const SizedBox(height: 16),
             Expanded(child: _buildShiftList()),
           ],
         ),
       ),
-      floatingActionButton: _selectedDate.isBefore(DateTime(_today.year, _today.month, _today.day))
-          ? null
-          : FloatingActionButton(
-              key: const Key('schedule-add'),
-              backgroundColor: kBrown,
-              foregroundColor: Colors.white,
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: const BoxDecoration(
+          color: cBgWhite,
+          border: Border(top: BorderSide(color: Colors.transparent)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ElevatedButton(
               onPressed: () => _openForm(),
-              child: const Icon(Icons.add),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: cBrownDark,
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(50),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
+              ),
+              child: const Text('+ Phân Ca Mới', style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 16)),
             ),
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AttendanceScreen()),
+                );
+              },
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(50),
+                side: const BorderSide(color: cBorderLight),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Xem Báo Cáo Điểm Danh', style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, color: cBrownDark, fontSize: 16)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildCalendarStrip() {
-    return Container(
-      color: Colors.white,
-      height: 90,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        itemCount: _dates.length,
-        itemBuilder: (context, index) {
-          final date = _dates[index];
-          final isSelected = date.isAtSameMomentAs(_selectedDate);
-          final isToday = date.isAtSameMomentAs(DateTime(_today.year, _today.month, _today.day));
-
-          return GestureDetector(
-            onTap: () {
-              setState(() => _selectedDate = date);
+  Widget _buildDateSelector() {
+    final dateStr = '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: cTextMuted, size: 20),
+            onPressed: () {
+              setState(() => _selectedDate = _selectedDate.subtract(const Duration(days: 1)));
+              _load();
             },
+          ),
+          Expanded(
             child: Container(
-              width: 56,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
+              padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
-                color: isSelected ? kBrown : (isToday ? kBg : Colors.transparent),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: isSelected ? kBrown : (isToday ? kBorder : Colors.transparent)),
+                border: Border.all(color: cBorderLight),
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    _getWeekday(date.weekday),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isSelected || isToday ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? Colors.white70 : kMuted,
-                    ),
+              alignment: Alignment.center,
+              child: Text(
+                dateStr,
+                style: const TextStyle(fontSize: 16, color: cBrownDark, fontFamily: 'Segoe UI'),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.arrow_forward_ios, color: cTextMuted, size: 20),
+            onPressed: () {
+              setState(() => _selectedDate = _selectedDate.add(const Duration(days: 1)));
+              _load();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoleFilter() {
+    const roles = ['Tất cả', 'Thu ngân', 'Pha chế'];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: roles.map((role) {
+          final isSelected = _roleFilter == role;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _roleFilter = role),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: isSelected ? cBrownDark : cBgWhite,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: isSelected ? cBrownDark : cBorderLight),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  role,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : cBrownDark,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Segoe UI',
+                    fontSize: 13,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    date.day.toString(),
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: isSelected ? Colors.white : kBrownDark,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           );
-        },
+        }).toList(),
       ),
     );
   }
 
   Widget _buildShiftList() {
-    if (_loading) return const Center(child: CircularProgressIndicator(color: kBrown));
-    if (_error != null) return Center(child: Text(_error!, style: const TextStyle(color: kDanger)));
+    if (_loading) return const Center(child: CircularProgressIndicator(color: cBrownDark));
+    if (_error != null) return Center(child: Text(_error!, style: const TextStyle(color: cDanger)));
 
     final selectedDateStr = '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
-    final dayShifts = _shifts.where((s) => s.shiftDate == selectedDateStr).toList();
+    final dayShifts = _shifts.where((s) {
+      if (s.shiftDate != selectedDateStr) return false;
+      if (_roleFilter != 'Tất cả') {
+        if (_roleFilter == 'Thu ngân' && !s.role.toLowerCase().contains('thu ngân') && !s.role.toLowerCase().contains('cashier')) return false;
+        if (_roleFilter == 'Pha chế' && !s.role.toLowerCase().contains('pha chế') && !s.role.toLowerCase().contains('barista')) return false;
+      }
+      return true;
+    }).toList();
 
     if (dayShifts.isEmpty) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.event_busy, size: 64, color: kBorder),
+            Icon(Icons.event_busy, size: 64, color: cBorderLight),
             SizedBox(height: 16),
-            Text('Không có ca làm việc nào', style: TextStyle(color: kMuted, fontSize: 16)),
+            Text('Không có ca làm việc nào', style: TextStyle(color: cTextMuted, fontSize: 16, fontFamily: 'Segoe UI')),
           ],
         ),
       );
@@ -199,7 +271,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
     return ListView.separated(
       key: const Key('schedule-view'),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: dayShifts.length,
       separatorBuilder: (_, index) => const SizedBox(height: 12),
       itemBuilder: (_, i) => _shiftCard(dayShifts[i]),
@@ -207,126 +279,103 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   }
 
   Widget _shiftCard(ScheduleShift s) {
-    Color typeColor;
-    switch (s.shiftType) {
-      case 'MORNING':
-        typeColor = Colors.lightBlue;
-        break;
-      case 'AFTERNOON':
-        typeColor = Colors.orange;
-        break;
-      case 'FULL_DAY':
-        typeColor = kSuccess;
-        break;
-      default:
-        typeColor = kMuted;
+    // Role badge
+    String badgeText = s.role;
+    if (badgeText.isEmpty) badgeText = 'Nhân viên';
+    
+    Color badgeBg;
+    Color badgeColor;
+    
+    if (badgeText.toLowerCase().contains('thu ngân') || badgeText.toLowerCase().contains('cashier')) {
+      badgeText = 'Thu Ngân';
+      badgeBg = const Color(0xFFE3F2FD);
+      badgeColor = const Color(0xFF1565C0);
+    } else if (badgeText.toLowerCase().contains('pha chế') || badgeText.toLowerCase().contains('barista')) {
+      badgeText = 'Pha Chế';
+      badgeBg = const Color(0xFFEFEBE9);
+      badgeColor = const Color(0xFF4E342E);
+    } else {
+      badgeBg = const Color(0xFFF5F5F5);
+      badgeColor = const Color(0xFF616161);
     }
 
-    // Initials
-    final names = s.employeeName.split(' ').where((n) => n.isNotEmpty).toList();
-    String initials = '';
-    if (names.isNotEmpty) {
-      initials = names.first[0].toUpperCase();
-      if (names.length > 1) initials += names.last[0].toUpperCase();
+    // Time text
+    String timeStr = '';
+    if (s.shiftStartTime != null && s.shiftEndTime != null) {
+      timeStr = '${s.shiftStartTime} - ${s.shiftEndTime}';
+    } else if (s.shiftType == 'MORNING') {
+      timeStr = '06:00 - 14:00';
+    } else if (s.shiftType == 'AFTERNOON') {
+      timeStr = '14:00 - 22:00';
+    } else {
+      timeStr = '08:00 - 17:00';
     }
+    
+    String label = switch(s.shiftType) {
+      'MORNING' => 'Ca sáng',
+      'AFTERNOON' => 'Ca chiều',
+      'FULL_DAY' => 'Cả ngày',
+      _ => 'Ca làm việc'
+    };
+
+    String posStr = s.posRegisterId?.isNotEmpty == true ? s.posRegisterId! : 'Không';
 
     return InkWell(
       key: Key('shift-${s.id}'),
       onTap: () => _openForm(s),
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: kBorder),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          color: cBgWhite,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: cBorderLight),
         ),
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: typeColor.withValues(alpha: 0.1),
-              child: Text(
-                initials,
-                style: TextStyle(color: typeColor, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Expanded(
+                      Text(
+                        s.employeeName,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: cBrownDark, fontFamily: 'Segoe UI'),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: badgeBg,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
                         child: Text(
-                          s.employeeName,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: kBrownDark),
+                          badgeText,
+                          style: TextStyle(color: badgeColor, fontSize: 11, fontWeight: FontWeight.bold, fontFamily: 'Segoe UI'),
                         ),
                       ),
-                      if (s.crossBranch)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(color: kGold.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
-                          child: const Text('Liên chi nhánh', style: TextStyle(color: kBrown, fontSize: 11, fontWeight: FontWeight.bold)),
-                        ),
                     ],
                   ),
                   const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Icon(Icons.schedule, size: 14, color: typeColor),
-                      const SizedBox(width: 4),
-                      Text(
-                        _shiftTypeLabel(s.shiftType),
-                        style: TextStyle(color: typeColor, fontWeight: FontWeight.bold, fontSize: 13),
-                      ),
-                    ],
+                  Text(
+                    '$label ($timeStr)',
+                    style: const TextStyle(color: cTextMuted, fontSize: 13, fontFamily: 'Segoe UI'),
                   ),
-                  if (s.posRegisterId != null) ...[
+                  if (!(s.role.toLowerCase().contains('pha chế') || s.role.toLowerCase().contains('barista'))) ...[
                     const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(Icons.point_of_sale, size: 14, color: kMuted),
-                        const SizedBox(width: 4),
-                        Text('Máy POS: ${s.posRegisterId}', style: const TextStyle(color: kMuted, fontSize: 13)),
-                      ],
+                    Text(
+                      'Máy POS phân bổ: $posStr',
+                      style: const TextStyle(color: cTextMuted, fontSize: 13, fontFamily: 'Segoe UI'),
                     ),
                   ],
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: kMuted),
+            const Icon(Icons.chevron_right, color: cTextMuted),
           ],
         ),
       ),
     );
   }
-
-  String _getWeekday(int weekday) {
-    switch (weekday) {
-      case 1: return 'T2';
-      case 2: return 'T3';
-      case 3: return 'T4';
-      case 4: return 'T5';
-      case 5: return 'T6';
-      case 6: return 'T7';
-      case 7: return 'CN';
-      default: return '';
-    }
-  }
-
-  String _shiftTypeLabel(String t) => switch (t) {
-        'MORNING' => 'Ca sáng',
-        'AFTERNOON' => 'Ca chiều',
-        'FULL_DAY' => 'Cả ngày',
-        _ => t,
-      };
 }
