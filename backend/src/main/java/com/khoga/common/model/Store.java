@@ -19,8 +19,11 @@ public class Store extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(columnDefinition = "nvarchar(255)")
     private String name;
+    @Column(columnDefinition = "nvarchar(255)")
     private String address;
+    @Column(columnDefinition = "nvarchar(255)")
     private String phone;
     private Boolean isActive;
 }

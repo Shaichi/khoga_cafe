@@ -37,6 +37,10 @@ void main() {
 
     expect(find.byKey(const Key('order-number')), findsOneWidget);
     expect(find.text('ORD-001'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('new-order')));
+    await tester.pumpAndSettle();
+
     expect(cart.isEmpty, isTrue);
   });
 
@@ -65,7 +69,7 @@ void main() {
     final client = ApiClient(client: authBackend(), baseUrl: 'http://test/api/v1')..setToken('jwt-1');
     final cart = CartController()..add(MenuItem(id: 'm1', name: 'Espresso', price: 30000));
     cart.attachCustomer(CustomerLite(id: 'cust-1', fullName: 'Hội Viên', points: 500));
-    cart.applyVoucher('GIAM10');   // -10.000
+    cart.applyVoucher(VoucherLite(id: 'v1', code: 'GIAM10', discountType: 'FIXED', discountValue: 10000));   // -10.000
     cart.setRedeemPoints(100);      // -10.000 (100 × 100)
 
     await tester.pumpWidget(MultiProvider(
@@ -143,6 +147,10 @@ void main() {
     expect(find.byKey(const Key('qr-awaiting')), findsNothing);
     expect(find.byKey(const Key('order-number')), findsOneWidget);
     expect(find.textContaining('Đã thanh toán'), findsOneWidget);
+    
+    await tester.tap(find.byKey(const Key('new-order')));
+    await tester.pumpAndSettle();
+    
     expect(cart.isEmpty, isTrue);
   });
 }

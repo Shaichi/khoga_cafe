@@ -106,10 +106,9 @@ class ShiftServiceTest {
         ShiftSession session = openSession(sid);
         when(userRepository.findById(userId)).thenReturn(Optional.of(actor()));
         when(shiftSessionRepository.findById(sid)).thenReturn(Optional.of(session));
-        when(orderRepository.findByShiftSessionIdAndStatus(sid, OrderStatus.READY)).thenReturn(List.of());
         when(orderRepository.existsByShiftSessionIdAndStatusIn(eq(sid), anyCollection())).thenReturn(true);
 
-        assertThrows(AppException.class, () -> service.closeShift(sid, new BigDecimal("500000"), userId));
+        assertThrows(AppException.class, () -> service.closeShift(sid, new BigDecimal("500000"), null, userId));
         verify(shiftSessionRepository, never()).save(any());
     }
 
@@ -124,7 +123,6 @@ class ShiftServiceTest {
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(actor()));
         when(shiftSessionRepository.findById(sid)).thenReturn(Optional.of(session));
-        when(orderRepository.findByShiftSessionIdAndStatus(sid, OrderStatus.READY)).thenReturn(List.of());
         when(orderRepository.existsByShiftSessionIdAndStatusIn(eq(sid), anyCollection())).thenReturn(false);
         when(orderRepository.sumSales(sid, PaymentMethod.CASH, PaymentStatus.PAID))
                 .thenReturn(new BigDecimal("1000000"));
@@ -132,7 +130,7 @@ class ShiftServiceTest {
         when(userRepository.findByStoreId(storeId)).thenReturn(List.of(sm));
 
         // expected = 500000 + 1000000 = 1500000; counted 1200000 → discrepancy -300000 (> 100k) → flagged
-        ZReportResponse z = service.closeShift(sid, new BigDecimal("1200000"), userId);
+        ZReportResponse z = service.closeShift(sid, new BigDecimal("1200000"), null, userId);
 
         assertTrue(z.discrepancyFlagged());
         assertEquals(0, z.discrepancy().compareTo(new BigDecimal("-300000")));

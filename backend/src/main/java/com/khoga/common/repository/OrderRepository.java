@@ -37,12 +37,25 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     /** READY orders whose time-in-READY exceeded the cutoff (measured from {@code readyAt}) — BR-88. */
     List<Order> findByStatusAndReadyAtBefore(OrderStatus status, LocalDateTime cutoff);
 
-    /** Order history for one branch (UC-54), newest first, with an optional status filter. */
+    /** Order history for one branch (UC-54) filtered by date, newest first. */
     @Query("select o from Order o where o.store.id = :storeId "
+            + "and (:status is null or o.status = :status) "
+            + "and o.createdAt >= :from and o.createdAt < :to "
+            + "order by o.createdAt desc")
+    Page<Order> findHistoryByDate(@Param("storeId") UUID storeId,
+                                  @Param("from") LocalDateTime from,
+                                  @Param("to") LocalDateTime to,
+                                  @Param("status") OrderStatus status,
+                                  Pageable pageable);
+
+    /** Order history for one branch (UC-54) filtered by shift, newest first. */
+    @Query("select o from Order o where o.store.id = :storeId "
+            + "and o.shiftSession.id = :shiftId "
             + "and (:status is null or o.status = :status) order by o.createdAt desc")
-    Page<Order> findHistory(@Param("storeId") UUID storeId,
-                            @Param("status") OrderStatus status,
-                            Pageable pageable);
+    Page<Order> findHistoryByShift(@Param("storeId") UUID storeId,
+                                   @Param("shiftId") UUID shiftId,
+                                   @Param("status") OrderStatus status,
+                                   Pageable pageable);
 
     /** Sum of order totals for one shift by payment method + status (e.g. CASH + PAID for reconciliation). */
     @Query("select coalesce(sum(o.total), 0) from Order o where o.shiftSession.id = :sessionId "
@@ -50,6 +63,9 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     BigDecimal sumSales(@Param("sessionId") UUID sessionId,
                         @Param("method") PaymentMethod method,
                         @Param("status") PaymentStatus status);
+
+    long countByShiftSessionId(UUID shiftSessionId);
+    long countByShiftSessionIdAndStatus(UUID shiftSessionId, OrderStatus status);
 
     // ----- P3 reporting aggregates (read-only) -----
 

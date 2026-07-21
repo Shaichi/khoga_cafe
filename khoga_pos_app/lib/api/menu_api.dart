@@ -20,6 +20,18 @@ class MenuApi {
     return _content(data).map(MenuItem.fromJson).toList();
   }
 
+  Future<List<Topping>> listToppings(String menuItemId) async {
+    final data = await _client.get('/menu-items/$menuItemId/toppings');
+    // Assuming backend returns a direct list or a paginated list.
+    // If it's a list, data is a List. If it's paginated, it has 'content'.
+    if (data is List) {
+      return data.cast<Map<String, dynamic>>().map(Topping.fromJson).toList();
+    } else if (data is Map && data.containsKey('content')) {
+      return _content(data).map(Topping.fromJson).toList();
+    }
+    return [];
+  }
+
   List<Map<String, dynamic>> _content(dynamic data) {
     final content = (data as Map<String, dynamic>)['content'] as List;
     return content.cast<Map<String, dynamic>>();

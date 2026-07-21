@@ -25,6 +25,8 @@ public class OrderCancellation extends BaseEntity {
     @ManyToOne
     @JoinColumn(name = "cashier_id")
     private User cashier;
+    @Column(columnDefinition = "nvarchar(255)")
     private String reason;
+    @Column(columnDefinition = "nvarchar(255)")
     private String notes;
 }

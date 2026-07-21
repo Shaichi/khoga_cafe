@@ -33,15 +33,23 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** P1.2 unit tests: account creation (BR-22/57/58/81) and the BR-82/BR-23 guards. */
+/**
+ * P1.2 unit tests: account creation (BR-22/57/58/81) and the BR-82/BR-23
+ * guards.
+ */
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
 
-    @Mock private UserRepository userRepository;
-    @Mock private StoreRepository storeRepository;
-    @Mock private AuditLogRepository auditLogRepository;
-    @Mock private AuditLogService auditLogService;
-    @Mock private EmailService emailService;
+    @Mock
+    private UserRepository userRepository;
+    @Mock
+    private StoreRepository storeRepository;
+    @Mock
+    private AuditLogRepository auditLogRepository;
+    @Mock
+    private AuditLogService auditLogService;
+    @Mock
+    private EmailService emailService;
 
     private UserService service;
 
@@ -59,7 +67,7 @@ class UserServiceTest {
         UUID actor = UUID.randomUUID();
 
         UserResponse response = service.create(
-                new CreateUserRequest("Nguyễn Văn An", Role.CASHIER, "an@khoga.com", "0900000009", null), actor);
+                new CreateUserRequest("Nguyễn Văn An", Role.CEOVIEWER, "an@khoga.com", "0900000009", null), actor);
 
         assertEquals("EMP-043", response.employeeId());
         assertEquals("anNV43", response.username());
@@ -76,17 +84,17 @@ class UserServiceTest {
 
     @Test
     void create_skipsRetiredEmployeeNumber() {
-        when(userRepository.count()).thenReturn(2L);                          // candidate starts at EMP-003
-        when(userRepository.existsByEmployeeId("EMP-003")).thenReturn(true);  // retired/taken → skip
+        when(userRepository.count()).thenReturn(2L); // candidate starts at EMP-003
+        when(userRepository.existsByEmployeeId("EMP-003")).thenReturn(true); // retired/taken → skip
         when(userRepository.existsByEmployeeId("EMP-004")).thenReturn(false);
         when(userRepository.existsByUsername(anyString())).thenReturn(false);
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
         UserResponse response = service.create(
-                new CreateUserRequest("Phạm Dũng", Role.CASHIER, "dung@khoga.com", "0900000003", null),
+                new CreateUserRequest("Phạm Dũng", Role.CEOVIEWER, "dung@khoga.com", "0900000003", null),
                 UUID.randomUUID());
 
-        assertEquals("EMP-004", response.employeeId());   // no reuse of the retired EMP-003
+        assertEquals("EMP-004", response.employeeId()); // no reuse of the retired EMP-003
     }
 
     @Test
@@ -94,7 +102,7 @@ class UserServiceTest {
         when(userRepository.existsByEmail("dup@khoga.com")).thenReturn(true);
 
         assertThrows(AppException.class, () -> service.create(
-                new CreateUserRequest("Trần Bình", Role.CASHIER, "dup@khoga.com", "0900000001", null),
+                new CreateUserRequest("Trần Bình", Role.CEOVIEWER, "dup@khoga.com", "0900000001", null),
                 UUID.randomUUID()));
 
         verify(userRepository, org.mockito.Mockito.never()).save(any(User.class));
@@ -105,7 +113,7 @@ class UserServiceTest {
         when(userRepository.existsByPhone("0900000002")).thenReturn(true);
 
         assertThrows(AppException.class, () -> service.create(
-                new CreateUserRequest("Lê Cường", Role.CASHIER, "cuong@khoga.com", "0900000002", null),
+                new CreateUserRequest("Lê Cường", Role.CEOVIEWER, "cuong@khoga.com", "0900000002", null),
                 UUID.randomUUID()));
 
         verify(userRepository, org.mockito.Mockito.never()).save(any(User.class));
@@ -146,7 +154,7 @@ class UserServiceTest {
     void update_recordsBeforeAndAfterSnapshot_BR81() {
         UUID id = UUID.randomUUID();
         UUID actor = UUID.randomUUID();
-        User user = userOf(id, Role.CASHIER);
+        User user = userOf(id, Role.CEOVIEWER);
         user.setEmail("old@khoga.com");
         user.setPhone("0900000000");
         when(userRepository.findById(id)).thenReturn(Optional.of(user));

@@ -3,10 +3,12 @@ import 'package:provider/provider.dart';
 
 import 'auth/auth_controller.dart';
 import 'orders/barista_portal_screen.dart';
-import 'pos/open_shift_screen.dart';
+import 'screens/force_password_change_screen.dart';
+
 import 'pos/shift_controller.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/manager_dashboard_screen.dart';
 import 'theme.dart';
 
 /// Root app widget. Providers are wired above this (see main.dart / tests) so the
@@ -35,7 +37,11 @@ class AuthGate extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
     if (!auth.isAuthenticated) return const LoginScreen();
+    if (auth.mustChangePassword) return const ForcePasswordChangeScreen();
     if (auth.profile?.role == 'BARISTA') return const BaristaPortalScreen();
+    if (auth.profile?.role == 'STORE_MANAGER') {
+      return const ManagerDashboardScreen();
+    }
     return const ShiftGate();
   }
 }
@@ -64,6 +70,8 @@ class _ShiftGateState extends State<ShiftGate> {
     if (!shift.loaded) {
       return const Scaffold(body: Center(child: Text('Đang tải…')));
     }
-    return shift.hasOpenShift ? const HomeScreen() : const OpenShiftScreen();
+    // All authenticated users route to the HomeScreen (Staff Portal).
+    // From there, if they need POS, the HomeScreen routes to OpenShiftScreen.
+    return const HomeScreen();
   }
 }

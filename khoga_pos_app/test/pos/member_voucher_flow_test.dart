@@ -24,6 +24,11 @@ Widget _posApp(ApiClient client, CartController cart) => MultiProvider(
 
 void main() {
   testWidgets('attach a member via the search sheet, then apply a voucher (screen 35)', (tester) async {
+    tester.view.physicalSize = const Size(1080, 1920);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     final client = ApiClient(client: authBackend(), baseUrl: 'http://test/api/v1')..setToken('jwt-1');
     final cart = CartController()..add(MenuItem(id: 'm1', name: 'Espresso', price: 30000));
 
@@ -41,18 +46,19 @@ void main() {
     expect(cart.customer?.id, 'cust-1');
     expect(find.byKey(const Key('member-chip')), findsOneWidget);
 
-    // Redeem-points field appears for a member with a balance.
-    await tester.enterText(find.byKey(const Key('redeem-points')), '100');
-    await tester.pump();
-    expect(cart.redeemPoints, 100);
-
-    // --- Voucher: open dialog, enter code, apply ---
+    // --- Voucher and Points: open dialog, enter code, apply ---
     await tester.tap(find.byKey(const Key('voucher-button')));
     await tester.pumpAndSettle();
+
+    // Redeem-points field appears for a member with a balance.
+    await tester.ensureVisible(find.byKey(const Key('redeem-points-input')));
+    await tester.enterText(find.byKey(const Key('redeem-points-input')), '100');
     await tester.enterText(find.byKey(const Key('voucher-input')), 'giam10');
-    await tester.tap(find.byKey(const Key('voucher-apply')));
+    
+    await tester.tap(find.byKey(const Key('promo-apply')));
     await tester.pumpAndSettle();
 
+    expect(cart.redeemPoints, 100);
     expect(cart.voucherCode, 'GIAM10');
     expect(find.byKey(const Key('voucher-chip')), findsOneWidget);
 

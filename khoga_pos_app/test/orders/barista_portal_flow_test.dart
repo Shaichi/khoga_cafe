@@ -32,7 +32,7 @@ void main() {
     await tester.pumpWidget(buildApp(client));
     await _loginBarista(tester);
 
-    await tester.tap(find.byKey(const Key('portal-advance-oq1')));
+    await tester.tap(find.byKey(const Key('portal-advance-oq1-PREPARING')));
     await tester.pump(); // start request
     await tester.pump(); // resolve + snackbar
     expect(find.textContaining('âm kho'), findsOneWidget);

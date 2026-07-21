@@ -9,6 +9,7 @@ import com.khoga.common.model.Store;
 import com.khoga.common.model.User;
 import com.khoga.common.model.enums.ActionType;
 import com.khoga.common.model.enums.Role;
+import com.khoga.common.model.enums.ShiftType;
 import com.khoga.common.repository.StaffScheduleRepository;
 import com.khoga.common.repository.UserRepository;
 import com.khoga.config.SystemConfigService;
@@ -86,13 +87,16 @@ public class ScheduleService {
         Store store = manager.getStore();
         User employee = userRepository.findById(req.employeeId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy nhân viên"));
+        if (req.shiftDate().isBefore(LocalDate.now())) {
+            throw new AppException("Không thể thêm ca làm việc trong quá khứ");
+        }
         if (Boolean.FALSE.equals(employee.getIsActive())) {
             throw AppException.of("err.070");
         }
         if (employee.getRole() == Role.CASHIER && !StringUtils.hasText(req.posRegisterId())) {
             throw AppException.of("err.071"); // A46
         }
-        validateConstraints(employee, store, req.shiftDate(), req.shiftStartTime(), req.shiftEndTime(),
+        validateConstraints(employee, store, req.shiftDate(), req.shiftType(), req.shiftStartTime(), req.shiftEndTime(),
                 null, req.overrideReason());
 
         boolean crossBranch = isCrossBranch(employee, store.getId());
@@ -132,10 +136,10 @@ public class ScheduleService {
         User manager = currentUser(actorId);
         StaffSchedule schedule = loadForStore(id, manager.getStore());
         if (schedule.getShiftDate().isBefore(LocalDate.now())) {
-            throw AppException.of("err.072");
+            throw new AppException("Không thể sửa ca làm việc trong quá khứ");
         }
         validateConstraints(schedule.getUser(), manager.getStore(), schedule.getShiftDate(),
-                req.shiftStartTime(), req.shiftEndTime(), schedule.getId(), req.overrideReason());
+                req.shiftType(), req.shiftStartTime(), req.shiftEndTime(), schedule.getId(), req.overrideReason());
 
         schedule.setShiftType(req.shiftType());
         schedule.setShiftStartTime(req.shiftStartTime());
@@ -151,6 +155,9 @@ public class ScheduleService {
     public void delete(UUID id, UUID actorId) {
         User manager = currentUser(actorId);
         StaffSchedule schedule = loadForStore(id, manager.getStore());
+        if (schedule.getShiftDate().isBefore(LocalDate.now())) {
+            throw new AppException("Không thể xóa ca làm việc trong quá khứ");
+        }
         User employee = schedule.getUser();
         LocalDate date = schedule.getShiftDate();
         scheduleRepository.delete(schedule);
@@ -160,60 +167,14 @@ public class ScheduleService {
 
     // ---- validation ---------------------------------------------------------
 
-    private void validateConstraints(User employee, Store store, LocalDate date, LocalTime start,
+    private void validateConstraints(User employee, Store store, LocalDate date, ShiftType shiftType, LocalTime start,
                                      LocalTime end, UUID excludeId, String overrideReason) {
-        long shiftMinutes = shiftMinutes(start, end);
-
-        // BR-92 hard: per-day total hours
-        long maxDaily = config.getGlobalInt("STAFF_MAX_DAILY_HOURS", 12) * 60L;
-        long dailyExisting = sumMinutes(scheduleRepository.findByUserIdAndShiftDate(employee.getId(), date), excludeId);
-        if (dailyExisting + shiftMinutes > maxDaily) {
-            throw AppException.of("err.073");
-        }
-
-        // BR-92 hard: per-week total hours
-        LocalDate weekStart = date.with(DayOfWeek.MONDAY);
-        LocalDate weekEnd = weekStart.plusDays(6);
-        long maxWeekly = config.getGlobalInt("STAFF_MAX_WEEKLY_HOURS", 48) * 60L;
-        long weeklyExisting = sumMinutes(
-                scheduleRepository.findByUserIdAndShiftDateBetween(employee.getId(), weekStart, weekEnd), excludeId);
-        if (weeklyExisting + shiftMinutes > maxWeekly) {
-            throw AppException.of("err.074");
-        }
-
-        // BR-92 hard: conflict (overlap) + minimum rest between shifts
-        long minRestMinutes = config.getGlobalInt("STAFF_MIN_REST_HOURS", 8) * 60L;
-        LocalDateTime newStart = LocalDateTime.of(date, start);
-        LocalDateTime newEnd = LocalDateTime.of(date, end);
-        for (StaffSchedule other : scheduleRepository.findByUserIdAndShiftDateBetween(
-                employee.getId(), date.minusDays(1), date.plusDays(1))) {
-            if (excludeId != null && excludeId.equals(other.getId())) {
+        // Duplicate shift check
+        for (StaffSchedule existing : scheduleRepository.findByUserIdAndShiftDate(employee.getId(), date)) {
+            if (excludeId != null && excludeId.equals(existing.getId())) {
                 continue;
             }
-            LocalDateTime oStart = LocalDateTime.of(other.getShiftDate(), other.getShiftStartTime());
-            LocalDateTime oEnd = LocalDateTime.of(other.getShiftDate(), other.getShiftEndTime());
-            if (newStart.isBefore(oEnd) && oStart.isBefore(newEnd)) {
-                throw AppException.of("MSG12");   // BR-92 — employee shift conflict
-            }
-            long gap = oEnd.isBefore(newStart) || oEnd.isEqual(newStart)
-                    ? Duration.between(oEnd, newStart).toMinutes()
-                    : Duration.between(newEnd, oStart).toMinutes();
-            if (gap < minRestMinutes) {
-                throw AppException.of("err.075");
-            }
-        }
-
-        // BR-92 soft: per-day labour budget for the whole branch — overridable with a reason
-        long budget = config.getGlobalInt("STORE_DAILY_LABOUR_BUDGET_HOURS", 40) * 60L;
-        long storeExisting = sumMinutes(scheduleRepository.findByStoreIdAndShiftDate(store.getId(), date), excludeId);
-        if (storeExisting + shiftMinutes > budget && !StringUtils.hasText(overrideReason)) {
-            throw AppException.of("err.076");
-        }
-        if (storeExisting + shiftMinutes > budget) {
-            auditLogService.record(ActionType.UPDATE, "LabourBudgetOverride", null,
-                    "{\"store\":\"" + store.getId() + "\",\"date\":\"" + date + "\",\"reason\":\""
-                            + overrideReason + "\"}", null);
-            log.info("[BR-92] Labour budget override at store {} on {} — {}", store.getId(), date, overrideReason);
+            throw new AppException("Nhân viên này đã được phân ca " + existing.getShiftType() + " trong ngày " + date + ". Không thể phân thêm ca khác.");
         }
     }
 
@@ -243,14 +204,6 @@ public class ScheduleService {
             total += Math.max(0, Duration.between(s.getShiftStartTime(), s.getShiftEndTime()).toMinutes());
         }
         return total;
-    }
-
-    private static long shiftMinutes(LocalTime start, LocalTime end) {
-        long minutes = Duration.between(start, end).toMinutes();
-        if (minutes <= 0) {
-            throw AppException.of("err.077");
-        }
-        return minutes;
     }
 
     private StaffSchedule loadForStore(UUID id, Store store) {

@@ -27,12 +27,27 @@ void main() {
     expect(find.text('ORD-002'), findsOneWidget);
 
     // Filter to cancelled -> only ORD-002.
-    await tester.tap(find.byKey(const Key('filter-CANCELLED')));
+    await tester.dragUntilVisible(
+      find.byKey(const Key('filter-CANCELLED')),
+      find.byType(ListView).first,
+      const Offset(-100, 0),
+    );
+    await tester.pumpAndSettle();
+    
+    final cancelledChip = find.byKey(const Key('filter-CANCELLED'));
+    await tester.tap(cancelledChip);
     await tester.pumpAndSettle();
     expect(find.text('ORD-001'), findsNothing);
     expect(find.text('ORD-002'), findsOneWidget);
 
     // Back to all, open the first order's detail.
+    await tester.dragUntilVisible(
+      find.byKey(const Key('filter-ALL')),
+      find.byType(ListView).first,
+      const Offset(100, 0),
+    );
+    await tester.pumpAndSettle();
+    
     await tester.tap(find.byKey(const Key('filter-ALL')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('order-row-o1')));

@@ -41,7 +41,7 @@ public class ShiftService {
 
     private static final BigDecimal DISCREPANCY_THRESHOLD = new BigDecimal("100000");
     private static final List<OrderStatus> BLOCKING =
-            List.of(OrderStatus.PENDING, OrderStatus.PREPARING, OrderStatus.HOLD);
+            List.of(OrderStatus.PENDING, OrderStatus.PREPARING, OrderStatus.HOLD, OrderStatus.READY);
 
     private final ShiftSessionRepository shiftSessionRepository;
     private final OrderRepository orderRepository;
@@ -88,7 +88,7 @@ public class ShiftService {
     }
 
     @Transactional
-    public ZReportResponse closeShift(UUID sessionId, BigDecimal closingCash, UUID actorId) {
+    public ZReportResponse closeShift(UUID sessionId, BigDecimal closingCash, String discrepancyNotes, UUID actorId) {
         User user = currentUser(actorId);
         ShiftSession session = shiftSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ca"));
@@ -98,7 +98,38 @@ public class ShiftService {
         if (session.getStore() == null || !session.getStore().getId().equals(user.getStore().getId())) {
             throw AppException.of("err.053");
         }
-        return reconcileAndClose(session, closingCash);
+        return reconcileAndClose(session, closingCash, discrepancyNotes);
+    }
+
+    @Transactional(readOnly = true)
+    public ZReportResponse previewClose(UUID sessionId, UUID actorId) {
+        User user = currentUser(actorId);
+        ShiftSession session = shiftSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ca"));
+        if (session.getStatus() != ShiftStatus.OPEN) {
+            throw AppException.of("err.052");
+        }
+        if (session.getStore() == null || !session.getStore().getId().equals(user.getStore().getId())) {
+            throw AppException.of("err.053");
+        }
+        
+        BigDecimal opening = nz(session.getStartingCash());
+        BigDecimal totalCashSales = nz(orderRepository.sumSales(
+                session.getId(), PaymentMethod.CASH, PaymentStatus.PAID));
+        BigDecimal totalCardSales = nz(orderRepository.sumSales(
+                session.getId(), PaymentMethod.CARD, PaymentStatus.PAID));
+        BigDecimal totalVietQrSales = nz(orderRepository.sumSales(
+                session.getId(), PaymentMethod.VIETQR, PaymentStatus.PAID));
+        
+        long totalOrders = orderRepository.countByShiftSessionId(session.getId());
+        long cancelledOrders = orderRepository.countByShiftSessionIdAndStatus(session.getId(), OrderStatus.CANCELLED);
+
+        BigDecimal refunds = nz(orderRefundRepository.sumByShiftAndType(session.getId(), RefundType.REFUND));
+        BigDecimal expected = opening.add(totalCashSales).subtract(refunds);
+        
+        return new ZReportResponse(session.getId(), session.getPosRegisterId(), opening, totalCashSales,
+                totalCardSales, totalVietQrSales,
+                expected, BigDecimal.ZERO, BigDecimal.ZERO, false, totalOrders, cancelledOrders, session.getStartTime(), LocalDateTime.now());
     }
 
     /** Called by {@code ShiftAutoCloseScheduler} at 23:59 (BR-88); skips shifts that still have blocking orders. */
@@ -109,7 +140,12 @@ public class ShiftService {
             return;
         }
         try {
-            reconcileAndClose(session, null); // null closing cash → no manual count, no discrepancy alert
+            // BR-88: auto-abandon uncollected READY orders during auto close
+            for (Order ready : orderRepository.findByShiftSessionIdAndStatus(session.getId(), OrderStatus.READY)) {
+                ready.setStatus(OrderStatus.ABANDONED);
+                orderRepository.save(ready);
+            }
+            reconcileAndClose(session, null, null); // null closing cash → no manual count, no discrepancy alert
             log.info("[scheduler] Auto-closed shift {} (register {})", session.getId(), session.getPosRegisterId());
         } catch (AppException ex) {
             log.warn("[scheduler] Skipped auto-close of shift {} — {}", session.getId(), ex.getMessage());
@@ -120,12 +156,7 @@ public class ShiftService {
         return shiftSessionRepository.findByStatus(ShiftStatus.OPEN);
     }
 
-    private ZReportResponse reconcileAndClose(ShiftSession session, BigDecimal closingCash) {
-        // BR-88: force-abandon uncollected READY orders before closing
-        for (Order ready : orderRepository.findByShiftSessionIdAndStatus(session.getId(), OrderStatus.READY)) {
-            ready.setStatus(OrderStatus.ABANDONED);
-            orderRepository.save(ready);
-        }
+    private ZReportResponse reconcileAndClose(ShiftSession session, BigDecimal closingCash, String notes) {
         // BR-03: cannot close over orders still in progress
         if (orderRepository.existsByShiftSessionIdAndStatusIn(session.getId(), BLOCKING)) {
             throw AppException.of("err.054"); // BR-03
@@ -134,6 +165,14 @@ public class ShiftService {
         BigDecimal opening = nz(session.getStartingCash());
         BigDecimal totalCashSales = nz(orderRepository.sumSales(
                 session.getId(), PaymentMethod.CASH, PaymentStatus.PAID));
+        BigDecimal totalCardSales = nz(orderRepository.sumSales(
+                session.getId(), PaymentMethod.CARD, PaymentStatus.PAID));
+        BigDecimal totalVietQrSales = nz(orderRepository.sumSales(
+                session.getId(), PaymentMethod.VIETQR, PaymentStatus.PAID));
+
+        long totalOrders = orderRepository.countByShiftSessionId(session.getId());
+        long cancelledOrders = orderRepository.countByShiftSessionIdAndStatus(session.getId(), OrderStatus.CANCELLED);
+
         // BR-09: cash refunds authorized against this shift came out of the drawer
         BigDecimal refunds = nz(orderRefundRepository.sumByShiftAndType(session.getId(), RefundType.REFUND));
         BigDecimal expected = opening.add(totalCashSales).subtract(refunds);
@@ -146,17 +185,20 @@ public class ShiftService {
         }
 
         session.setEndingCash(closingCash);
+        session.setDiscrepancyNotes(notes);
         session.setStatus(ShiftStatus.CLOSED);
         session.setEndTime(LocalDateTime.now());
         shiftSessionRepository.save(session);
 
         return new ZReportResponse(session.getId(), session.getPosRegisterId(), opening, totalCashSales,
-                expected, closingCash, discrepancy, flagged, session.getStartTime(), session.getEndTime());
+                totalCardSales, totalVietQrSales,
+                expected, closingCash, discrepancy, flagged, totalOrders, cancelledOrders, session.getStartTime(), session.getEndTime());
     }
 
     private void alertStoreManager(ShiftSession session, BigDecimal discrepancy) {
         String body = "Ca " + session.getId() + " (register " + session.getPosRegisterId()
-                + ") lệch quỹ " + discrepancy.toPlainString() + " VND.";
+                + ") lệch quỹ " + discrepancy.toPlainString() + " VND.\n"
+                + "Ghi chú: " + (session.getDiscrepancyNotes() != null ? session.getDiscrepancyNotes() : "Không có");
         userRepository.findByStoreId(session.getStore().getId()).stream()
                 .filter(u -> u.getRole() == Role.STORE_MANAGER)
                 .filter(u -> Boolean.TRUE.equals(u.getIsActive()))

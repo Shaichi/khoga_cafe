@@ -14,4 +14,14 @@ class CustomerApi {
     final content = (data is Map<String, dynamic> ? data['content'] as List? : data as List?) ?? const [];
     return content.map((e) => CustomerLite.fromJson(e as Map<String, dynamic>)).toList();
   }
+
+  /// Create a new member.
+  Future<CustomerLite> create(String fullName, String phone, {String? email}) async {
+    final data = await _client.post('/customers', {
+      'fullName': fullName,
+      'phone': phone,
+      if (email != null && email.isNotEmpty) 'email': email,
+    });
+    return CustomerLite.fromJson(data as Map<String, dynamic>);
+  }
 }

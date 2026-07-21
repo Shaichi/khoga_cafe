@@ -42,10 +42,16 @@ public class ShiftController {
         return ResponseEntity.ok(ApiResponse.success(shiftService.getActiveShift(SecurityUtil.currentUserId())));
     }
 
+    @GetMapping("/{id}/preview-close")
+    public ResponseEntity<ApiResponse<ZReportResponse>> previewClose(@PathVariable UUID id) {
+        ZReportResponse z = shiftService.previewClose(id, SecurityUtil.currentUserId());
+        return ResponseEntity.ok(ApiResponse.success(z, "Lấy thông tin ca hiện tại"));
+    }
+
     @PostMapping("/{id}/close")
     public ResponseEntity<ApiResponse<ZReportResponse>> close(
             @PathVariable UUID id, @Valid @RequestBody CloseShiftRequest req) {
-        ZReportResponse z = shiftService.closeShift(id, req.closingCash(), SecurityUtil.currentUserId());
+        ZReportResponse z = shiftService.closeShift(id, req.closingCash(), req.discrepancyNotes(), SecurityUtil.currentUserId());
         return ResponseEntity.ok(ApiResponse.success(z, "Đã đóng ca"));
     }
 }

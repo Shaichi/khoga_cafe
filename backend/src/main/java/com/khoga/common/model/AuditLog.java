@@ -28,7 +28,10 @@ public class AuditLog extends BaseEntity {
     private User user;
     @Enumerated(EnumType.STRING)
     private ActionType actionType;
+    @Column(columnDefinition = "nvarchar(255)")
     private String entityAffected;
+    @Column(columnDefinition = "nvarchar(255)")
     private String oldValueJson;
+    @Column(columnDefinition = "nvarchar(255)")
     private String newValueJson;
 }

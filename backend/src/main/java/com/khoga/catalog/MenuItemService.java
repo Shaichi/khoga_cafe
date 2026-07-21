@@ -177,6 +177,21 @@ public class MenuItemService {
             item.setAbbreviation(abbreviationGenerator.unique(request.name(), menuItemRepository::existsByAbbreviation));
         }
         menuItemRepository.save(item);
+        
+        // Sync variants (BR-sync)
+        List<MenuItem> variants = menuItemRepository.findByParentItemId(id);
+        for (MenuItem variant : variants) {
+            variant.setName(item.getName());
+            variant.setDescription(item.getDescription());
+            variant.setImageUrl(item.getImageUrl());
+            variant.setCategory(item.getCategory());
+            if (nameChanged) {
+                variant.setAbbreviation(abbreviationGenerator.unique(
+                        item.getName() + " " + variant.getSizeName(), menuItemRepository::existsByAbbreviation));
+            }
+            menuItemRepository.save(variant);
+        }
+
         recipeService.replaceForMenuItem(item, request.recipe());
         if (priceChanged(oldPrice, request.price())) {                          // BR-68
             auditLogService.record(ActionType.UPDATE, "MenuItem",
@@ -192,6 +207,13 @@ public class MenuItemService {
         MenuItem item = load(id);
         item.setIsDeleted(true);                                                // BR-28
         menuItemRepository.save(item);
+        
+        List<MenuItem> variants = menuItemRepository.findByParentItemId(id);
+        for (MenuItem variant : variants) {
+            variant.setIsDeleted(true);
+            menuItemRepository.save(variant);
+        }
+
         auditLogService.record(ActionType.DELETE, "MenuItem", null, "{\"id\":\"" + id + "\"}", actorId);
     }
 

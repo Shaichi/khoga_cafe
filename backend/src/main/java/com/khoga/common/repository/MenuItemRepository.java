@@ -22,6 +22,8 @@ public interface MenuItemRepository extends JpaRepository<MenuItem, UUID> {
 
     List<MenuItem> findByCategoryId(UUID categoryId);
 
+    List<MenuItem> findByParentItemId(UUID parentItemId);
+
     Page<MenuItem> findByIsDeletedFalse(Pageable pageable);
 
     Page<MenuItem> findByIsDeletedFalseAndCategoryId(UUID categoryId, Pageable pageable);

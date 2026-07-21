@@ -16,6 +16,7 @@ public record AttendanceReportRow(
         LocalDateTime checkInAt,
         LocalDateTime checkOutAt,
         AttendanceStatus status,
+        String shiftType,
         long lateMinutes,
         long earlyLeaveMinutes,
         long overtimeMinutes,

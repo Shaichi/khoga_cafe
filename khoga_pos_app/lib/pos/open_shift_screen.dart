@@ -4,7 +4,10 @@ import 'package:provider/provider.dart';
 
 import '../api/api_client.dart';
 import '../auth/auth_controller.dart';
+import '../auth/logout_dialog.dart';
+import '../format.dart';
 import '../theme.dart';
+import 'pos_screen.dart';
 import 'shift_controller.dart';
 
 /// Screen 34 — "Shift Initiation". The cashier picks a POS register and enters
@@ -17,23 +20,24 @@ class OpenShiftScreen extends StatefulWidget {
 }
 
 class _OpenShiftScreenState extends State<OpenShiftScreen> {
-  final _register = TextEditingController();
+  String? _selectedRegister;
   final _cash = TextEditingController(text: '1000000');
   bool _submitting = false;
   String? _error;
 
+  static const _registers = ['POS-01', 'POS-02', 'POS-03', 'POS-04'];
+
   @override
   void dispose() {
-    _register.dispose();
     _cash.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
-    final register = _register.text.trim();
+    final register = _selectedRegister;
     final cash = num.tryParse(_cash.text.trim());
-    if (register.isEmpty) {
-      setState(() => _error = 'Vui lòng nhập máy POS');
+    if (register == null || register.isEmpty) {
+      setState(() => _error = 'Vui lòng chọn máy POS');
       return;
     }
     if (cash == null || cash < 0) {
@@ -46,6 +50,11 @@ class _OpenShiftScreenState extends State<OpenShiftScreen> {
     });
     try {
       await context.read<ShiftController>().open(register, cash);
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(builder: (_) => const PosScreen()),
+        );
+      }
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } catch (_) {
@@ -88,11 +97,12 @@ class _OpenShiftScreenState extends State<OpenShiftScreen> {
                     const SizedBox(height: 16),
                   ],
                   const _Label('Chọn máy POS *'),
-                  TextField(
+                  DropdownButtonFormField<String>(
                     key: const Key('register'),
-                    controller: _register,
-                    decoration: const InputDecoration(hintText: 'vd: POS-01'),
-                    textInputAction: TextInputAction.next,
+                    value: _selectedRegister,
+                    hint: const Text('Chọn máy POS'),
+                    items: _registers.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
+                    onChanged: (val) => setState(() => _selectedRegister = val),
                   ),
                   const SizedBox(height: 16),
                   const _Label('Tiền mặt đầu ca (VND) *'),
@@ -105,7 +115,33 @@ class _OpenShiftScreenState extends State<OpenShiftScreen> {
                   const SizedBox(height: 28),
                   ElevatedButton(
                     key: const Key('open-shift-button'),
-                    onPressed: _submitting ? null : _submit,
+                    onPressed: _submitting ? null : () async {
+                      if (_selectedRegister == null || _selectedRegister!.isEmpty) {
+                        setState(() => _error = 'Vui lòng chọn máy POS');
+                        return;
+                      }
+                      final cash = num.tryParse(_cash.text.trim());
+                      if (cash == null || cash < 0) {
+                        setState(() => _error = 'Tiền đầu ca không hợp lệ');
+                        return;
+                      }
+                      
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Xác nhận mở ca'),
+                          content: Text('Mở ca làm việc tại máy ${_selectedRegister} với tiền đầu ca ${formatVnd(cash)} VND?'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('HỦY')),
+                            ElevatedButton(
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('ĐỒNG Ý'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) _submit();
+                    },
                     child: _submitting
                         ? const SizedBox(
                             height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
@@ -113,7 +149,12 @@ class _OpenShiftScreenState extends State<OpenShiftScreen> {
                   ),
                   const SizedBox(height: 8),
                   TextButton(
-                    onPressed: () => context.read<AuthController>().logout(),
+                    onPressed: () async {
+                      final confirm = await showLogoutDialog(context);
+                      if (confirm == true && context.mounted) {
+                        context.read<AuthController>().logout();
+                      }
+                    },
                     child: const Text('Đăng xuất tài khoản', style: TextStyle(color: kGold, fontWeight: FontWeight.bold)),
                   ),
                 ],

@@ -42,12 +42,12 @@ void main() {
     await tester.tap(find.byKey(const Key('queue-action')));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('queue-list')), findsOneWidget);
+    expect(find.byKey(const Key('portal-grid')), findsOneWidget);
     expect(find.text('ORD-101'), findsOneWidget);
     expect(find.text('ORD-102'), findsOneWidget);
 
     // Advance the pending order -> PREPARING, stock warning shown in a snackbar.
-    await tester.tap(find.byKey(const Key('advance-oq1')));
+    await tester.tap(find.byKey(const Key('portal-advance-oq1-PREPARING')));
     await tester.pump(); // start request
     await tester.pump(); // resolve + snackbar
     expect(find.textContaining('âm kho'), findsOneWidget);

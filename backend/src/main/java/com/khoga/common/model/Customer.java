@@ -19,12 +19,16 @@ public class Customer extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(columnDefinition = "nvarchar(255)")
     private String phone;
+    @Column(columnDefinition = "nvarchar(255)")
     private String fullName;
     private Integer points;
+    @Column(columnDefinition = "nvarchar(255)")
     private String email;
     private java.time.LocalDate birthDate;
     private Boolean isActive;
     private LocalDateTime consentAt;
+    @Column(columnDefinition = "nvarchar(255)")
     private String consentVersion;
 }

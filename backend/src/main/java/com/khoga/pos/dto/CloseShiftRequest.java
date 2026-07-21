@@ -7,5 +7,6 @@ import java.math.BigDecimal;
 
 /** UC-53 close shift — counted closing cash. */
 public record CloseShiftRequest(
-        @NotNull @PositiveOrZero BigDecimal closingCash) {
+        @NotNull @PositiveOrZero BigDecimal closingCash,
+        String discrepancyNotes) {
 }

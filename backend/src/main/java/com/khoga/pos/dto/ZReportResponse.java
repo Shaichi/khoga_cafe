@@ -10,10 +10,14 @@ public record ZReportResponse(
         String posRegisterId,
         BigDecimal openingCash,
         BigDecimal totalCashSales,
+        BigDecimal totalCardSales,
+        BigDecimal totalVietQrSales,
         BigDecimal expectedCash,
         BigDecimal closingCash,
         BigDecimal discrepancy,
         boolean discrepancyFlagged,
+        long totalOrders,
+        long cancelledOrders,
         LocalDateTime startTime,
         LocalDateTime closedAt) {
 }

@@ -29,7 +29,6 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Component
-@Profile("!prod")
 public class DataSeeder implements CommandLineRunner {
 
     static final String SEED_ADMIN_USERNAME = "ssadmin";
@@ -58,6 +57,8 @@ public class DataSeeder implements CommandLineRunner {
     private final OrderItemRepository orderItemRepository;
     private final StockItemRepository stockItemRepository;
     private final StockTransactionRepository stockTransactionRepository;
+    private final StaffScheduleRepository staffScheduleRepository;
+    private final AttendanceLogRepository attendanceLogRepository;
 
     public DataSeeder(UserRepository userRepository, StoreRepository storeRepository,
                       SystemConfigRepository systemConfigRepository, PasswordEncoder passwordEncoder,
@@ -66,7 +67,8 @@ public class DataSeeder implements CommandLineRunner {
                       VoucherRepository voucherRepository, CustomerRepository customerRepository,
                       ShiftSessionRepository shiftSessionRepository, OrderRepository orderRepository,
                       OrderItemRepository orderItemRepository, StockItemRepository stockItemRepository,
-                      StockTransactionRepository stockTransactionRepository) {
+                      StockTransactionRepository stockTransactionRepository,
+                      StaffScheduleRepository staffScheduleRepository, AttendanceLogRepository attendanceLogRepository) {
         this.userRepository = userRepository;
         this.storeRepository = storeRepository;
         this.systemConfigRepository = systemConfigRepository;
@@ -82,6 +84,8 @@ public class DataSeeder implements CommandLineRunner {
         this.orderItemRepository = orderItemRepository;
         this.stockItemRepository = stockItemRepository;
         this.stockTransactionRepository = stockTransactionRepository;
+        this.staffScheduleRepository = staffScheduleRepository;
+        this.attendanceLogRepository = attendanceLogRepository;
     }
 
     @Override
@@ -94,6 +98,7 @@ public class DataSeeder implements CommandLineRunner {
         seedCeoViewer();
         seedStaff();
         seedRestaurantData();
+        seedSchedulesAndAttendance();
     }
 
     private void seedSuperAdmin() {
@@ -189,6 +194,7 @@ public class DataSeeder implements CommandLineRunner {
         }
         seedStaffUser("cashier", "Admin@123", Role.CASHIER, "Default Cashier", store, "EMP-001");
         seedStaffUser("manager", "Admin@123", Role.STORE_MANAGER, "Default Store Manager", store, "EMP-002");
+        seedStaffUser("barista", "Admin@123", Role.BARISTA, "Default Barista", store, "EMP-003");
     }
 
     private void seedStaffUser(String username, String rawPassword, Role role, String fullName, Store store, String employeeId) {
@@ -216,7 +222,7 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void seedRestaurantData() {
-        if (categoryRepository.count() > 0) {
+        if (menuItemRepository.count() > 0) {
             log.info("[seed] Restaurant data already seeded - skipping");
             return;
         }
@@ -509,5 +515,63 @@ public class DataSeeder implements CommandLineRunner {
         c.setConsentAt(LocalDateTime.now());
         c.setConsentVersion("1.0");
         return customerRepository.save(c);
+    }
+
+    private void seedSchedulesAndAttendance() {
+        if (staffScheduleRepository.count() > 0) {
+            log.info("[seed] Schedules already seeded - skipping");
+            return;
+        }
+
+        Store store = storeRepository.findAll().stream().findFirst().orElseThrow();
+        User cashier = userRepository.findByUsername("cashier").orElseThrow();
+        User barista = userRepository.findByUsername("barista").orElseThrow();
+        
+        LocalDate today = LocalDate.now();
+        LocalDate yesterday = today.minusDays(1);
+        LocalDate tomorrow = today.plusDays(1);
+
+        // Seed schedules for yesterday, today, tomorrow
+        createSchedule(store, cashier, yesterday, ShiftType.MORNING, LocalTime.of(7, 0), LocalTime.of(15, 0));
+        createSchedule(store, cashier, today, ShiftType.AFTERNOON, LocalTime.of(15, 0), LocalTime.of(23, 0));
+        createSchedule(store, cashier, tomorrow, ShiftType.MORNING, LocalTime.of(7, 0), LocalTime.of(15, 0));
+
+        createSchedule(store, barista, yesterday, ShiftType.AFTERNOON, LocalTime.of(15, 0), LocalTime.of(23, 0));
+        createSchedule(store, barista, today, ShiftType.MORNING, LocalTime.of(7, 0), LocalTime.of(15, 0));
+        createSchedule(store, barista, tomorrow, ShiftType.AFTERNOON, LocalTime.of(15, 0), LocalTime.of(23, 0));
+
+        // Seed attendance for yesterday
+        createAttendance(store, cashier, yesterday, LocalTime.of(7, 0), LocalTime.of(15, 0), yesterday.atTime(6, 55), yesterday.atTime(15, 5), AttendanceStatus.PRESENT);
+        createAttendance(store, barista, yesterday, LocalTime.of(15, 0), LocalTime.of(23, 0), yesterday.atTime(15, 10), yesterday.atTime(23, 0), AttendanceStatus.LATE);
+
+        // Seed attendance for today (checked in, not checked out yet)
+        createAttendance(store, cashier, today, LocalTime.of(15, 0), LocalTime.of(23, 0), today.atTime(14, 50), null, AttendanceStatus.PRESENT);
+        createAttendance(store, barista, today, LocalTime.of(7, 0), LocalTime.of(15, 0), today.atTime(7, 0), null, AttendanceStatus.PRESENT);
+
+        log.info("[seed] Successfully seeded schedule and attendance data!");
+    }
+
+    private void createSchedule(Store store, User user, LocalDate date, ShiftType type, LocalTime start, LocalTime end) {
+        StaffSchedule s = new StaffSchedule();
+        s.setStore(store);
+        s.setUser(user);
+        s.setShiftDate(date);
+        s.setShiftType(type);
+        s.setShiftStartTime(start);
+        s.setShiftEndTime(end);
+        staffScheduleRepository.save(s);
+    }
+
+    private void createAttendance(Store store, User user, LocalDate date, LocalTime schedStart, LocalTime schedEnd, LocalDateTime in, LocalDateTime out, AttendanceStatus status) {
+        AttendanceLog a = new AttendanceLog();
+        a.setStore(store);
+        a.setUser(user);
+        a.setShiftDate(date);
+        a.setScheduledStart(date.atTime(schedStart));
+        a.setCheckInAt(in);
+        a.setCheckOutAt(out);
+        a.setStatus(status);
+        a.setPendingVerification(false);
+        attendanceLogRepository.save(a);
     }
 }

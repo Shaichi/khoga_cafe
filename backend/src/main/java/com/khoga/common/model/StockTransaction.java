@@ -36,5 +36,6 @@ public class StockTransaction extends BaseEntity {
     private BigDecimal quantityBefore;
     /** Balance snapshot after this movement (audit trail). */
     private BigDecimal quantityAfter;
+    @Column(columnDefinition = "nvarchar(255)")
     private String reason;
 }

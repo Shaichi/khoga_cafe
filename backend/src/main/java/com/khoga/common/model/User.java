@@ -20,14 +20,20 @@ public class User extends BaseEntity {
     private UUID id;
 
     /** Sequential employee identifier, format {@code EMP-043} (BR-57). */
+    @Column(columnDefinition = "nvarchar(255)")
     private String employeeId;
+    @Column(columnDefinition = "nvarchar(255)")
     private String username;
+    @Column(columnDefinition = "nvarchar(255)")
     private String passwordHash;
     @Enumerated(EnumType.STRING)
     private Role role;
+    @Column(columnDefinition = "nvarchar(255)")
     private String fullName;
     private Boolean isActive;
+    @Column(columnDefinition = "nvarchar(255)")
     private String email;
+    @Column(columnDefinition = "nvarchar(255)")
     private String phone;
     @ManyToOne
     @JoinColumn(name = "store_id")
@@ -36,6 +42,7 @@ public class User extends BaseEntity {
     /** When the user last logged out (BR-13). Nullable; stamped by {@code AuthService.logout}. */
     private LocalDateTime lastLogoutAt;
     private Boolean mustChangePassword;
+    @Column(columnDefinition = "nvarchar(255)")
     private String attendancePin;
     private Integer failedAttempts;
     private LocalDateTime lockExpiryAt;

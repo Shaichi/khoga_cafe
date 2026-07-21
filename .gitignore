@@ -30,7 +30,7 @@ build/
 !**/src/test/**/build/
 
 ### VS Code ###
-.vscode/
+.idea/.vscode/
 
 ### Custom JDK ###
 .jdk-21/

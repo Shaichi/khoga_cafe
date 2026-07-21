@@ -7,6 +7,7 @@ import '../pos/cart_controller.dart';
 class CheckoutRequestData {
   final List<CartLine> lines;
   final String paymentMethod; // CASH / CARD / VIETQR / LOYALTY_POINTS
+  final String orderType; // TAKEAWAY / DINE_IN / DELIVERY
   final num? cashReceived;
   final String? customerId;
   final String? voucherCode;
@@ -15,6 +16,7 @@ class CheckoutRequestData {
   CheckoutRequestData({
     required this.lines,
     required this.paymentMethod,
+    required this.orderType,
     this.cashReceived,
     this.customerId,
     this.voucherCode,
@@ -26,9 +28,15 @@ class CheckoutRequestData {
         if (voucherCode != null && voucherCode!.isNotEmpty) 'voucherCode': voucherCode,
         'redeemPoints': redeemPoints,
         'paymentMethod': paymentMethod,
+        'orderType': orderType,
         if (cashReceived != null) 'cashReceived': cashReceived,
         'items': [
-          for (final l in lines) {'menuItemId': l.item.id, 'quantity': l.qty},
+          for (final l in lines) {
+            'menuItemId': l.item.id,
+            'quantity': l.qty,
+            if (l.toppings.isNotEmpty)
+              'toppingIds': l.toppings.expand((t) => List.filled(t.qty, t.id)).toList()
+          },
         ],
       };
 }

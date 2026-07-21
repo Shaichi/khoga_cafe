@@ -13,13 +13,13 @@
 | 2026-06-18 | M | Software Engineering Team | Standardized Section 1.2 Package Diagram to UML package diagram conventions (Visual Paradigm style), organizing 18 subsystems into structured tiers with explicit dependency stereotypes (use, import, access). |
 | 2026-06-18 | M | Software Engineering Team | Standardized all 4 Statechart diagrams (USER, VOUCHER, SHIFT, ORDER lifecycles) to UML-compliant syntax matching Visual Paradigm layout (Trigger [Guard] / Action format). |
 | 2026-06-18 | M | Software Engineering Team | Standardized all 32 Sequence diagrams to UML method signature conventions, converting free-text labels to formal API/event operation calls. |
-|  |  |  |  |
-|  |  |  |  |
+| 2026-06-27 | M | Software Engineering Team | Reconciliation pass: applied DOCS_RECONCILIATION A1–A59 fixes — UC-ID alignment, BR-ID corrections, variant/topping model, entity field additions across Sections 3.1–3.11. |
+| 2026-06-27 | M | Software Engineering Team | Updated DB Design (Section 2) from 21 to 23 tables: added SystemConfig, MenuItemToppingMapping. Updated MenuItem variant fields, User lockout fields, Customer birthDate. |
+| 2026-06-27 | M | Software Engineering Team | Rebuilt Section 1.2 Package Diagram to feature-based modular monolith (com.khoga). Updated stack: Spring Boot 4.1.0 / Java 21. |
+| 2026-07-02 | M | Software Engineering Team | Fixed Section 1.2.2 Package Diagram: corrected web admin from React/Vite/TypeScript to Thymeleaf (Spring MVC server-side rendered). |\r\n| 2026-07-02 | M | Software Engineering Team | Moved Store Manager from Thymeleaf (web) to Flutter (mobile app) — shared app with Cashier \u0026 Barista (role-based routing). Renamed Flutter app from `khoga_pos_app` to `khoga_cafe_app`. Clarified 2 separate HQ admin roles (Business Admin + System Admin) sharing 1 web portal with CEO Viewer. |\r\n| 2026-07-02 | A | Software Engineering Team | Added Section 1.3 Deployment Diagram (UML notation) with execution environments, artifacts (display names), components, and communication paths. |
 
 \*A – Added   M – Modified   D – Deleted
 
-
----
 
 ## **1\. System Design**
 
@@ -33,9 +33,9 @@ graph TB
         direction LR
         subgraph WEB["Thymeleaf (Spring MVC)"]
             HQ["HQ Admin Portal (ceoviewer / businessadmin / ssadmin)"]
-            MGR["Store Manager Console (storemanager)"]
         end
         subgraph FLUTTER["Flutter (Dart)"]
+            MGR["Store Manager Console (storemanager)"]
             POS["POS Terminal (cashier)"]
             BAR["Barista Queue Monitor (barista)"]
         end
@@ -81,8 +81,8 @@ graph TB
 
 | No | Component | COMET Type | Description |
 | :---: | ----- | ----- | ----- |
-| 01 | Thymeleaf Web Frontend | «boundary» (UI) | Server-side rendered web frontend using Spring Boot Thymeleaf templates for HQ Admin Portal (roles: ceoviewer, businessadmin, ssadmin) and Store Manager Console (role: storemanager). Views are rendered on the server and delivered as HTML pages. |
-| 02 | Flutter (Dart) Mobile/Tablet App | «boundary» (UI) | Mobile/tablet frontend for POS Terminal (role: cashier) and Barista Queue Monitor (role: barista). Always-online operation; communicates with backend via REST API over HTTPS/JSON. |
+| 01 | Thymeleaf Web Frontend | «boundary» (UI) | Server-side rendered web frontend using Spring Boot Thymeleaf templates for HQ Admin Portal. Serves 3 HQ roles: CEO / Executive Viewer (ceoviewer — read-only reports), Business Admin (businessadmin — catalog, voucher, CRM), and System Admin (ssadmin — user management, branch lifecycle, system config). Role-based menu rendering. |
+| 02 | Flutter (Dart) Mobile/Tablet App | «boundary» (UI) | Cross-platform mobile/tablet frontend for in-store operations. Serves 3 roles via role-based routing: Store Manager Console (storemanager — inventory, scheduling, store reports), POS Terminal (cashier — checkout, payment), and Barista Queue Monitor (barista — drink queue, label printing). Always-online; communicates with backend via REST API over HTTPS/JSON. |
 | 03 | @RestController Layer | «boundary» (API Gateway) | Spring Boot REST controllers. Receive HTTP requests, validate inputs using Bean Validation, apply JWT authentication, and delegate to @Service layer. All endpoints prefixed `/api/v1/`. |
 | 04 | @Service Layer | «control» (Coordinator) | Business logic orchestration. Each service coordinates domain entities, calls application logic components, and manages transactions via @Transactional. |
 | 05 | Application Logic Components | «application logic» | Stateless business rule engines: DiscountStackingEngine (BR-70), RecipeDeductionEngine (BR-89), LoyaltyPointCalculator, COGSCalculator, AnomalyDetector, AttendancePhotoManager (PDPA). |
@@ -105,14 +105,72 @@ graph TB
 | «entity» (Domain Object) | Model: @Entity + @Repository | User, Order, MenuItem, StockItem, AuditLog |
 | «timer» (Scheduled Task) | Scheduler: @Scheduled / @Async | OrderTimeoutScheduler, ShiftAutoCloseScheduler |
 
-
 ---
+
+### **1.3 Deployment Diagram**
+
+*\[The Deployment Diagram shows the physical deployment topology of the system — the execution environments (devices/servers), the software artifacts deployed on each, and the communication paths between them. The diagram follows UML deployment diagram notation with stereotypes: «executionEnvironment», «artifact», «component», «manifest», «deploy», and «cloud».\]*
+
+```mermaid
+graph TB
+    subgraph ANDROID["«executionEnvironment»<br/>Android OS"]
+        direction LR
+        A_ART["«artifact»<br/>Khoga Café"]
+        A_COMP["«component»<br/>Khoga Café App"]
+        A_ART ---|"«manifest»"| A_COMP
+    end
+
+    subgraph IOS["«executionEnvironment»<br/>iOS"]
+        direction LR
+        I_ART["«artifact»<br/>Khoga Café"]
+        I_COMP["«component»<br/>Khoga Café App"]
+        I_ART ---|"«manifest»"| I_COMP
+    end
+
+    subgraph BROWSER["«executionEnvironment»<br/>Web Browser"]
+        B_CLIENT["HTML / JS / CSS"]
+    end
+
+    subgraph CLOUD["«cloud»<br/>Cloud Hosting Service"]
+        direction LR
+        subgraph APP_SERVER["«executionEnvironment»<br/>Application Server"]
+            direction LR
+            S_ART["«artifact»<br/>Khoga Admin Portal"]
+            S_COMP["«component»<br/>Khoga Admin Portal"]
+            S_ART ---|"«manifest»"| S_COMP
+            B_ART["«artifact»<br/>Khoga Backend"]
+            B_COMP2["«component»<br/>Khoga Backend API"]
+            B_ART ---|"«manifest»"| B_COMP2
+        end
+        subgraph DB_SERVER["«executionEnvironment»<br/>Database Server"]
+            DB_ART["«artifact»<br/>SQL Server Database"]
+        end
+    end
+
+    A_COMP -.->|"HTTPS/JSON<br/>/api/v1/"| B_COMP2
+    I_COMP -.->|"HTTPS/JSON<br/>/api/v1/"| B_COMP2
+    BROWSER -.->|"«deploy»<br/>HTTPS"| S_COMP
+    S_COMP -.->|"internal call"| B_COMP2
+    B_COMP2 -.->|"JDBC"| DB_ART
+```
+
+***Deployment Diagram Component Descriptions***
+
+| No | Execution Environment | Deployed Artifact | Component | Description |
+| :---: | ----- | ----- | ----- | ----- |
+| 01 | Android OS | Khoga Café | Khoga Café App | Flutter cross-platform mobile application deployed on Android devices (phone/tablet). Serves 3 in-store roles via role-based routing: Store Manager (inventory, scheduling, store reports), Cashier (POS checkout, payment), and Barista (drink queue, label printing). |
+| 02 | iOS | Khoga Café | Khoga Café App | Same Flutter application compiled for iOS. Identical feature set to Android build. |
+| 03 | Web Browser | — | HTML / JS / CSS | Client-side browser rendering Thymeleaf server-side pages delivered by the Application Server. Used by HQ roles (CEO Viewer, Business Admin, System Admin). |
+| 04 | Application Server (Cloud) | Khoga Admin Portal | Khoga Admin Portal | Spring Boot application serving Thymeleaf-rendered HTML pages for the HQ Admin Portal. Handles role-based menu rendering for 3 HQ roles: ceoviewer (read-only reports), businessadmin (catalog/voucher/CRM), ssadmin (user/branch/config management). |
+| 05 | Application Server (Cloud) | Khoga Backend | Khoga Backend API | Spring Boot 4.1.0 (Java 21) REST API backend. Exposes all `/api/v1/` endpoints consumed by both the Flutter mobile app and the Thymeleaf web frontend. Handles JWT authentication, business logic, and transaction management. |
+| 06 | Database Server (Cloud) | SQL Server Database | — | Microsoft SQL Server relational database. 23 tables with ACID transactions, Unicode support (NVARCHAR). All primary keys are UUID VARCHAR(36). |
+
 
 ### **1.2 Package Diagram**
 
 #### **1.2.1 Package Diagram - Backend (Spring Boot)**
 
-*\[Backend tổ chức theo **feature-based modular monolith** — KHÔNG phải kiến trúc phân lớp (layered) chuẩn. Mỗi feature package chứa Controller + Service + DTO của riêng mình; Entity và Repository gom chung trong `common`.]*
+*\[Backend is organized as a **feature-based modular monolith** — NOT a standard layered architecture. Each feature package contains its own Controller + Service + DTO; Entities and Repositories are grouped together in `common`.]*
 
 ```mermaid
 graph TB
@@ -175,71 +233,72 @@ graph TB
 
 ##### **Backend Package Descriptions**
 
-| No | Package | Nội dung thực tế | Mô tả |
+| No | Package | Actual Content | Description |
 |:---:|---|---|---|
-| 01 | `com.khoga.auth` | `AuthController`, `AuthService`, `ProfileController`, `ProfileService`, `JwtTokenProvider`, `JwtAuthenticationFilter`, `OtpStore`, `StrongPasswordValidator`, `SecurityUtil`, `dto/` | Xác thực JWT, MFA Email OTP, quên/đổi mật khẩu, profile. UC-01→UC-09. |
-| 02 | `com.khoga.user` | `UserController`, `UserService`, `UsernameGenerator`, `TemporaryPasswordGenerator`, `UserMapper`, `dto/` | Quản lý tài khoản nhân viên (CRUD, vô hiệu hóa, audit). UC-10→UC-14. |
-| 03 | `com.khoga.catalog` | `CategoryController/Service`, `MenuItemController/Service`, `RawMaterialController/Service`, `RecipeService`, `AbbreviationGenerator`, `CatalogMapper`, `dto/` | Quản lý menu, danh mục, topping, nguyên liệu, công thức. UC-15→UC-19, UC-68→UC-74. |
-| 04 | `com.khoga.voucher` | `VoucherController`, `VoucherService`, `VoucherValidationService`, `VoucherStatusEngine`, `VoucherMapper`, `dto/` | CRUD voucher, engine trạng thái 3-state, validate khi checkout. UC-20→UC-23. |
-| 05 | `com.khoga.customer` | `CustomerController`, `CustomerService`, `LoyaltyPointCalculator`, `LoyaltyExpiryService`, `CustomerRetentionService`, `CustomerMapper`, `dto/` | CRM khách hàng, tích/đổi điểm, PDPA retention. UC-24→UC-27. |
-| 06 | `com.khoga.inventory` | `StockController`, `StockService`, `RecipeDeductionEngine`, `CogsCalculator`, `InventoryMapper`, `dto/` | Nhập/xuất/kiểm kê kho, trừ kho theo recipe, tính COGS. UC-31→UC-34, UC-61, UC-62. |
-| 07 | `com.khoga.pos` | `CheckoutController`, `CheckoutService`, `ShiftController`, `ShiftService`, `PaymentController`, `DiscountStackingEngine`, `dto/` | Mở/đóng ca, checkout pipeline (BR-70), thanh toán, đối soát. UC-44→UC-53. |
-| 08 | `com.khoga.order` | `OrderController`, `OrderService`, `OrderMapper`, `dto/` | Vòng đời đơn hàng, hàng đợi barista, hủy/refund/comp. UC-54→UC-60, UC-73, UC-75. |
-| 09 | `com.khoga.staff` | `ScheduleController`, `ScheduleService`, `AttendanceController`, `AttendanceService`, `AttendanceMetricsCalculator`, `StaffMapper`, `dto/` | Xếp lịch, chấm công PIN+ảnh, xuất giờ công. UC-35→UC-39, UC-66, UC-67, UC-80. |
-| 10 | `com.khoga.report` | `ReportController`, `RevenueReportService`, `CogsReportService`, `ZReportService`, `AnomalyDetector`, `LoyaltyLiabilityService`, `LabourEfficiencyService`, `ChangeHistoryService`, `ReportScopeResolver`, `ReportCsvWriter`, `ReportXlsxWriter`, `ReportPdfWriter`, `dto/` | Tất cả báo cáo & BI, xuất CSV/Excel/PDF. UC-28→UC-29, UC-40→UC-41, UC-76→UC-83. |
-| 11 | `com.khoga.branch` | `BranchController`, `BranchService`, `BranchMapper`, `dto/` | Thêm/sửa/vô hiệu hóa chi nhánh, cap MAX_ACTIVE_BRANCHES. UC-63→UC-65. |
-| 12 | `com.khoga.config` | `SecurityConfig`, `WebConfig`, `JpaConfig`, `OpenApiConfig`, `SchedulingConfig`, `DataSeeder`, `SystemConfigController`, `SystemConfigService`, `dto/` | Cấu hình security, CORS, seed dữ liệu, quản lý SystemConfig. UC-30, UC-42. |
-| 13 | `com.khoga.audit` | `AuditLogService` | Ghi audit bất biến (append-only) cho giá, voucher, tài khoản, checkout. BR-68/80/81. |
-| 14 | `com.khoga.integration` | `EmailService` + `EmailServiceStub`, `VietQrClient` + `VietQrClientStub`, `PrinterService` + `PrinterServiceStub`, `VietQrPayment` | Interface + stub cho hệ thống ngoài (SMTP, VietQR, máy in). |
-| 15 | `com.khoga.scheduler` | `OrderTimeoutScheduler`, `ShiftAutoCloseScheduler`, `LowStockAlertScheduler`, `OtpExpiryScheduler`, `PhotoAutoDeleteScheduler`, `PdpaScheduler` | 6 scheduled tasks chạy nền (cron/fixed-rate). |
-| 16 | `com.khoga.common` | `model/` (23 Entity + `BaseEntity` + `enums/`), `repository/` (23 Repository), `dto/` (`ApiResponse`, `PageResponse`), `exception/` (`AppException`, `ResourceNotFoundException`, `GlobalExceptionHandler`), `i18n/` (`Messages`) | Tầng chia sẻ: tất cả Entity, Repository, DTO chung, exception, i18n. |
+| 01 | `com.khoga.auth` | `AuthController`, `AuthService`, `ProfileController`, `ProfileService`, `JwtTokenProvider`, `JwtAuthenticationFilter`, `OtpStore`, `StrongPasswordValidator`, `SecurityUtil`, `dto/` | JWT Auth, Email OTP MFA, password recovery/change, profile. UC-01→UC-09. |
+| 02 | `com.khoga.user` | `UserController`, `UserService`, `UsernameGenerator`, `TemporaryPasswordGenerator`, `UserMapper`, `dto/` | Staff account management (CRUD, deactivate, audit). UC-10→UC-14. |
+| 03 | `com.khoga.catalog` | `CategoryController/Service`, `MenuItemController/Service`, `RawMaterialController/Service`, `RecipeService`, `AbbreviationGenerator`, `CatalogMapper`, `dto/` | Menu, category, topping, raw material, and recipe management. UC-15→UC-19, UC-68→UC-74. |
+| 04 | `com.khoga.voucher` | `VoucherController`, `VoucherService`, `VoucherValidationService`, `VoucherStatusEngine`, `VoucherMapper`, `dto/` | Voucher CRUD, 3-state status engine, checkout validation. UC-20→UC-23. |
+| 05 | `com.khoga.customer` | `CustomerController`, `CustomerService`, `LoyaltyPointCalculator`, `LoyaltyExpiryService`, `CustomerRetentionService`, `CustomerMapper`, `dto/` | Customer CRM, loyalty point accumulation/redemption, PDPA retention. UC-24→UC-27. |
+| 06 | `com.khoga.inventory` | `StockController`, `StockService`, `RecipeDeductionEngine`, `CogsCalculator`, `InventoryMapper`, `dto/` | Stock import/export/audit, recipe-based deduction, COGS calculation. UC-31→UC-34, UC-61, UC-62. |
+| 07 | `com.khoga.pos` | `CheckoutController`, `CheckoutService`, `ShiftController`, `ShiftService`, `PaymentController`, `DiscountStackingEngine`, `dto/` | Open/close shift, checkout pipeline (BR-70), payment processing, reconciliation. UC-44→UC-53. |
+| 08 | `com.khoga.order` | `OrderController`, `OrderService`, `OrderMapper`, `dto/` | Order lifecycle, barista queue, cancel/refund/comp. UC-54→UC-60, UC-73, UC-75. |
+| 09 | `com.khoga.staff` | `ScheduleController`, `ScheduleService`, `AttendanceController`, `AttendanceService`, `AttendanceMetricsCalculator`, `StaffMapper`, `dto/` | Shift scheduling, PIN+photo attendance check-in, worked-hours export. UC-35→UC-39, UC-66, UC-67, UC-80. |
+| 10 | `com.khoga.report` | `ReportController`, `RevenueReportService`, `CogsReportService`, `ZReportService`, `AnomalyDetector`, `LoyaltyLiabilityService`, `LabourEfficiencyService`, `ChangeHistoryService`, `ReportScopeResolver`, `ReportCsvWriter`, `ReportXlsxWriter`, `ReportPdfWriter`, `dto/` | All reports & BI, CSV/Excel/PDF export. UC-28→UC-29, UC-40→UC-41, UC-76→UC-83. |
+| 11 | `com.khoga.branch` | `BranchController`, `BranchService`, `BranchMapper`, `dto/` | Add/update/deactivate branch, MAX_ACTIVE_BRANCHES cap. UC-63→UC-65. |
+| 12 | `com.khoga.config` | `SecurityConfig`, `WebConfig`, `JpaConfig`, `OpenApiConfig`, `SchedulingConfig`, `DataSeeder`, `SystemConfigController`, `SystemConfigService`, `dto/` | Security, CORS config, data seeder, SystemConfig management. UC-30, UC-42. |
+| 13 | `com.khoga.audit` | `AuditLogService` | Append-only audit logging for prices, vouchers, accounts, and checkouts. BR-68/80/81. |
+| 14 | `com.khoga.integration` | `EmailService` + `EmailServiceStub`, `VietQrClient` + `VietQrClientStub`, `PrinterService` + `PrinterServiceStub`, `VietQrPayment` | Interfaces + stubs for external systems (SMTP, VietQR, receipt printer). |
+| 15 | `com.khoga.scheduler` | `OrderTimeoutScheduler`, `ShiftAutoCloseScheduler`, `LowStockAlertScheduler`, `OtpExpiryScheduler`, `PhotoAutoDeleteScheduler`, `PdpaScheduler` | 6 background scheduled tasks (cron/fixed-rate). |
+| 16 | `com.khoga.common` | `model/` (23 Entity + `BaseEntity` + `enums/`), `repository/` (23 Repository), `dto/` (`ApiResponse`, `PageResponse`), `exception/` (`AppException`, `ResourceNotFoundException`, `GlobalExceptionHandler`), `i18n/` (`Messages`) | Shared layer: all Entities, Repositories, common DTOs, exceptions, i18n. |
 
 ---
 
-#### **1.2.2 Package Diagram - Web Admin (React / Vite / TypeScript)**
+#### **1.2.2 Package Diagram - Web Admin (Thymeleaf / Spring MVC)**
 
 ```mermaid
 graph TB
-    subgraph WEB_ADMIN["khoga_web_admin/src"]
-        MAIN["main.tsx<br/>(entry point)"]
-        APP["App.tsx<br/>(router & providers)"]
-        LAYOUT["layout/<br/>(AdminLayout, Sidebar, Navbar)"]
-        PAGES["pages/<br/>(Dashboard, Branches, Catalog...)"]
-        COMPONENTS["components/<br/>(Table, Modal, Button...)"]
-        API["api/<br/>(Axios config, API calls)"]
-        AUTH_WEB["auth/<br/>(AuthContext, PrivateRoute)"]
+    subgraph WEB_ADMIN["Web Frontend (Server-Side Rendered)"]
+        CONTROLLERS["Spring MVC Controllers<br/>(Part of Backend)"]
+        TEMPLATES["src/main/resources/templates/<br/>(Thymeleaf .html)"]
+        LAYOUTS["templates/layout/<br/>(Base templates, fragments)"]
+        PAGES["templates/pages/<br/>(Dashboard, Catalog, Reports)"]
+        STATIC_CSS["static/css/<br/>(Stylesheets)"]
+        STATIC_JS["static/js/<br/>(Client-side scripts)"]
+        STATIC_IMG["static/images/<br/>(Assets)"]
 
-        MAIN -->|render| APP
-        APP -->|wraps| LAYOUT
-        APP -->|routes| PAGES
-        PAGES -->|compose UI| COMPONENTS
-        PAGES -->|call backend| API
-        PAGES -->|check session| AUTH_WEB
-        API -->|attach token| AUTH_WEB
+        CONTROLLERS -->|render| TEMPLATES
+        TEMPLATES -->|include| LAYOUTS
+        TEMPLATES -->|route to| PAGES
+        TEMPLATES -.->|reference| STATIC_CSS
+        TEMPLATES -.->|reference| STATIC_JS
+        TEMPLATES -.->|reference| STATIC_IMG
     end
 ```
 
-*Figure 1.2.2 Package Diagram - Web Admin*
+*Figure 1.2.2 Package Diagram - Web Admin (Thymeleaf)*
 
 ##### **Web Admin Package Descriptions**
 
-| No | Package | Mô tả |
+| No | Package / Folder | Description |
 |:---:|---|---|
-| 01 | `main.tsx` | Entry point React, gắn DOM ảo vào `index.html`, khởi tạo app. |
-| 02 | `App.tsx` | Cấu hình React Router, bọc Context Providers (Auth, Theme), định nghĩa route. |
-| 03 | `layout/` | Khung giao diện chính: sidebar menu, navbar, admin layout bao quanh các trang. |
-| 04 | `pages/` | Các trang nghiệp vụ: Dashboard, Branch Management, Catalog, Staff, Reports... |
-| 05 | `components/` | Component UI tái sử dụng: bảng dữ liệu, modal, form input, button... |
-| 06 | `api/` | Cấu hình Axios (base URL, interceptor), các hàm gọi REST API đến backend. |
-| 07 | `auth/` | Quản lý trạng thái đăng nhập, lưu token, bảo vệ route (PrivateRoute). |
+| 01 | `Controllers` | Spring MVC Controllers handle routing, prepare Model data, and return view names. |
+| 02 | `templates/` | Root directory for Thymeleaf `.html` view files. |
+| 03 | `templates/layout/` | Contains base layouts (e.g., `admin_layout.html`), sidebar, and navbar fragments. |
+| 04 | `templates/pages/` | Business operation pages (e.g., Dashboard, Branch Management, Catalog, Staff, Reports). |
+| 05 | `static/css/` | Custom CSS files and frontend framework stylesheets (e.g., Bootstrap/Tailwind if used). |
+| 06 | `static/js/` | Client-side JavaScript for interactivity, form validation, and AJAX calls. |
+| 07 | `static/images/` | Static image assets like logos and icons. |
 
 ---
 
-#### **1.2.3 Package Diagram - Mobile POS (Flutter / Dart)**
+#### **1.2.3 Package Diagram - Mobile App (Flutter / Dart)**
+
+*\[Single cross-platform Flutter application shared by 3 in-store roles: Store Manager (storemanager), Cashier (cashier), and Barista (barista). Role-based routing determines which screens each role can access.\]*
 
 ```mermaid
 graph TB
-    subgraph FLUTTER["khoga_pos_app/lib"]
+    subgraph FLUTTER["khoga_cafe_app/lib"]
         MAIN_F["main.dart<br/>(entry point)"]
         APP_F["app.dart<br/>(MaterialApp, router)"]
         THEME["theme.dart<br/>(color/typography)"]
@@ -269,27 +328,27 @@ graph TB
     end
 ```
 
-*Figure 1.2.3 Package Diagram - Mobile POS*
+*Figure 1.2.3 Package Diagram - Mobile App (Flutter)*
 
 ##### **Mobile Package Descriptions**
 
-| No | Package | Mô tả |
+*\[This app serves 3 roles: Store Manager (inventory logistics, shift scheduling, store revenue reports), Cashier (POS checkout, payment processing), and Barista (queue monitor, label printing). Role-based routing in `app.dart` determines which modules are accessible after login.\]*
+
+| No | Package | Description |
 |:---:|---|---|
-| 01 | `main.dart` | Entry point Flutter, khởi tạo ứng dụng và chạy `App`. |
-| 02 | `app.dart` | Cấu hình `MaterialApp`, router điều hướng, gắn theme. |
-| 03 | `theme.dart` | Định nghĩa color palette, typography, style chung cho toàn app. |
-| 04 | `screens/` | Màn hình dùng chung giữa các module (splash, home...). |
-| 05 | `auth/` | Màn hình đăng nhập, quản lý phiên token. |
-| 06 | `pos/` | Module POS: giỏ hàng, checkout, thanh toán. |
-| 07 | `orders/` | Module đơn hàng: hàng đợi barista, cập nhật trạng thái. |
-| 08 | `inventory/` | Module xem tồn kho chi nhánh. |
-| 09 | `staff/` | Module lịch làm việc, chấm công. |
-| 10 | `profile/` | Xem/sửa hồ sơ cá nhân. |
-| 11 | `api/` | Cấu hình Dio HTTP client, các hàm gọi REST API đến backend. |
-| 12 | `format.dart` | Hàm tiện ích format tiền tệ, ngày giờ. |
+| 01 | `main.dart` | Flutter entry point, initializes the app and runs `App`. |
+| 02 | `app.dart` | `MaterialApp` configuration, router setup, and theme application. |
+| 03 | `theme.dart` | Defines color palette, typography, and global app styles. |
+| 04 | `screens/` | Shared screens used across modules (e.g., splash screen, home). |
+| 05 | `auth/` | Login screen and token session management. |
+| 06 | `pos/` | POS Module: cart management, checkout, and payment processing. |
+| 07 | `orders/` | Order Module: barista queue and status updates. |
+| 08 | `inventory/` | Module for viewing branch stock levels. |
+| 09 | `staff/` | Staff Module: scheduling and attendance check-in. |
+| 10 | `profile/` | View and edit personal user profile. |
+| 11 | `api/` | Dio HTTP client configuration and REST API calls to the backend. |
+| 12 | `format.dart` | Utility functions for currency and date formatting. |
 
-
----
 
 ## **2\. Database Design**
 
@@ -342,7 +401,7 @@ erDiagram
         UNIQUEIDENTIFIER category_id FK
         UNIQUEIDENTIFIER parent_item_id FK
         NVARCHAR(255) name
-        DECIMAL(18,2) price
+        DECIMAL(18_2) price
         NVARCHAR(MAX) description
         BIT is_active
         NVARCHAR(255) image_url
@@ -352,6 +411,7 @@ erDiagram
         NVARCHAR(255) abbreviation
         DATETIME2 created_at
         BIT is_deleted
+        BIT allow_ice_sugar
     }
 
     BRANCH_MENU_STATUS {
@@ -363,7 +423,7 @@ erDiagram
     OPTION_TOPPING {
         UNIQUEIDENTIFIER id PK
         NVARCHAR(255) name
-        DECIMAL(18,2) price
+        DECIMAL(18_2) price
         BIT is_active
     }
 
@@ -392,8 +452,8 @@ erDiagram
         UNIQUEIDENTIFIER user_id FK
         DATETIME2 start_time
         DATETIME2 end_time
-        DECIMAL(18,2) starting_cash
-        DECIMAL(18,2) ending_cash
+        DECIMAL(18_2) starting_cash
+        DECIMAL(18_2) ending_cash
         VARCHAR(50) status
         NVARCHAR(255) pos_register_id
     }
@@ -406,10 +466,10 @@ erDiagram
         UNIQUEIDENTIFIER customer_id FK
         UNIQUEIDENTIFIER voucher_id FK
         VARCHAR(50) order_type
-        DECIMAL(18,2) subtotal
-        DECIMAL(18,2) discount
-        DECIMAL(18,2) tax_amount
-        DECIMAL(18,2) total
+        DECIMAL(18_2) subtotal
+        DECIMAL(18_2) discount
+        DECIMAL(18_2) tax_amount
+        DECIMAL(18_2) total
         VARCHAR(50) payment_method
         VARCHAR(50) payment_status
         VARCHAR(50) status
@@ -421,7 +481,9 @@ erDiagram
         UNIQUEIDENTIFIER order_id FK
         UNIQUEIDENTIFIER menu_item_id FK
         INT quantity
-        DECIMAL(18,2) unit_price
+        DECIMAL(18_2) unit_price
+        INT ice_level
+        INT sugar_level
     }
 
     ORDER_ITEM_TOPPING {
@@ -429,7 +491,7 @@ erDiagram
         UNIQUEIDENTIFIER order_item_id FK
         UNIQUEIDENTIFIER topping_id FK
         INT quantity
-        DECIMAL(18,2) unit_price
+        DECIMAL(18_2) unit_price
     }
 
     ORDER_CANCELLATION {
@@ -448,7 +510,7 @@ erDiagram
         UNIQUEIDENTIFIER cashier_id FK
         UNIQUEIDENTIFIER shift_session_id FK
         VARCHAR(50) refund_type
-        DECIMAL(18,2) amount
+        DECIMAL(18_2) amount
         NVARCHAR(255) reason
         NVARCHAR(MAX) notes
         DATETIME2 created_at
@@ -458,15 +520,15 @@ erDiagram
         UNIQUEIDENTIFIER id PK
         NVARCHAR(255) code
         VARCHAR(50) discount_type
-        DECIMAL(18,2) discount_value
-        DECIMAL(18,2) min_order_value
+        DECIMAL(18_2) discount_value
+        DECIMAL(18_2) min_order_value
         DATETIME2 start_date
         DATETIME2 end_date
         BIT is_active
         INT usage_limit_per_customer
         INT total_usage_count
         INT max_total_uses
-        DECIMAL(18,2) max_discount_amount
+        DECIMAL(18_2) max_discount_amount
     }
 
     %% Relationships
@@ -536,8 +598,8 @@ erDiagram
         NVARCHAR(255) code
         NVARCHAR(255) name
         NVARCHAR(255) unit
-        DECIMAL(18,2) suggested_min_threshold
-        DECIMAL(18,2) standard_cost
+        DECIMAL(18_2) suggested_min_threshold
+        DECIMAL(18_2) standard_cost
         BIT is_active
         NVARCHAR(255) category
     }
@@ -546,8 +608,8 @@ erDiagram
         UNIQUEIDENTIFIER id PK
         UNIQUEIDENTIFIER store_id FK
         UNIQUEIDENTIFIER raw_material_id FK
-        DECIMAL(18,2) current_quantity
-        DECIMAL(18,2) min_alert_threshold
+        DECIMAL(18_2) current_quantity
+        DECIMAL(18_2) min_alert_threshold
     }
 
     STOCK_TRANSACTION {
@@ -555,7 +617,7 @@ erDiagram
         UNIQUEIDENTIFIER stock_item_id FK
         UNIQUEIDENTIFIER manager_id FK
         VARCHAR(50) transaction_type "IMPORT/EXPORT/AUDIT_ADJUSTMENT/RECIPE_DEDUCTION/PHANTOM_USAGE"
-        DECIMAL(18,2) quantity
+        DECIMAL(18_2) quantity
         NVARCHAR(MAX) reason
         DATETIME2 created_at
     }
@@ -565,7 +627,7 @@ erDiagram
         UNIQUEIDENTIFIER menu_item_id FK
         UNIQUEIDENTIFIER option_topping_id FK
         UNIQUEIDENTIFIER raw_material_id FK
-        DECIMAL(18,2) quantity_required
+        DECIMAL(18_2) quantity_required
     }
 
     MENU_ITEM {
@@ -573,7 +635,7 @@ erDiagram
         UNIQUEIDENTIFIER category_id FK
         UNIQUEIDENTIFIER parent_item_id FK
         NVARCHAR(255) name
-        DECIMAL(18,2) price
+        DECIMAL(18_2) price
         NVARCHAR(MAX) description
         BIT is_active
         NVARCHAR(255) image_url
@@ -583,12 +645,13 @@ erDiagram
         NVARCHAR(255) abbreviation
         DATETIME2 created_at
         BIT is_deleted
+        BIT allow_ice_sugar
     }
 
     OPTION_TOPPING {
         UNIQUEIDENTIFIER id PK
         NVARCHAR(255) name
-        DECIMAL(18,2) price
+        DECIMAL(18_2) price
         BIT is_active
     }
 
@@ -654,36 +717,36 @@ erDiagram
     OPTION_TOPPING ||--o{ RECIPE_ITEM : "formulated"
 ```
 
-***Table Descriptions***
+### **2.3. Table Descriptions**
+
+*\[The table below summarizes the purpose, primary keys, and foreign keys for each of the 23 tables in the database. Every table also inherits an `updated_at DATETIME2` column from `BaseEntity` (JPA auditing).\]*
 
 | No | Table | Description |
-| :---- | :---- | :---- |
-| 01 | users | Stores login credentials, RBAC roles, and attendance PIN for check-in/out (BR-93). attendance_pin must be unique per store (store_id). Key definitions: PK is id (UUID); FK is store_id → stores(id) |
-| 02 | categories | Main food and beverage product groupings (e.g., Coffee, Tea, Pastry). Used to organize the menu catalog chain-wide. Key definitions: PK is id (UUID) |
-| 03 | menu_items | Individual beverage/food catalog listings with pricing, barcodes, chain-wide active status, and image references. Soft-delete supported via is_deleted flag. Key definitions: PK is id (UUID); FK is category_id → categories(id) |
-| 04 | branch_menu_status | Per-branch item availability toggle. Allows Store Manager to temporarily disable items locally without affecting other branches. Tracks last_updated_by/last_updated_at. Key definitions: PK is id (UUID); UNIQUE (store_id, menu_item_id); FK is store_id → stores(id), menu_item_id → menu_items(id) |
-| 05 | option_toppings | Global customizable add-ons (e.g., Extra Shot, Oat Milk, Tapioca Pearls), shared across menu items via menu_item_topping_mappings (BR-29). Price may be 0 (e.g. "No Ice"); a topping may carry its own recipe (BR-65). Key definitions: PK is id (UUID) — no direct menu_item FK (toppings are chain-wide global) |
-| 06 | customers | Loyalty membership registry tracking points balance. Includes PDPA consent timestamp (consent_at) and consent version (consent_version) (BR-71). Key definitions: PK is id (UUID) |
-| 07 | shift_sessions | POS cashier work session records including opening/closing cash float, discrepancy, and shift status (OPEN / CLOSED). Key definitions: PK is id (UUID); FK is store_id → stores(id), user_id → users(id) |
-| 08 | orders | Sales transaction records linking customer, shift, voucher, payment status, and fulfillment status (7 states: PENDING / PREPARING / HOLD / READY / COMPLETED / CANCELLED / ABANDONED). Key definitions: PK is id (UUID); FK is store_id → stores(id), shift_session_id → shift_sessions(id), customer_id → customers(id), voucher_id → vouchers(id) |
-| 09 | order_items | Line items of each order with quantity and unit price snapshot at time of sale. Key definitions: PK is id (UUID); FK is order_id → orders(id), menu_item_id → menu_items(id) |
-| 10 | order_item_toppings | Toppings applied to specific order line items, with quantity and price snapshot at time of sale. Key definitions: PK is id (UUID); FK is order_item_id → order_items(id), topping_id → option_toppings(id) |
-| 11 | order_cancellations | Immutable audit log for PENDING order cancellations (BR-05). Records the cashier, reason code, and notes. One record per cancelled order. Key definitions: PK is id (UUID); FK is order_id → orders(id) UNIQUE, cashier_id → users(id) |
-| 12 | order_refunds | Store-Manager authorized refund/comp audit log for post-PENDING complaints (UC-75, BR-67). Supports REFUND and COMP_REMAKE types, partial refund amounts. Key definitions: PK is id (UUID); FK is order_id → orders(id), sm_id → users(id), cashier_id → users(id), shift_session_id → shift_sessions(id) |
-| 13 | raw_materials | Chain-wide master catalog of ingredients/materials owned exclusively by Business Admin (UC-74). The canonical source for recipe formulations and branch stock dropdowns. Supports soft-delete. Key definitions: PK is id (UUID) |
-| 14 | stock_items | Per-branch on-hand quantity of a master raw material. Scoped to one store. Unique constraint on (store_id, raw_material_id). Key definitions: PK is id (UUID); FK is store_id → stores(id), raw_material_id → raw_materials(id) |
-| 15 | stock_transactions | Historical ledger of all stock movements: IMPORT, EXPORT, AUDIT_ADJUSTMENT, RECIPE_DEDUCTION, PHANTOM_USAGE. System recipe deductions and phantom usage transactions have null manager_id. Key definitions: PK is id (UUID); FK is stock_item_id → stock_items(id), manager_id → users(id) |
-| 16 | vouchers | Promotional discount codes with type (PERCENTAGE / FIXED_AMOUNT), usage limits per customer and total, validity dates, and cap amount for percentage discounts. Key definitions: PK is id (UUID) |
-| 17 | recipe_items | Ingredient formula defining how much of a raw material is consumed to produce one unit of a menu item or topping. Exactly one of menu_item_id or option_topping_id is non-null. Key definitions: PK is id (UUID); FK is menu_item_id → menu_items(id), option_topping_id → option_toppings(id), raw_material_id → raw_materials(id) |
-| 18 | stores | Physical branch locations with name, address, phone, and active status. Root entity that many other entities reference. Key definitions: PK is id (UUID) |
-| 19 | staff_schedules | Assigned employee shift blocks (MORNING / AFTERNOON / FULL_DAY) per date and branch. Includes shift_start_time, shift_end_time, and optional pos_register_id allocation. Key definitions: PK is id (UUID); FK is store_id → stores(id), user_id → users(id) |
-| 20 | attendance_logs | Employee clock-in/out records. At check-in, system snapshots scheduled_start (shift start time) to calculate lateness dynamically at the reporting layer; lateness is not stored in the database. Mandatory check-in photo_url stored; the URL is nulled by the 90-day PDPA purge (BR-72) while the row is retained for payroll. One row per attendance pairing (check_in_at + check_out_at). Key definitions: PK is id (UUID); FK is store_id → stores(id), user_id → users(id) |
-| 21 | audit_logs | Immutable security event log (append-only, no UPDATE / DELETE permitted). Records price changes, voucher mutations, user account changes, checkout voucher/point usage. Key definitions: PK is id (UUID); FK is user_id → users(id) |
-| 22 | system_configs | Central (scope GLOBAL) and per-branch (scope BRANCH) runtime parameters as key/value rows: VAT_RATE, LOYALTY_* , MAX_ACTIVE_BRANCHES, HQ_MFA_REQUIRED, CANCEL_REFUND_ALERT_THRESHOLD, VietQR credentials, branch timezone/hardware overrides (UC-30/UC-42). Key definitions: PK is id (UUID); FK is store_id → stores(id) (null for GLOBAL scope) |
-| 23 | menu_item_topping_mappings | Join table linking global option_toppings to the menu_items that offer them (many-to-many, BR-29). Key definitions: PK is id (UUID); UNIQUE (menu_item_id, option_topping_id); FK is menu_item_id → menu_items(id), option_topping_id → option_toppings(id) |
+|:---:|---|---|
+| 01 | **stores** | Physical coffee shop branch locations.<br>- **id**: Primary key (UUID).<br>- **name**: Name of the branch.<br>- **address**: Physical address of the branch.<br>- **phone**: Contact phone number.<br>- **is_active**: Active status flag.<br>- **created_at**: Record creation timestamp. |
+| 02 | **users** | Employee accounts with login credentials, RBAC roles, and attendance PIN for check-in/out.<br>- **id**: Primary key (UUID).<br>- **username**: Login username.<br>- **password_hash**: Hashed password.<br>- **role**: User role (e.g., Cashier, Manager).<br>- **full_name**: Full name of the user.<br>- **is_active**: Active status flag.<br>- **email**: Email address.<br>- **phone**: Phone number.<br>- **store_id**: FK to stores.<br>- **employee_id**: Internal employee ID.<br>- **failed_attempts**: Failed login attempts.<br>- **lock_expiry_at**: Account lockout expiry.<br>- **password_last_changed_at**: Last password change time.<br>- **created_at**: Creation timestamp.<br>- **last_login_at**: Last login timestamp.<br>- **must_change_password**: Flag to force password change.<br>- **attendance_pin**: PIN for check-in/out. |
+| 03 | **categories** | Main food and beverage product groupings (e.g., Coffee, Tea, Pastry).<br>- **id**: Primary key (UUID).<br>- **name**: Category name.<br>- **description**: Category description.<br>- **is_active**: Active status flag. |
+| 04 | **menu_items** | Individual beverage/food catalog entries with pricing, barcodes, and chain-wide status.<br>- **id**: Primary key (UUID).<br>- **category_id**: FK to categories.<br>- **parent_item_id**: FK to parent menu_items.<br>- **name**: Item name.<br>- **price**: Base price.<br>- **description**: Item description.<br>- **is_active**: Active status flag.<br>- **image_url**: Image URL.<br>- **barcode**: Item barcode.<br>- **sku**: Stock Keeping Unit.<br>- **size_name**: Size option (e.g., M, L).<br>- **abbreviation**: Short name.<br>- **created_at**: Creation timestamp.<br>- **is_deleted**: Soft delete flag.<br>- **allow_ice_sugar**: Flag to allow custom ice/sugar levels. |
+| 05 | **branch_menu_status** | Per-branch item availability toggle.<br>- **store_id**: PK/FK to stores.<br>- **menu_item_id**: PK/FK to menu_items.<br>- **is_available**: Availability flag at this branch. |
+| 06 | **option_toppings** | Global add-ons (e.g., Extra Shot, Oat Milk) shared across menu items.<br>- **id**: Primary key (UUID).<br>- **name**: Topping name.<br>- **price**: Additional price.<br>- **is_active**: Active status flag. |
+| 07 | **menu_item_topping_mappings** | Join table linking global option_toppings to menu_items.<br>- **id**: Primary key (UUID).<br>- **menu_item_id**: FK to menu_items.<br>- **option_topping_id**: FK to option_toppings. |
+| 08 | **customers** | Loyalty membership registry tracking points balance and PDPA consent.<br>- **id**: Primary key (UUID).<br>- **phone**: Customer phone number.<br>- **full_name**: Customer full name.<br>- **points**: Loyalty points balance.<br>- **email**: Customer email.<br>- **birth_date**: Customer date of birth.<br>- **is_active**: Active status flag.<br>- **created_at**: Creation timestamp.<br>- **consent_at**: PDPA consent timestamp.<br>- **consent_version**: PDPA consent version. |
+| 09 | **shift_sessions** | POS cashier work session records.<br>- **id**: Primary key (UUID).<br>- **store_id**: FK to stores.<br>- **user_id**: FK to users (cashier).<br>- **start_time**: Shift start timestamp.<br>- **end_time**: Shift end timestamp.<br>- **starting_cash**: Cash in drawer at start.<br>- **ending_cash**: Cash in drawer at end.<br>- **status**: Shift status.<br>- **pos_register_id**: POS terminal identifier. |
+| 10 | **orders** | Sales transaction records following a strict 7-state machine.<br>- **id**: Primary key (UUID).<br>- **store_id**: FK to stores.<br>- **order_number**: Unique order reference.<br>- **shift_session_id**: FK to shift_sessions.<br>- **customer_id**: FK to customers.<br>- **voucher_id**: FK to vouchers.<br>- **order_type**: Dine-in, Takeaway, etc.<br>- **subtotal**: Order subtotal.<br>- **discount**: Total discount applied.<br>- **tax_amount**: Total tax applied.<br>- **total**: Final order total.<br>- **payment_method**: Cash, Card, etc.<br>- **payment_status**: Pending, Paid, etc.<br>- **status**: Order status (state machine).<br>- **created_at**: Creation timestamp. |
+| 11 | **order_items** | Line items within each order with snapshot pricing.<br>- **id**: Primary key (UUID).<br>- **order_id**: FK to orders.<br>- **menu_item_id**: FK to menu_items.<br>- **quantity**: Quantity ordered.<br>- **unit_price**: Snapshot price per unit.<br>- **ice_level**: Selected ice percentage.<br>- **sugar_level**: Selected sugar percentage. |
+| 12 | **order_item_toppings** | Toppings applied to specific order line items with snapshot pricing.<br>- **id**: Primary key (UUID).<br>- **order_item_id**: FK to order_items.<br>- **topping_id**: FK to option_toppings.<br>- **quantity**: Quantity applied.<br>- **unit_price**: Snapshot price per topping. |
+| 13 | **order_cancellations** | Immutable audit log for PENDING-state order cancellations.<br>- **id**: Primary key (UUID).<br>- **order_id**: FK to orders.<br>- **cashier_id**: FK to users (cashier).<br>- **reason**: Reason for cancellation.<br>- **notes**: Additional notes.<br>- **created_at**: Cancellation timestamp. |
+| 14 | **order_refunds** | Store-Manager authorized refund/comp audit log for post-PENDING complaints.<br>- **id**: Primary key (UUID).<br>- **order_id**: FK to orders.<br>- **sm_id**: FK to users (store manager).<br>- **cashier_id**: FK to users (cashier).<br>- **shift_session_id**: FK to shift_sessions.<br>- **refund_type**: Type of refund.<br>- **amount**: Refund amount.<br>- **reason**: Reason for refund.<br>- **notes**: Additional notes.<br>- **created_at**: Refund timestamp. |
+| 15 | **vouchers** | Promotional discount codes with usage limits.<br>- **id**: Primary key (UUID).<br>- **code**: Voucher code.<br>- **discount_type**: Percentage or Fixed.<br>- **discount_value**: Discount amount/percent.<br>- **min_order_value**: Minimum required subtotal.<br>- **start_date**: Validity start.<br>- **end_date**: Validity end.<br>- **is_active**: Active status flag.<br>- **usage_limit_per_customer**: Max uses per user.<br>- **total_usage_count**: Current usage count.<br>- **max_total_uses**: Global max uses limit.<br>- **max_discount_amount**: Maximum discount cap. |
+| 16 | **raw_materials** | Chain-wide master catalog of ingredients/materials.<br>- **id**: Primary key (UUID).<br>- **code**: Material code.<br>- **name**: Material name.<br>- **unit**: Unit of measurement.<br>- **suggested_min_threshold**: Suggested minimum stock.<br>- **standard_cost**: Standard cost.<br>- **is_active**: Active status flag.<br>- **category**: Material category. |
+| 17 | **stock_items** | Per-branch on-hand quantity of a master raw material.<br>- **id**: Primary key (UUID).<br>- **store_id**: FK to stores.<br>- **raw_material_id**: FK to raw_materials.<br>- **current_quantity**: Current stock level.<br>- **min_alert_threshold**: Minimum alert threshold. |
+| 18 | **stock_transactions** | Immutable historical ledger (append-only) of all stock movements.<br>- **id**: Primary key (UUID).<br>- **stock_item_id**: FK to stock_items.<br>- **manager_id**: FK to users (manager).<br>- **transaction_type**: IMPORT/EXPORT/etc.<br>- **quantity**: Transaction quantity.<br>- **reason**: Reason for transaction.<br>- **created_at**: Transaction timestamp. |
+| 19 | **recipe_items** | Ingredient formula defining raw material consumption for items/toppings.<br>- **id**: Primary key (UUID).<br>- **menu_item_id**: FK to menu_items.<br>- **option_topping_id**: FK to option_toppings.<br>- **raw_material_id**: FK to raw_materials.<br>- **quantity_required**: Required quantity per unit. |
+| 20 | **staff_schedules** | Assigned employee shift blocks per date and branch.<br>- **id**: Primary key (UUID).<br>- **store_id**: FK to stores.<br>- **user_id**: FK to users (employee).<br>- **shift_date**: Scheduled date.<br>- **shift_type**: Type of shift.<br>- **shift_start_time**: Scheduled start time.<br>- **shift_end_time**: Scheduled end time.<br>- **pos_register_id**: Assigned POS terminal.<br>- **created_at**: Creation timestamp. |
+| 21 | **attendance_logs** | Employee clock-in/out records with snapshot scheduling.<br>- **id**: Primary key (UUID).<br>- **store_id**: FK to stores.<br>- **user_id**: FK to users (employee).<br>- **shift_date**: Associated shift date.<br>- **check_in_at**: Clock-in timestamp.<br>- **check_out_at**: Clock-out timestamp.<br>- **scheduled_start**: Snapshot of scheduled start.<br>- **status**: Attendance status.<br>- **photo_url**: Snapshot photo URL. |
+| 22 | **audit_logs** | Immutable security event log for configuration and access changes.<br>- **id**: Primary key (UUID).<br>- **user_id**: FK to users.<br>- **action_type**: Type of action.<br>- **entity_affected**: Affected entity name.<br>- **old_value_json**: Previous state.<br>- **new_value_json**: New state.<br>- **created_at**: Event timestamp. |
+| 23 | **system_configs** | Central and per-branch runtime configuration.<br>- **id**: Primary key (UUID).<br>- **config_key**: Configuration key.<br>- **config_value**: Configuration value.<br>- **scope**: Scope of config (Global/Branch).<br>- **store_id**: FK to stores.<br>- **updated_by**: User who last updated. |
 
-
----
 
 ## **3\. Detailed Design**
 
@@ -1023,8 +1086,6 @@ stateDiagram-v2
 
 
 
----
-
 ### **3.2 User Account Management**
 
 *\[Provide the detailed design for User Account Management, covering UC-10→UC-14 (View User List, Add User, Update User, View User Detail, Deactivate/Reactivate User) plus UC-83 (User Account Change & Access Review Report). Primary actor: **ssadmin**. In addition, a **Store Manager** may **unlock and view their own branch's staff accounts** (the BR-11 / BR-59 branch-scoped exception); **ceoviewer** has read-only access to the review report (UC-83, BR-81). The class diagram covers all user management use cases. Sequence diagrams cover the Add User and Update/Deactivate User flows.\]*
@@ -1212,8 +1273,6 @@ sequenceDiagram
 
 
 
----
-
 ### **3.3 Menu & Category Management**
 
 *\[Provide the detailed design for Menu & Category Management, covering UC-15→UC-19, UC-68→UC-74 (View/Add/Update/Delete Menu Items, Categories, Toppings, Raw Material Master, Recipe Management, Branch Availability Toggle). Actors: businessadmin (chain-wide catalog CRUD), storemanager (local branch availability toggle via branch_menu_status), cashier/POS (read-only list view of items available at their branch). For features with the same class structure, the class diagram is provided once.\]*
@@ -1236,6 +1295,7 @@ classDiagram
         +categoryId: UUID
         +price: Decimal
         +barcode: String
+        +allowIceSugar: Boolean
         +recipeLines: List~RecipeLineDto~
         +submitForm()
     }
@@ -1287,6 +1347,7 @@ classDiagram
         +abbreviation: String
         +isActive: Boolean
         +isDeleted: Boolean
+        +allowIceSugar: Boolean
     }
     class Category {
         <<entity>>
@@ -1402,7 +1463,7 @@ sequenceDiagram
     CatalogCoord->>RawMatDB: verifyMaterialsExist(recipeLines)
     RawMatDB-->>CatalogCoord: materials validated
     Note over CatalogCoord: Validate units match master (BR-73)
-    CatalogCoord->>MenuDB: createMenuItem(name, sku, price, barcode, abbreviation, description, imageUrl)
+    CatalogCoord->>MenuDB: createMenuItem(name, sku, price, barcode, abbreviation, description, imageUrl, allowIceSugar)
     MenuDB-->>CatalogCoord: baseMenuItem
     opt size variants (S/M/L) provided
         loop for each size variant
@@ -1543,8 +1604,6 @@ sequenceDiagram
 
 
 
----
-
 ### **3.4 Voucher Management**
 
 *\[Provide the detailed design for Voucher Management, covering UC-20→UC-23 (View/Add/Update/Delete Voucher). Voucher application at checkout is described in Section 3.7 POS Transaction (UC-48). Actor: businessadmin (CRUD). The class diagram covers the voucher lifecycle; the sequence diagram covers the add/update flow. The VOUCHER statechart documents the full lifecycle — status is computed dynamically over 3 states (SCHEDULED / ACTIVE / EXPIRED) per BR-52, and deactivation is terminal.\]*
@@ -1668,8 +1727,6 @@ stateDiagram-v2
 ```
 
 
-
----
 
 ### **3.5 Customer & Membership Management**
 
@@ -1819,8 +1876,6 @@ sequenceDiagram
 ```
 
 
-
----
 
 ### **3.6 Inventory & Stock Management**
 
@@ -2089,8 +2144,6 @@ sequenceDiagram
 ```
 
 
-
----
 
 ### **3.7 POS Transaction**
 
@@ -2412,8 +2465,6 @@ stateDiagram-v2
 
 
 
----
-
 ### **3.8 Order Management**
 
 *\[Provide the detailed design for Order Management, covering the barista queue (View Order Queue, Barista Update Status), UC-55 (Request Transaction Refund & Cancellation — cancel PENDING orders by cashier), UC-73 (View Order Detail), UC-75 (SM-Authorized Refund/Comp), plus the system Auto-Abandon of READY orders (a scheduled behavior governed by BR-88, not a numbered UC). Actors: cashier (cancel PENDING only), storemanager (refund/comp authorization + force-close READY at shift close), barista (queue display + status transitions), system scheduler (auto-abandon after `READY_ABANDON_TIMEOUT`). The ORDER statechart documents all 7 valid states and their transitions. Stock model (BR-07/BR-88): stock is deducted only at PREPARING; cancellation is PENDING-only (BR-05), so a cancel never reverses stock.\]*
@@ -2665,8 +2716,6 @@ stateDiagram-v2
 ```
 
 
-
----
 
 ### **3.9 Staff Management**
 
@@ -3027,8 +3076,6 @@ sequenceDiagram
 
 
 
----
-
 ### **3.10 Reports & Analytics**
 
 *\[Provide the detailed design for Reports & Analytics, covering UC-28→UC-29 (HQ Consolidated Revenue Dashboard), UC-40→UC-41 (Branch Sales Report, Export Store Reports), UC-76→UC-83 (COGS/Margin & Ingredient Shrinkage, Price & Voucher Change History, Loyalty Liability, Labour Hours vs Revenue, Anomaly Detection, daily Z-Report UC-81). Actors: ceoviewer/businessadmin/ssadmin (HQ reports), storemanager (branch-level reports). Data sources: Order, StockTransaction, AuditLog, ShiftSession tables (read-only).\]*
@@ -3258,8 +3305,6 @@ sequenceDiagram
 ```
 
 
-
----
 
 ### **3.11 System Configuration & Branch Management**
 

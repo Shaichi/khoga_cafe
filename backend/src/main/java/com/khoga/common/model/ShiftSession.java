@@ -31,5 +31,8 @@ public class ShiftSession extends BaseEntity {
     private BigDecimal endingCash;
     @Enumerated(EnumType.STRING)
     private ShiftStatus status;
+    @Column(columnDefinition = "nvarchar(255)")
     private String posRegisterId;
+    @Column(length = 1000)
+    private String discrepancyNotes;
 }

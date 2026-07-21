@@ -27,6 +27,7 @@ public class Order extends BaseEntity {
     @ManyToOne
     @JoinColumn(name = "store_id")
     private Store store;
+    @Column(columnDefinition = "nvarchar(255)")
     private String orderNumber;
     @ManyToOne
     @JoinColumn(name = "shift_session_id")
@@ -58,7 +59,7 @@ public class Order extends BaseEntity {
      * (BR-84). Nullable (cash/card orders and unpaid orders have none). Enables reconciliation and
      * idempotent handling of duplicate callbacks — a repeat callback carrying this same ref is a no-op.
      */
-    @Column(name = "transaction_ref")
+    @Column(name = "transaction_ref", columnDefinition = "nvarchar(255)")
     private String transactionRef;
     /**
      * When the order entered READY (BR-88). Auto-abandon measures idle time from this instant, not from

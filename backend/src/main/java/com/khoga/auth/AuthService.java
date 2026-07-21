@@ -282,7 +282,8 @@ public class AuthService {
 
     /** BR-83: HQ role + global flag on + a deliverable email. No email → can't MFA, fall through to token. */
     private boolean needsMfa(User user) {
-        return false; // Disabled temporarily per user request
+        boolean isHq = user.getRole() == Role.CEOVIEWER || user.getRole() == Role.BUSINESSADMIN || user.getRole() == Role.SSADMIN;
+        return isHq && systemConfig.getGlobalBoolean("HQ_MFA_REQUIRED", false) && user.getEmail() != null && !user.getEmail().isBlank();
     }
 
     private LoginResponse startMfaChallenge(User user) {

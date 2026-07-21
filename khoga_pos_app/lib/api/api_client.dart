@@ -3,11 +3,14 @@ import 'package:flutter/foundation.dart';
 
 import 'package:http/http.dart' as http;
 
-/// Default backend base URL. `10.0.2.2` is the Android emulator's alias for the
-/// host machine's `localhost`; for Chrome/desktop dev override with `localhost`.
-const String kApiBaseUrl = kIsWeb
-    ? 'http://localhost:8080/api/v1'
-    : 'http://10.0.2.2:8080/api/v1';
+String get kApiBaseUrl {
+  if (kIsWeb) return 'http://localhost:8080/api/v1';
+  // Use computer's local Wi-Fi IP for physical devices (and emulators bridged to LAN)
+  if (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) {
+    return 'http://192.168.2.103:8080/api/v1';
+  }
+  return 'http://localhost:8080/api/v1';
+}
 
 /// Thrown when the backend returns an error envelope or a non-2xx status. Carries
 /// the human-readable message from `ApiResponse.message` when available.
@@ -28,11 +31,14 @@ class ApiClient {
   final String baseUrl;
   String? _token;
 
-  ApiClient({http.Client? client, this.baseUrl = kApiBaseUrl})
-    : _client = client ?? http.Client();
+  ApiClient({http.Client? client, String? baseUrl})
+    : _client = client ?? http.Client(),
+      baseUrl = baseUrl ?? kApiBaseUrl;
 
   /// Set (or clear, with null) the bearer token sent on subsequent requests.
   void setToken(String? token) => _token = token;
+
+  String? get token => _token;
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
@@ -62,6 +68,12 @@ class ApiClient {
         headers: _headers,
         body: jsonEncode(body ?? {}),
       ),
+    );
+  }
+
+  Future<dynamic> delete(String path) async {
+    return _unwrap(
+      await _client.delete(Uri.parse('$baseUrl$path'), headers: _headers),
     );
   }
 

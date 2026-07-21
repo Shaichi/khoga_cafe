@@ -33,7 +33,7 @@ void main() {
     test('clear empties the cart and resets member/voucher/points', () {
       final cart = CartController()..add(_item('m1', 30000));
       cart.attachCustomer(CustomerLite(id: 'c1', fullName: 'A', points: 500));
-      cart.applyVoucher('giam10');
+      cart.applyVoucher(VoucherLite(id: 'v1', code: 'GIAM10', discountType: 'FIXED', discountValue: 10000));
       cart.setRedeemPoints(200);
       cart.clear();
       expect(cart.isEmpty, isTrue);
@@ -43,9 +43,9 @@ void main() {
       expect(cart.redeemPoints, 0);
     });
 
-    test('applyVoucher trims + upper-cases; clearVoucher removes it', () {
+    test('applyVoucher sets voucher; clearVoucher removes it', () {
       final cart = CartController();
-      cart.applyVoucher('  giam10 ');
+      cart.applyVoucher(VoucherLite(id: 'v1', code: 'GIAM10', discountType: 'FIXED', discountValue: 10000));
       expect(cart.voucherCode, 'GIAM10');
       cart.clearVoucher();
       expect(cart.voucherCode, isNull);

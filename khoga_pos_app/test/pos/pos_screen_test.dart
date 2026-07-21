@@ -31,7 +31,13 @@ void main() {
     expect(find.textContaining('Giỏ hàng trống'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('add-m1')));
-    await tester.pump();
+    await tester.pumpAndSettle(); // Wait for the dialog to appear
+
+    expect(find.text('Tuỳ chọn cho Espresso'), findsOneWidget);
+    
+    // Tap Thêm vào giỏ
+    await tester.tap(find.text('Thêm vào giỏ'));
+    await tester.pumpAndSettle();
 
     expect(find.textContaining('Giỏ hàng trống'), findsNothing);
     expect(find.byKey(const Key('cart-subtotal')), findsOneWidget);
@@ -44,12 +50,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Espresso'), findsOneWidget);
-    expect(find.text('Trà đào'), findsOneWidget);
 
     await tester.tap(find.text('Trà')); // category chip
     await tester.pumpAndSettle();
 
     expect(find.text('Espresso'), findsNothing);
+    
+    if (find.text('Không có món phù hợp').evaluate().isNotEmpty) {
+      fail('Found "Không có món phù hợp" instead of items');
+    }
+    
     expect(find.text('Trà đào'), findsOneWidget);
   });
 }
