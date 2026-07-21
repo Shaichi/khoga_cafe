@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 
 import '../api/api_client.dart';
 import '../api/models.dart';
 import '../api/order_api.dart';
 import '../auth/auth_controller.dart';
+import '../auth/logout_dialog.dart';
+import '../profile/profile_screen.dart';
 import '../theme.dart';
 import 'order_labels.dart';
 
@@ -96,6 +99,13 @@ class _BaristaQueueScreenState extends State<BaristaQueueScreen> {
         title: Text('Pha chế · ${auth.profile?.fullName ?? ''}'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.person),
+            tooltip: 'Hồ sơ cá nhân',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const ProfileScreen()),
+            ),
+          ),
+          IconButton(
             key: const Key('portal-refresh'),
             tooltip: 'Làm mới',
             icon: const Icon(Icons.refresh),
@@ -106,7 +116,12 @@ class _BaristaQueueScreenState extends State<BaristaQueueScreen> {
               key: const Key('portal-logout'),
               tooltip: 'Đăng xuất',
               icon: const Icon(Icons.logout),
-              onPressed: auth.logout,
+              onPressed: () async {
+                final confirm = await showLogoutDialog(context);
+                if (confirm == true && context.mounted) {
+                  auth.logout();
+                }
+              },
             ),
         ],
       ),

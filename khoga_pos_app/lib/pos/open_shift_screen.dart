@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../api/api_client.dart';
 import '../auth/auth_controller.dart';
+import '../auth/logout_dialog.dart';
 import '../format.dart';
 import '../theme.dart';
 import 'pos_screen.dart';
@@ -148,7 +149,12 @@ class _OpenShiftScreenState extends State<OpenShiftScreen> {
                   ),
                   const SizedBox(height: 8),
                   TextButton(
-                    onPressed: () => context.read<AuthController>().logout(),
+                    onPressed: () async {
+                      final confirm = await showLogoutDialog(context);
+                      if (confirm == true && context.mounted) {
+                        context.read<AuthController>().logout();
+                      }
+                    },
                     child: const Text('Đăng xuất tài khoản', style: TextStyle(color: kGold, fontWeight: FontWeight.bold)),
                   ),
                 ],

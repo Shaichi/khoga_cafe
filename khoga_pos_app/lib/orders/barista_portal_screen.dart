@@ -6,6 +6,9 @@ import '../api/api_client.dart';
 import '../api/models.dart';
 import '../api/order_api.dart';
 import '../auth/auth_controller.dart';
+import '../auth/logout_dialog.dart';
+import '../profile/profile_screen.dart';
+import '../profile/profile_screen.dart';
 import '../theme.dart';
 import 'order_labels.dart';
 import 'order_detail_screen.dart';
@@ -105,23 +108,30 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
           Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: InkWell(
-                onTap: () => _showProfileDialog(context, auth),
-                child: Text('Chi nhánh: TT Q1 | Tài khoản: ${auth.profile?.fullName ?? ''}', style: const TextStyle(decoration: TextDecoration.underline)),
-              ),
+              child: Text('Chi nhánh: Nguyễn Du | Quầy: BAR-01', style: TextStyle(color: kGold.withOpacity(0.9))),
             ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const ProfileScreen()),
+            ),
+            child: Text('Tài khoản', style: TextStyle(color: kGold.withOpacity(0.9))),
           ),
           IconButton(
             key: const Key('portal-refresh'),
             tooltip: 'Làm mới',
-            icon: const Icon(Icons.refresh),
+            icon: Icon(Icons.refresh, color: kGold.withOpacity(0.9)),
             onPressed: _load,
           ),
-          TextButton.icon(
+          TextButton(
             key: const Key('portal-logout'),
-            icon: const Icon(Icons.logout, color: Colors.white),
-            label: const Text('Đăng xuất', style: TextStyle(color: Colors.white)),
-            onPressed: auth.logout,
+            child: const Text('Đăng xuất', style: TextStyle(color: Colors.white)),
+            onPressed: () async {
+              final confirm = await showLogoutDialog(context);
+              if (confirm == true && context.mounted) {
+                auth.logout();
+              }
+            },
           ),
           const SizedBox(width: 8),
         ],
@@ -213,9 +223,8 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(child: Text(o.orderNumber, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: kBrown), overflow: TextOverflow.ellipsis)),
-                  const SizedBox(width: 8),
-                  Text(waitText, style: const TextStyle(color: kMuted, fontSize: 13)),
+                  Text('Đơn #${o.orderNumber.length >= 3 ? o.orderNumber.substring(o.orderNumber.length - 3) : o.orderNumber.padLeft(3, '0')}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: kBrown)),
+                  Text(waitText, style: const TextStyle(color: kMuted, fontSize: 12)),
                 ],
               ),
               const SizedBox(height: 12),
@@ -304,28 +313,4 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
     );
   }
 
-  void _showProfileDialog(BuildContext context, auth) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Thông tin tài khoản'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Nhân viên: ${auth.profile?.fullName ?? 'Không rõ'}', style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('Tài khoản: ${auth.profile?.username ?? ''}'),
-            const SizedBox(height: 8),
-            Text('Vai trò: ${auth.profile?.role ?? ''}'),
-            const SizedBox(height: 8),
-            Text('Mã chi nhánh: ${auth.profile?.storeId ?? 'N/A'}'),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('ĐÓNG')),
-        ],
-      ),
-    );
-  }
 }
