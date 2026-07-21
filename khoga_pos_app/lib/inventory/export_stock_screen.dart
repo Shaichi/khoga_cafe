@@ -5,23 +5,19 @@ import 'package:provider/provider.dart';
 import '../api/api_client.dart';
 import '../api/models.dart';
 import '../api/stock_api.dart';
-import '../format.dart';
 import '../theme.dart';
 
-class ExportStockItemModel {
-  final StockItem stockItem;
-  final TextEditingController qtyController = TextEditingController();
-  final TextEditingController reasonController = TextEditingController();
-  String? error;
-  String? reasonError;
-
-  ExportStockItemModel(this.stockItem);
-
-  void dispose() {
-    qtyController.dispose();
-    reasonController.dispose();
-  }
-}
+// Figma Colors
+const Color cBgWhite = Color(0xFFFFFFFF);
+const Color cBorderLight = Color(0xFFEADDD3);
+const Color cTextDark = Color(0xFF2C1A11);
+const Color cTextMuted = Color(0xFF8C766C);
+const Color cBrownDark = Color(0xFF3D2314);
+const Color cPrimary = Color(0xFF5C3826);
+const Color cTextLightBrown = Color(0xFF8C6D58);
+const Color cHighlight = Color(0xFFC89D7C);
+const Color cDanger = Color(0xFFCF6679);
+const Color cBgDisabled = Color(0xFFFDFDFD);
 
 class ExportStockScreen extends StatefulWidget {
   const ExportStockScreen({super.key});
@@ -38,11 +34,12 @@ class _ExportStockScreenState extends State<ExportStockScreen> {
   String? _globalError;
   bool _submitting = false;
   
-  final List<ExportStockItemModel> _exportList = [];
-  StockItem? _selectedDropdownItem;
+  StockItem? _selectedItem;
+  final TextEditingController _qtyController = TextEditingController();
+  final TextEditingController _reasonController = TextEditingController();
+  final TextEditingController _noteController = TextEditingController();
   
   bool _success = false;
-  int _successCount = 0;
 
   @override
   void initState() {
@@ -72,61 +69,32 @@ class _ExportStockScreenState extends State<ExportStockScreen> {
 
   @override
   void dispose() {
-    for (var item in _exportList) {
-      item.dispose();
-    }
+    _qtyController.dispose();
+    _reasonController.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
-  void _addItem(StockItem item) {
-    if (_exportList.any((i) => i.stockItem.id == item.id)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nguyên liệu này đã có trong danh sách xuất')),
-      );
-      return;
-    }
-    setState(() {
-      _exportList.add(ExportStockItemModel(item));
-      _selectedDropdownItem = null;
-    });
-  }
-
-  void _removeItem(int index) {
-    setState(() {
-      final item = _exportList.removeAt(index);
-      item.dispose();
-    });
-  }
-
   Future<void> _submit() async {
-    if (_exportList.isEmpty) {
-      setState(() => _globalError = 'Vui lòng chọn ít nhất 1 nguyên liệu để xuất');
+    if (_selectedItem == null) {
+      setState(() => _globalError = 'Vui lòng chọn nguyên liệu');
       return;
     }
 
-    bool hasValidationErrors = false;
-    for (var item in _exportList) {
-      final qty = num.tryParse(item.qtyController.text.trim());
-      if (qty == null || qty <= 0) {
-        item.error = 'Không hợp lệ';
-        hasValidationErrors = true;
-      } else if (qty > item.stockItem.currentQuantity) {
-        item.error = 'Vượt quá tồn';
-        hasValidationErrors = true;
-      } else {
-        item.error = null;
-      }
-
-      if (item.reasonController.text.trim().isEmpty) {
-        item.reasonError = 'Bắt buộc';
-        hasValidationErrors = true;
-      } else {
-        item.reasonError = null;
-      }
+    final qty = num.tryParse(_qtyController.text.trim());
+    if (qty == null || qty <= 0) {
+      setState(() => _globalError = 'Số lượng xuất không hợp lệ');
+      return;
     }
 
-    if (hasValidationErrors) {
-      setState(() {});
+    if (qty > _selectedItem!.currentQuantity) {
+      setState(() => _globalError = 'Số lượng xuất vượt quá tồn kho (${_selectedItem!.currentQuantity} ${_selectedItem!.unit})');
+      return;
+    }
+
+    final reason = _reasonController.text.trim();
+    if (reason.isEmpty) {
+      setState(() => _globalError = 'Vui lòng nhập lý do xuất');
       return;
     }
 
@@ -136,16 +104,13 @@ class _ExportStockScreenState extends State<ExportStockScreen> {
     });
 
     try {
-      final futures = _exportList.map((item) async {
-        final qty = num.parse(item.qtyController.text.trim());
-        return _api.export(item.stockItem.id, qty, item.reasonController.text.trim());
-      });
+      final note = _noteController.text.trim();
+      final finalReason = note.isEmpty ? reason : '$reason - $note';
       
-      await Future.wait(futures);
+      await _api.export(_selectedItem!.id, qty, finalReason);
       
       if (mounted) {
         setState(() {
-          _successCount = _exportList.length;
           _success = true;
         });
       }
@@ -161,14 +126,19 @@ class _ExportStockScreenState extends State<ExportStockScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: cBgWhite,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: kBrownDark,
-        elevation: 1,
+        backgroundColor: cBgWhite,
+        foregroundColor: cBrownDark,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: cBrownDark),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: const Text(
-          'Xuất kho (Bulk Export)',
-          style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 18),
+          'Xuất Kho',
+          style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, fontSize: 22, color: cBrownDark),
         ),
       ),
       body: SafeArea(
@@ -183,14 +153,12 @@ class _ExportStockScreenState extends State<ExportStockScreen> {
           children: [
             const Icon(Icons.check_circle, color: kSuccess, size: 64),
             const SizedBox(height: 12),
-            const Text('Xuất kho thành công', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: kBrown)),
-            const SizedBox(height: 8),
-            Text('Đã xuất thành công $_successCount mặt hàng', style: const TextStyle(color: kMuted)),
+            const Text('Xuất kho thành công', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: cPrimary)),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: ElevatedButton.styleFrom(
-                backgroundColor: kBrown,
+                backgroundColor: cPrimary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
               ),
@@ -203,152 +171,142 @@ class _ExportStockScreenState extends State<ExportStockScreen> {
   Widget _buildForm() {
     return Column(
       children: [
-        if (_globalError != null)
-          Container(
-            padding: const EdgeInsets.all(12),
-            margin: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: kDanger.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: kDanger),
-            ),
-            child: Row(
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.error_outline, color: kDanger),
-                const SizedBox(width: 12),
-                Expanded(child: Text(_globalError!, style: const TextStyle(color: kDanger, fontWeight: FontWeight.bold))),
+                if (_globalError != null)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: cDanger.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: cDanger),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline, color: cDanger),
+                        const SizedBox(width: 12),
+                        Expanded(child: Text(_globalError!, style: const TextStyle(color: cDanger, fontWeight: FontWeight.bold))),
+                      ],
+                    ),
+                  ),
+
+                _buildLabel('Tên nguyên liệu *'),
+                const SizedBox(height: 8),
+                _loadingItems
+                    ? const Center(child: CircularProgressIndicator())
+                    : DropdownButtonFormField<StockItem>(
+                        decoration: _inputDecoration(),
+                        isExpanded: true,
+                        value: _selectedItem,
+                        items: _availableItems.map((item) {
+                          return DropdownMenuItem<StockItem>(
+                            value: item,
+                            child: Text('${item.name} (${item.code})', overflow: TextOverflow.ellipsis),
+                          );
+                        }).toList(),
+                        onChanged: (val) => setState(() => _selectedItem = val),
+                      ),
+                const SizedBox(height: 20),
+
+                _buildLabel('Số lượng xuất *'),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _qtyController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                  decoration: _inputDecoration(hintText: 'Ví dụ: 2.0'),
+                ),
+                const SizedBox(height: 20),
+
+                _buildLabel('Lý do xuất *'),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _reasonController,
+                  decoration: _inputDecoration(),
+                ),
+                const SizedBox(height: 20),
+
+                _buildLabel('Ghi chú'),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _noteController,
+                  maxLines: 4,
+                  decoration: _inputDecoration(hintText: 'Nhập lý do chi tiết (ví dụ: Sữa bị chua, cốc bị bẹp...)'),
+                ),
               ],
             ),
           ),
-          
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: _loadingItems
-              ? const Center(child: CircularProgressIndicator())
-              : DropdownButtonFormField<StockItem>(
-                  decoration: InputDecoration(
-                    labelText: 'Chọn nguyên liệu để xuất...',
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-                  ),
-                  value: _selectedDropdownItem,
-                  items: _availableItems.map((item) {
-                    return DropdownMenuItem<StockItem>(
-                      value: item,
-                      child: Text('${item.name} (${item.code})'),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) _addItem(val);
-                  },
-                ),
         ),
-        
-        Expanded(
-          child: _exportList.isEmpty
-              ? const Center(
-                  child: Text(
-                    'Chưa có mặt hàng nào.\nVui lòng chọn từ danh sách trên.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: kMuted, fontFamily: 'Segoe UI'),
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: _exportList.length,
-                  itemBuilder: (context, index) {
-                    final itemModel = _exportList[index];
-                    final stock = itemModel.stockItem;
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: kBorder),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  stock.name,
-                                  style: const TextStyle(fontWeight: FontWeight.bold, color: kBrownDark, fontSize: 16),
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.close, color: kDanger),
-                                onPressed: () => _removeItem(index),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text('Tồn hiện tại: ${formatVnd(stock.currentQuantity)} ${stock.unit}', style: const TextStyle(color: kMuted, fontSize: 13)),
-                          const SizedBox(height: 12),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                flex: 2,
-                                child: TextField(
-                                  controller: itemModel.qtyController,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
-                                  decoration: InputDecoration(
-                                    labelText: 'SL (${stock.unit}) *',
-                                    errorText: itemModel.error,
-                                    border: const OutlineInputBorder(),
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                flex: 3,
-                                child: TextField(
-                                  controller: itemModel.reasonController,
-                                  decoration: InputDecoration(
-                                    labelText: 'Lý do (Hỏng...) *',
-                                    errorText: itemModel.reasonError,
-                                    border: const OutlineInputBorder(),
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-        ),
-        
+
+        // Footer buttons
         Container(
           padding: const EdgeInsets.all(16),
           decoration: const BoxDecoration(
-            color: Colors.white,
-            border: Border(top: BorderSide(color: kBorder)),
+            color: cBgWhite,
           ),
-          child: ElevatedButton(
-            onPressed: _submitting || _exportList.isEmpty ? null : _submit,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kBrown,
-              foregroundColor: Colors.white,
-              minimumSize: const Size.fromHeight(50),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            child: _submitting
-                ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : Text('XÁC NHẬN XUẤT KHO (${_exportList.length} MÓN)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 50),
+                    side: const BorderSide(color: cBorderLight),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('HỦY', style: TextStyle(fontFamily: 'Segoe UI', fontWeight: FontWeight.bold, color: cBrownDark)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _submitting ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    elevation: 0,
+                    minimumSize: const Size(0, 50),
+                    backgroundColor: cBrownDark,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: _submitting
+                      ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('XÁC NHẬN', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, fontFamily: 'Segoe UI')),
+                ),
+              ),
+            ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildLabel(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontFamily: 'Segoe UI',
+        fontWeight: FontWeight.bold,
+        color: cBrownDark,
+        fontSize: 15,
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration({String? hintText}) {
+    return InputDecoration(
+      hintText: hintText,
+      hintStyle: const TextStyle(color: cTextMuted, fontFamily: 'Segoe UI', fontSize: 14),
+      filled: true,
+      fillColor: cBgWhite,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: cBorderLight)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: cBorderLight)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: cPrimary)),
     );
   }
 }

@@ -36,13 +36,16 @@ void main() {
     expect(find.text('Cà phê hạt'), findsOneWidget);
 
     // Open import for the low item, record a delivery.
-    await tester.tap(find.byKey(const Key('stock-row-si1')));
+    await tester.tap(find.byKey(const Key('to-import-action')));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const Key('import-quantity')), '10');
+    await tester.tap(find.byKey(const Key('import-item-dropdown')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cà phê hạt (CF-01)').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('import-quantity-si1')), '10');
     await tester.tap(find.byKey(const Key('import-submit')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('import-success')), findsOneWidget);
-    expect(find.textContaining('→'), findsOneWidget);
 
     // Done -> back on the dashboard.
     await tester.tap(find.byKey(const Key('import-done')));
@@ -66,24 +69,25 @@ void main() {
     await tester.tap(find.byKey(const Key('inventory-action')));
     await tester.pumpAndSettle();
 
-    // Open a material, switch to the export screen via the app-bar action.
-    await tester.tap(find.byKey(const Key('stock-row-si1')));
-    await tester.pumpAndSettle();
+    // Open the export screen.
     await tester.tap(find.byKey(const Key('to-export-action')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('export-item-dropdown')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cà phê hạt (CF-01)').last);
     await tester.pumpAndSettle();
 
     // Reason is mandatory: submitting without it shows an error.
-    await tester.enterText(find.byKey(const Key('export-quantity')), '4');
+    await tester.enterText(find.byKey(const Key('export-quantity-si1')), '2');
     await tester.tap(find.byKey(const Key('export-submit')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('export-error')), findsOneWidget);
+    expect(find.text('Bắt buộc'), findsOneWidget);
 
     // With a reason it succeeds and "Xong" returns all the way to the dashboard.
-    await tester.enterText(find.byKey(const Key('export-reason')), 'Hỏng');
+    await tester.enterText(find.byKey(const Key('export-reason-si1')), 'Hỏng');
     await tester.tap(find.byKey(const Key('export-submit')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('export-success')), findsOneWidget);
-    expect(find.textContaining('→'), findsOneWidget);
     await tester.tap(find.byKey(const Key('export-done')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('stock-list')), findsOneWidget);
@@ -107,6 +111,8 @@ void main() {
 
     // Count both items: si1 short by one, si2 matches.
     await tester.enterText(find.byKey(const Key('audit-count-si1')), '4');
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('audit-note-si1')), 'Hao hụt');
     await tester.enterText(find.byKey(const Key('audit-count-si2')), '12');
     await tester.tap(find.byKey(const Key('audit-submit')));
     await tester.pumpAndSettle();

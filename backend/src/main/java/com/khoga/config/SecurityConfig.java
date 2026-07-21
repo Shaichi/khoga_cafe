@@ -62,6 +62,7 @@ public class SecurityConfig {
                         // Only the truly anonymous auth flows are public. Authenticated auth
                         // operations (logout, change-password, force-password-change) and the
                         // profile endpoints fall through to authenticated() below.
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/login/mfa",

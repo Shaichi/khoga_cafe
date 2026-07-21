@@ -36,6 +36,7 @@ final class StaffMapper {
                 u.getEmployeeId(),
                 u.getFullName(),
                 u.getRole(),
+                u.getPhone(),
                 StringUtils.hasText(u.getAttendancePin()),
                 pinLocked,
                 u.getIsActive());

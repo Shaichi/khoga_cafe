@@ -23,8 +23,8 @@ export interface NavItem {
 
 /** Sidebar navigation — mỗi item gắn với danh sách role được phép theo RDS. */
 export const ALL_NAV: NavItem[] = [
-  // ── Tất cả role ─────────────────────────────────────────────────────────
-  { to: '/', label: 'Tổng quan', end: true },
+  // ── CEOVIEWER + STORE_MANAGER ───────────────────────────────────────────
+  { to: '/', label: 'Tổng quan', end: true, roles: ['CEOVIEWER', 'STORE_MANAGER'] },
 
   // ── SSADMIN only ────────────────────────────────────────────────────────
   { to: '/branches', label: 'Chi nhánh', roles: ['SSADMIN'] },
@@ -38,11 +38,11 @@ export const ALL_NAV: NavItem[] = [
   // ── BUSINESSADMIN + STORE_MANAGER (RDS §3.5: biz adjust, SM edit) ──────
   { to: '/customers', label: 'Khách hàng', roles: ['BUSINESSADMIN', 'STORE_MANAGER'] },
 
-  // ── Reports: HQ (ceo/biz/ss) + SM (branch-level) ──────────────────────
+  // ── Reports: CEOVIEWER + STORE_MANAGER ──────────────────────────────
   {
     to: '/reports',
     label: 'Báo cáo',
-    roles: ['CEOVIEWER', 'BUSINESSADMIN', 'SSADMIN', 'STORE_MANAGER'],
+    roles: ['CEOVIEWER', 'STORE_MANAGER'],
   },
 
   // ── System Config: SSADMIN (R+W) ───────────
@@ -128,14 +128,12 @@ const MODULES_BY_ROLE: Record<Role, DashModule[]> = {
     { to: '/branches', title: 'Chi nhánh',          desc: 'Quản lý chuỗi cửa hàng' },
     { to: '/users',    title: 'Tài khoản',           desc: 'Nhân sự & phân quyền' },
     { to: '/settings', title: 'Cấu hình hệ thống',  desc: 'Tham số toàn chuỗi' },
-    { to: '/reports',  title: 'Báo cáo',              desc: 'Báo cáo & phân tích toàn chuỗi' },
   ],
   BUSINESSADMIN: [
     { to: '/catalog',       title: 'Thực đơn & Danh mục', desc: 'Món, danh mục, topping' },
     { to: '/raw-materials', title: 'Nguyên liệu',           desc: 'Master nguyên liệu' },
     { to: '/vouchers',      title: 'Voucher',                desc: 'Khuyến mãi' },
     { to: '/customers',     title: 'Khách hàng',             desc: 'Loyalty & điều chỉnh điểm' },
-    { to: '/reports',       title: 'Báo cáo',                desc: 'COGS, doanh thu, lịch sử giá' },
   ],
   CEOVIEWER: [
     { to: '/reports', title: 'Báo cáo tổng hợp', desc: 'Doanh thu, COGS, Anomaly (UC-28/29)' },

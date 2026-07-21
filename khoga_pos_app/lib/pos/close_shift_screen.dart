@@ -6,6 +6,7 @@ import '../api/api_client.dart';
 import '../api/models.dart';
 import '../format.dart';
 import '../theme.dart';
+import '../auth/auth_controller.dart';
 import 'shift_controller.dart';
 
 /// Screen 41 — "Close Shift / Z-report". The cashier counts the drawer, submits
@@ -59,7 +60,7 @@ class _CloseShiftScreenState extends State<CloseShiftScreen> {
   /// Returns null if no discrepancy, otherwise the absolute difference.
   num? get _discrepancy {
     if (_preview == null) return null;
-    final actual = num.tryParse(_cash.text.trim());
+    final actual = num.tryParse(_cash.text.replaceAll('.', '').trim());
     if (actual == null) return null;
     final diff = (actual - _preview!.expectedCash).abs();
     return diff > 0.001 ? diff : null;
@@ -69,7 +70,7 @@ class _CloseShiftScreenState extends State<CloseShiftScreen> {
   bool get _hasDiscrepancy => _discrepancy != null;
 
   Future<void> _submit() async {
-    final cash = num.tryParse(_cash.text.trim());
+    final cash = num.tryParse(_cash.text.replaceAll('.', '').trim());
     if (_cash.text.trim().isEmpty || cash == null || cash < 0) {
       setState(() => _error = 'Vui lòng nhập số tiền mặt kiểm đếm');
       return;
@@ -105,18 +106,32 @@ class _CloseShiftScreenState extends State<CloseShiftScreen> {
     final report = _report;
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: kBrown,
-        foregroundColor: Colors.white,
-        title: const Text('Kết ca'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Color(0xFF5C3826)),
+        title: const Text(
+          'Đóng Ca Bàn Giao',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 19, color: Color(0xFF2C1A11)),
+        ),
         automaticallyImplyLeading: report == null,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: report == null ? _form(context) : _zReport(context, report),
-          ),
+        child: CustomScrollView(
+          slivers: [
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: report == null ? _form(context) : _zReport(context, report),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -124,16 +139,11 @@ class _CloseShiftScreenState extends State<CloseShiftScreen> {
 
   Widget _form(BuildContext context) {
     final register = context.read<ShiftController>().active?.posRegisterId ?? '';
+    final cashierId = context.read<AuthController>().profile?.username ?? 'Unknown';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text('Đóng ca máy $register',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kBrown)),
-        const SizedBox(height: 4),
-        const Text('Đếm tiền mặt thực tế trong ngăn kéo trước khi kết ca.',
-            style: TextStyle(color: kMuted, fontSize: 13)),
-        const SizedBox(height: 24),
         if (_error != null) ...[
           _errorBox(_error!),
           const SizedBox(height: 16),
@@ -163,81 +173,148 @@ class _CloseShiftScreenState extends State<CloseShiftScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 15),
         ],
-        if (_loadingPreview) 
+        const Text('Thông tin ca trực', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF5C3826))),
+        const SizedBox(height: 4),
+        Container(
+          height: 42,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          alignment: Alignment.centerLeft,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF5EEE8),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text('Thu ngân: $cashierId | Máy POS: $register', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF3D2314))),
+        ),
+        const SizedBox(height: 15),
+        if (_loadingPreview)
            const Center(child: CircularProgressIndicator())
         else if (_preview != null) ...[
-           const Text('Doanh thu tiền mặt hệ thống (Expected)', style: TextStyle(color: kMuted)),
+           const Text('Doanh thu tiền mặt hệ thống (Expected)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF5C3826))),
            const SizedBox(height: 4),
-           Text('${formatVnd(_preview!.expectedCash)} VND', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: kBrown)),
-           const SizedBox(height: 24),
+           Container(
+             height: 42,
+             padding: const EdgeInsets.symmetric(horizontal: 16),
+             alignment: Alignment.centerLeft,
+             decoration: BoxDecoration(
+               color: const Color(0xFFF5EEE8),
+               borderRadius: BorderRadius.circular(12),
+             ),
+             child: Text('${formatVnd(_preview!.expectedCash)} VND', style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: Color(0xFF3D2314))),
+           ),
+           const SizedBox(height: 15),
         ],
         const Text('Tiền mặt kiểm đếm thực tế *',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: kBrown)),
-        const SizedBox(height: 8),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF5C3826))),
+        const SizedBox(height: 4),
         TextField(
           key: const Key('closing-cash'),
           controller: _cash,
           keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: const InputDecoration(hintText: 'Nhập số tiền mặt trong két...', border: OutlineInputBorder()),
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(15),
+            CurrencyInputFormatter(),
+          ],
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF2C1A11)),
+          decoration: InputDecoration(
+            hintText: 'Nhập số tiền mặt trong két...',
+            hintStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF2C1A11)),
+            fillColor: const Color(0xFFFAFAFA),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFEADDD3))),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kGold, width: 2)),
+          ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 15),
         Text(_hasDiscrepancy ? 'Ghi chú sai lệch (Bắt buộc) *' : 'Ghi chú sai lệch (Nếu có)',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _hasDiscrepancy ? kDanger : kBrown)),
-        const SizedBox(height: 8),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _hasDiscrepancy ? kDanger : const Color(0xFF5C3826))),
+        const SizedBox(height: 4),
         TextField(
           key: const Key('discrepancy-notes'),
           controller: _notes,
-          maxLines: 3,
-          decoration: const InputDecoration(hintText: 'Giải trình lý do chênh lệch két tiền nếu có...', border: OutlineInputBorder()),
+          maxLines: 2,
+          maxLength: 250,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF2C1A11)),
+          decoration: InputDecoration(
+            hintText: 'Giải trình lý do chênh lệch két tiền nếu có...',
+            hintStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF2C1A11)),
+            fillColor: const Color(0xFFFAFAFA),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFEADDD3))),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kGold, width: 2)),
+          ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 15),
         // BR-03 checkbox
-        CheckboxListTile(
-          key: const Key('orders-confirmed'),
-          value: _ordersConfirmed,
-          onChanged: (v) => setState(() => _ordersConfirmed = v ?? false),
-          activeColor: kBrown,
-          contentPadding: EdgeInsets.zero,
-          controlAffinity: ListTileControlAffinity.leading,
-          title: const Text(
-            'Tôi xác nhận tất cả đơn hàng trong ca đã được xử lý xong (Hoàn thành hoặc Hủy)',
-            style: TextStyle(fontSize: 12, color: kBrown, fontWeight: FontWeight.w500),
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: Checkbox(
+                key: const Key('orders-confirmed'),
+                value: _ordersConfirmed,
+                onChanged: (v) => setState(() => _ordersConfirmed = v ?? false),
+                activeColor: const Color(0xFF2F80ED),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Xác nhận: Tất cả đơn hàng liên kết trong ca đã xử lý xong (Hoàn thành hoặc Hủy) - Yêu cầu BR-03',
+                style: TextStyle(fontSize: 12, color: Color(0xFF5C3826), height: 1.3),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 20),
-          ElevatedButton(
-            key: const Key('close-shift-button'),
-            onPressed: _submitting ? null : () async {
-              final cash = num.tryParse(_cash.text.replaceAll(RegExp(r'[^0-9]'), ''));
-              if (cash == null) {
-                setState(() => _error = 'Vui lòng nhập tiền kiểm đếm');
-                return;
-              }
-              final confirmed = await showDialog<bool>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Xác nhận kết ca'),
-                  content: const Text('Bạn có chắc chắn muốn đóng ca làm việc này?'),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('HỦY')),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: kDanger),
-                      onPressed: () => Navigator.pop(ctx, true),
-                      child: const Text('XÁC NHẬN ĐÓNG CA'),
-                    ),
-                  ],
-                ),
-              );
-              if (confirmed == true) _submit();
-            },
-            child: _submitting
-                ? const SizedBox(
-                    height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Text('ĐỒNG Ý ĐÓNG CA'),
+        const Spacer(),
+        const SizedBox(height: 30),
+        ElevatedButton(
+          key: const Key('close-shift-button'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF3D2314),
+            minimumSize: const Size.fromHeight(50),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            textStyle: const TextStyle(
+              fontFamily: 'Arial', // Arial is specified in Figma
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
           ),
+          onPressed: _submitting ? null : () async {
+            final cash = num.tryParse(_cash.text.replaceAll(RegExp(r'[^0-9]'), ''));
+            if (cash == null) {
+              setState(() => _error = 'Vui lòng nhập tiền kiểm đếm');
+              return;
+            }
+            final confirmed = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Xác nhận kết ca'),
+                content: const Text('Bạn có chắc chắn muốn đóng ca làm việc này?'),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('HỦY')),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: kDanger),
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('XÁC NHẬN ĐÓNG CA'),
+                  ),
+                ],
+              ),
+            );
+            if (confirmed == true) _submit();
+          },
+          child: _submitting
+              ? const SizedBox(
+                  height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : const Text('ĐỒNG Ý ĐÓNG CA'),
+        ),
       ],
     );
   }
@@ -292,6 +369,7 @@ class _CloseShiftScreenState extends State<CloseShiftScreen> {
             ],
           ),
         ),
+        const Spacer(),
         const SizedBox(height: 28),
           ElevatedButton(
             key: const Key('z-report-done'),

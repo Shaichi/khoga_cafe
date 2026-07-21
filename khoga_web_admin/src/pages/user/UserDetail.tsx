@@ -26,48 +26,121 @@ export default function UserDetail() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <div className="full-center">Đang tải…</div>;
+  if (loading) return <div style={{ padding: '40px', color: '#8C766C' }}>Đang tải…</div>;
   if (error) return <div className="alert alert--error">{error}</div>;
   if (!user) return null;
 
   const branchName = user.storeId
     ? branches.find((b) => b.id === user.storeId)?.name ?? user.storeId
-    : '— (HQ)';
+    : '—';
+
+  /* ── shared styles ── */
+  const card: React.CSSProperties = {
+    background: '#FFFFFF',
+    border: '1px solid #E0D5CC',
+    borderRadius: '10px',
+    padding: '24px 28px',
+    marginBottom: '20px',
+  };
+  const lbl: React.CSSProperties = {
+    fontSize: '12px', fontWeight: 600, color: '#8C766C',
+    textTransform: 'uppercase', letterSpacing: '0.5px',
+    fontFamily: 'Segoe UI, sans-serif', marginBottom: '4px',
+  };
+  const val: React.CSSProperties = {
+    fontSize: '15px', fontWeight: 700, color: '#2C1A11',
+    fontFamily: 'Segoe UI, sans-serif',
+  };
+  const TH: React.CSSProperties = {
+    padding: '10px 0', textAlign: 'left',
+    fontSize: '13px', fontWeight: 700, color: '#8C5A3A',
+    borderBottom: '1px solid #EADDD3', fontFamily: 'Segoe UI, sans-serif',
+    paddingRight: '32px',
+  };
+  const TD: React.CSSProperties = {
+    padding: '10px 0', fontSize: '14px', color: '#2C1A11',
+    borderBottom: '1px solid #F5EDE5', fontFamily: 'Segoe UI, sans-serif',
+    paddingRight: '32px',
+  };
 
   return (
     <div>
-      <div className="page-head page-head--row">
-        <div>
-          <Link to="/users" className="back-link">← Danh sách nhân sự</Link>
-          <h1 className="page-title">{user.fullName}</h1>
-          <p className="page-subtitle">{user.employeeId} · {user.username}</p>
+      {/* ── Header ── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #EADDD3',
+      }}>
+        <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 700, color: '#2C1A11', fontFamily: 'Segoe UI, sans-serif' }}>
+          Chi Tiết Tài Khoản Nhân Viên
+        </h1>
+
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <Link to={`/users/${user.id}/edit`} style={{
+            height: '38px', padding: '0 18px', background: '#3D2314',
+            borderRadius: '8px', color: '#FFFFFF',
+            fontSize: '13px', fontWeight: 700, fontFamily: 'Segoe UI, sans-serif',
+            textDecoration: 'none', display: 'flex', alignItems: 'center',
+          }}>
+            Chỉnh sửa
+          </Link>
         </div>
-        <Link to={`/users/${user.id}/edit`} className="btn btn--ghost">Chỉnh sửa</Link>
       </div>
 
-      <div className="detail-card">
-        <div className="detail-grid">
-          <div><span className="detail-label">Vai trò</span><span>{ROLE_LABELS[user.role]}</span></div>
-          <div><span className="detail-label">Chi nhánh</span><span>{branchName}</span></div>
-          <div><span className="detail-label">Email</span><span>{user.email || '—'}</span></div>
-          <div><span className="detail-label">Số điện thoại</span><span>{user.phone || '—'}</span></div>
-          <div><span className="detail-label">Trạng thái</span><span className={`badge ${user.active ? 'badge--active' : 'badge--inactive'}`}>{user.active ? 'Hoạt động' : 'Vô hiệu hóa'}</span></div>
-          <div><span className="detail-label">Đăng nhập gần nhất</span><span>{fmt(user.lastLoginAt)}</span></div>
+      {/* ── Info card ── */}
+      <div style={card}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 40px' }}>
+          <div>
+            <div style={lbl}>Họ và tên</div>
+            <div style={val}>{user.fullName}</div>
+          </div>
+          <div>
+            <div style={lbl}>Tên đăng nhập</div>
+            <div style={val}>{user.username}</div>
+          </div>
+          <div>
+            <div style={lbl}>Email liên lạc</div>
+            <div style={val}>{user.email || '—'}</div>
+          </div>
+          <div>
+            <div style={lbl}>Số điện thoại</div>
+            <div style={val}>{user.phone || '—'}</div>
+          </div>
+          <div>
+            <div style={lbl}>Vai trò</div>
+            <div style={val}>{ROLE_LABELS[user.role]}</div>
+          </div>
+          <div>
+            <div style={lbl}>Chi nhánh</div>
+            <div style={val}>{branchName}</div>
+          </div>
         </div>
       </div>
 
-      <h2 className="section-title">Nhật ký hoạt động gần đây</h2>
-      <div className="table-wrap">
-        <table className="table">
-          <thead><tr><th>Hành động</th><th>Đối tượng</th><th>Thời gian</th></tr></thead>
+      {/* ── Audit log card ── */}
+      <div style={card}>
+        <h2 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: 700, color: '#2C1A11', fontFamily: 'Segoe UI, sans-serif' }}>
+          Lịch sử hoạt động gần đây (Audit Logs)
+        </h2>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              <th style={TH}>Thời gian</th>
+              <th style={TH}>Hành động</th>
+              <th style={{ ...TH, paddingRight: 0 }}>Đối tượng</th>
+            </tr>
+          </thead>
           <tbody>
             {user.recentActivity.length === 0 ? (
-              <tr><td colSpan={3} className="table__empty">Chưa có hoạt động.</td></tr>
+              <tr>
+                <td colSpan={3} style={{ ...TD, textAlign: 'center', color: '#8C766C' }}>
+                  Chưa có hoạt động nào.
+                </td>
+              </tr>
             ) : user.recentActivity.map((a, i) => (
               <tr key={i}>
-                <td>{a.actionType}</td>
-                <td>{a.entityAffected}</td>
-                <td className="muted">{fmt(a.at)}</td>
+                <td style={TD}>{fmt(a.at)}</td>
+                <td style={TD}>{a.actionType}</td>
+                <td style={{ ...TD, paddingRight: 0, color: '#8C766C' }}>{a.entityAffected}</td>
               </tr>
             ))}
           </tbody>

@@ -3,14 +3,16 @@ import 'package:provider/provider.dart';
 import '../api/api_client.dart';
 import '../api/stock_api.dart';
 import '../auth/auth_controller.dart';
+import '../auth/logout_screen.dart';
 import '../inventory/stock_list_screen.dart';
-import '../screens/reports_hub_screen.dart';
+import '../screens/revenue_report_screen.dart';
 import '../staff/attendance_screen.dart';
 import '../staff/schedule_screen.dart';
 import '../staff/staff_list_screen.dart';
 import '../theme.dart';
 import 'branch_settings_screen.dart';
 import 'manager_order_history_screen.dart';
+import 'worked_hours_report_screen.dart';
 import '../profile/profile_screen.dart';
 
 class ManagerDashboardScreen extends StatelessWidget {
@@ -36,7 +38,7 @@ class ManagerDashboardScreen extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Nguyễn Du Branch',
+              context.watch<AuthController>().profile?.storeName ?? 'Chi nhánh Nguyễn Du',
               style: const TextStyle(
                 fontFamily: 'Segoe UI',
                 fontSize: 12,
@@ -107,11 +109,11 @@ class ManagerDashboardScreen extends StatelessWidget {
                   _buildMenuCard(
                     context: context,
                     icon: Icons.bar_chart,
-                    label: 'Báo Cáo',
+                    label: 'Doanh Thu',
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => const ReportsHubScreen(),
+                          builder: (_) => const RevenueReportScreen(),
                         ),
                       );
                     },
@@ -124,6 +126,18 @@ class ManagerDashboardScreen extends StatelessWidget {
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => const ManagerOrderHistoryScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildMenuCard(
+                    context: context,
+                    icon: Icons.timer_outlined,
+                    label: 'Báo Cáo Công',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const WorkedHoursReportScreen(),
                         ),
                       );
                     },
@@ -176,7 +190,9 @@ class ManagerDashboardScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: ElevatedButton(
-                onPressed: () => _showLogoutDialog(context),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const LogoutScreen()),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kBrown,
                   foregroundColor: Colors.white,
@@ -286,53 +302,6 @@ class ManagerDashboardScreen extends StatelessWidget {
     );
   }
 
-  void _showLogoutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text(
-          'Đăng xuất',
-          style: TextStyle(
-            fontFamily: 'Segoe UI',
-            fontWeight: FontWeight.bold,
-            color: kBrownDark,
-          ),
-        ),
-        content: const Text(
-          'Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?',
-          style: TextStyle(fontFamily: 'Segoe UI', color: kBrown),
-        ),
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text(
-              'HỦY',
-              style: TextStyle(color: kMuted, fontWeight: FontWeight.bold),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              context.read<AuthController>().logout();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kDanger,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text(
-              'ĐĂNG XUẤT',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class LowStockAlertWidget extends StatefulWidget {

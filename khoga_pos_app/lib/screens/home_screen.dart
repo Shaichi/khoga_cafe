@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../auth/auth_controller.dart';
+import '../auth/logout_screen.dart';
 import '../format.dart';
 import '../inventory/stock_list_screen.dart';
-import '../orders/barista_queue_screen.dart';
+import '../orders/barista_portal_screen.dart';
 import '../orders/order_history_screen.dart';
 import '../pos/close_shift_screen.dart';
 import '../pos/open_shift_screen.dart';
@@ -38,7 +39,13 @@ class HomeScreen extends StatelessWidget {
               MaterialPageRoute<void>(builder: (_) => const ProfileScreen()),
             ),
           ),
-          IconButton(onPressed: auth.logout, icon: const Icon(Icons.logout), tooltip: 'Đăng xuất'),
+          IconButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const LogoutScreen()),
+            ),
+            icon: const Icon(Icons.logout),
+            tooltip: 'Đăng xuất',
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -116,7 +123,7 @@ class HomeScreen extends StatelessWidget {
                 subtitle: const Text('Đơn đang chờ & cập nhật trạng thái'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => const BaristaQueueScreen(isStandalone: false)),
+                  MaterialPageRoute<void>(builder: (_) => const BaristaPortalScreen()),
                 ),
               ),
             ),

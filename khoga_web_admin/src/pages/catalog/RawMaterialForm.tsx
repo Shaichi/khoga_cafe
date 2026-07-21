@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   createRawMaterial,
   getRawMaterial,
@@ -70,7 +70,6 @@ export default function RawMaterialForm() {
   return (
     <div>
       <div className="page-head">
-        <Link to="/raw-materials" className="back-link">← Nguyên liệu</Link>
         <h1 className="page-title">{isEdit ? 'Chỉnh Sửa Nguyên Liệu' : 'Thêm Nguyên Liệu'}</h1>
       </div>
 

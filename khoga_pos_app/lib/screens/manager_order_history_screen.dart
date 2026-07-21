@@ -6,7 +6,6 @@ import '../api/models.dart';
 import '../api/order_api.dart';
 import '../format.dart';
 import '../theme.dart';
-import '../orders/order_labels.dart';
 import 'manager_order_detail_screen.dart';
 
 class ManagerOrderHistoryScreen extends StatefulWidget {
@@ -17,16 +16,11 @@ class ManagerOrderHistoryScreen extends StatefulWidget {
 }
 
 class _ManagerOrderHistoryScreenState extends State<ManagerOrderHistoryScreen> {
-  static const _filters = [
-    (null, 'Tất cả'),
-    ('COMPLETED', 'Hoàn tất'),
-    ('PENDING', 'Chờ xử lý'),
-    ('CANCELLED', 'Đã hủy'),
-  ];
 
   late final OrderApi _api;
   String? _status;
   List<OrderSummary> _orders = const [];
+  String _search = '';
   bool _loading = true;
   String? _error;
 
@@ -57,181 +51,306 @@ class _ManagerOrderHistoryScreenState extends State<ManagerOrderHistoryScreen> {
     }
   }
 
-  void _selectFilter(String? status) {
-    setState(() => _status = status);
-    _load();
+  String _statusLabel(String? status) {
+    switch (status) {
+      case 'PENDING': return 'Chờ pha chế';
+      case 'PREPARING': return 'Đang pha chế';
+      case 'READY': return 'Chờ lấy hàng';
+      case 'COMPLETED': return 'Hoàn thành';
+      case 'CANCELLED': return 'Đã hủy';
+      default: return 'Tất cả trạng thái';
+    }
   }
 
-  Future<void> _selectDateRange() async {
-    final picked = await showDateRangePicker(
+  void _showFilterSheet() {
+    String? tempStatus = _status;
+    DateTime tempFrom = _fromDate;
+    DateTime tempTo = _toDate;
+
+    showModalBottomSheet(
       context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      initialDateRange: DateTimeRange(start: _fromDate, end: _toDate),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: kBrownDark,
-              onPrimary: Colors.white,
-              onSurface: kBrownDark,
-            ),
-          ),
-          child: child!,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 24, right: 24, top: 24,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Bộ lọc đơn hàng', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: kBrownDark)),
+                  const SizedBox(height: 24),
+                  const Text('Trạng thái', style: TextStyle(fontWeight: FontWeight.bold, color: kMuted)),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildChip('Tất cả', null, tempStatus, (v) => setSheetState(() => tempStatus = v)),
+                      _buildChip('Chờ pha chế', 'PENDING', tempStatus, (v) => setSheetState(() => tempStatus = v)),
+                      _buildChip('Đang pha chế', 'PREPARING', tempStatus, (v) => setSheetState(() => tempStatus = v)),
+                      _buildChip('Chờ lấy hàng', 'READY', tempStatus, (v) => setSheetState(() => tempStatus = v)),
+                      _buildChip('Hoàn thành', 'COMPLETED', tempStatus, (v) => setSheetState(() => tempStatus = v)),
+                      _buildChip('Đã hủy', 'CANCELLED', tempStatus, (v) => setSheetState(() => tempStatus = v)),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  const Text('Thời gian', style: TextStyle(fontWeight: FontWeight.bold, color: kMuted)),
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: () async {
+                      final picked = await showDateRangePicker(
+                        context: context,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now(),
+                        initialDateRange: DateTimeRange(start: tempFrom, end: tempTo),
+                        builder: (context, child) {
+                          return Theme(
+                            data: Theme.of(context).copyWith(
+                              colorScheme: const ColorScheme.light(
+                                primary: kBrownDark,
+                                onPrimary: Colors.white,
+                                onSurface: kBrownDark,
+                              ),
+                            ),
+                            child: child!,
+                          );
+                        },
+                      );
+                      if (picked != null) {
+                        setSheetState(() {
+                          tempFrom = picked.start;
+                          tempTo = picked.end;
+                        });
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF5F5F5),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFEBEBEB)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            tempFrom.year == tempTo.year && tempFrom.month == tempTo.month && tempFrom.day == tempTo.day
+                                ? '${tempFrom.day}/${tempFrom.month}/${tempFrom.year}'
+                                : '${tempFrom.day}/${tempFrom.month}/${tempFrom.year} - ${tempTo.day}/${tempTo.month}/${tempTo.year}',
+                            style: const TextStyle(color: kBrownDark, fontSize: 15),
+                          ),
+                          const Icon(Icons.date_range, color: kMuted, size: 20),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      setState(() {
+                        _status = tempStatus;
+                        _fromDate = tempFrom;
+                        _toDate = tempTo;
+                      });
+                      _load();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kBrownDark,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('ÁP DỤNG', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  ),
+                ],
+              ),
+            );
+          }
         );
       },
     );
-    if (picked != null) {
-      setState(() {
-        _fromDate = picked.start;
-        _toDate = picked.end;
-      });
-      _load();
-    }
+  }
+
+  Widget _buildChip(String label, String? value, String? groupValue, ValueChanged<String?> onSelected) {
+    final isSelected = value == groupValue;
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) => onSelected(value),
+      selectedColor: kBrown,
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.white : kBrownDark,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
+      backgroundColor: Colors.white,
+      side: BorderSide(color: isSelected ? kBrown : const Color(0xFFEBEBEB)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         foregroundColor: kBrownDark,
         elevation: 0,
-        title: const Text(
-          'Lịch Sử Đơn Hàng',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        leadingWidth: 100,
+        leading: Row(
+          children: [
+            IconButton(
+              padding: const EdgeInsets.only(left: 16, right: 4),
+              icon: const Icon(Icons.arrow_back, color: kMuted),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            const Text('Quay lại', style: TextStyle(color: kMuted, fontSize: 14)),
+          ],
         ),
+        title: const Text('Đơn Hàng Chi Nhánh', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+        centerTitle: false,
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // Date Filter
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  const Icon(Icons.date_range, color: kBrownDark),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: _selectDateRange,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: kBorder),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '${_fromDate.day}/${_fromDate.month}/${_fromDate.year}  -  ${_toDate.day}/${_toDate.month}/${_toDate.year}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: kBrownDark),
-                        ),
-                      ),
-                    ),
+            // Search
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: Container(
+                height: 48,
+                padding: const EdgeInsets.symmetric(horizontal: 0),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFEBEBEB)),
+                ),
+                alignment: Alignment.centerLeft,
+                child: TextField(
+                  key: const Key('manager-order-history-search'),
+                  maxLength: 50,
+                  decoration: const InputDecoration(
+                    hintText: 'Tìm số đơn hàng, mã đơn...',
+                    hintStyle: TextStyle(color: kMuted, fontSize: 14),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    counterText: '',
+                    isDense: true,
+                    prefixIcon: Icon(Icons.search, color: kMuted),
+                    contentPadding: EdgeInsets.symmetric(vertical: 14),
                   ),
-                ],
-              ),
-            ),
-            // Status Filter row
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
-              child: SizedBox(
-                height: 40,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: _filters.map((f) {
-                    final isSelected = _status == f.$1;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(
-                          f.$2,
-                          style: TextStyle(
-                            color: isSelected ? Colors.white : kBrownDark,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          ),
-                        ),
-                        selected: isSelected,
-                        onSelected: (_) => _selectFilter(f.$1),
-                        selectedColor: kBrown,
-                        backgroundColor: Colors.white,
-                        side: BorderSide(color: isSelected ? kBrown : kBorder),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    );
-                  }).toList(),
+                  onChanged: (v) => setState(() => _search = v.trim()),
                 ),
               ),
             ),
-            const SizedBox(height: 8),
-            // List
-            Expanded(child: _buildList()),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildList() {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: kBrownDark));
-    }
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(_error!, style: const TextStyle(color: kDanger)),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _load,
-              style: ElevatedButton.styleFrom(backgroundColor: kBrownDark),
-              child: const Text('Thử lại', style: TextStyle(color: Colors.white)),
+            // Filter Button
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: GestureDetector(
+                onTap: _showFilterSheet,
+                child: Container(
+                  height: 48,
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFEBEBEB)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${_statusLabel(_status)} | ${_fromDate.day}/${_fromDate.month} - ${_toDate.day}/${_toDate.month}',
+                        style: const TextStyle(color: kBrownDark, fontSize: 14),
+                      ),
+                      const Icon(Icons.tune, color: kMuted, size: 20),
+                    ],
+                  ),
+                ),
+              ),
             ),
+            Expanded(child: RefreshIndicator(onRefresh: _load, child: _list())),
           ],
         ),
-      );
-    }
-    if (_orders.isEmpty) {
-      return const Center(
-        child: Text(
-          'Chưa có đơn hàng nào',
-          style: TextStyle(color: kMuted, fontSize: 16),
-        ),
-      );
-    }
-    return RefreshIndicator(
-      onRefresh: _load,
-      color: kBrownDark,
-      child: ListView.separated(
+      ),
+      bottomNavigationBar: Container(
         padding: const EdgeInsets.all(16),
-        itemCount: _orders.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 12),
-        itemBuilder: (_, i) => _buildOrderCard(_orders[i]),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Color(0xFFEBEBEB))),
+        ),
+        child: SafeArea(
+          child: SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: kBrownDark,
+                side: const BorderSide(color: Color(0xFFEBEBEB)),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Quay lại bán hàng', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildOrderCard(OrderSummary o) {
-    return InkWell(
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ManagerOrderDetailScreen(orderId: o.id),
-          ),
-        );
-      },
-      borderRadius: BorderRadius.circular(12),
+  Widget _list() {
+    if (_loading) return const Center(child: Text('Đang tải…'));
+    if (_error != null) {
+      return Center(child: Text(_error!, key: const Key('order-history-error'), style: const TextStyle(color: kDanger)));
+    }
+    
+    final filtered = _orders.where((o) => _search.isEmpty || o.orderNumber.toLowerCase().contains(_search.toLowerCase()) || o.id.toLowerCase().contains(_search.toLowerCase())).toList();
+    
+    if (filtered.isEmpty) {
+      return const Center(child: Text('Không tìm thấy đơn hàng phù hợp', style: TextStyle(color: kMuted)));
+    }
+    return ListView.separated(
+      key: const Key('order-list'),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: filtered.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
+      itemBuilder: (_, i) => _row(filtered[i]),
+    );
+  }
+
+  Widget _row(OrderSummary o) {
+    String time = '--:--';
+    if (o.createdAt != null) {
+      try {
+        final dt = DateTime.parse(o.createdAt!).toLocal();
+        time = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      } catch (_) {}
+    }
+    final orderTypeStr = o.orderType == 'DINE_IN' ? 'Dine-in' : 'Take-away';
+    final orderNumberStr = o.orderNumber.startsWith('#') ? o.orderNumber : '#${o.orderNumber}';
+
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => ManagerOrderDetailScreen(orderId: o.id)),
+      ),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: kBorder),
+          border: Border.all(color: const Color(0xFFEBEBEB)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -239,65 +358,67 @@ class _ManagerOrderHistoryScreenState extends State<ManagerOrderHistoryScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  o.orderNumber,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: kBrownDark,
-                  ),
-                ),
-                StatusChip(o.status),
+                Text('Đơn $orderNumberStr ($orderTypeStr)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: kBrownDark)),
+                Text('${formatVnd(o.total)} đ', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: kBrownDark)),
               ],
             ),
             const SizedBox(height: 12),
             Row(
-              children: [
-                const Icon(Icons.receipt_long, size: 16, color: kMuted),
-                const SizedBox(width: 4),
-                Text(
-                  '${o.itemCount} món',
-                  style: const TextStyle(color: kMuted),
-                ),
-                const SizedBox(width: 16),
-                const Icon(Icons.payment, size: 16, color: kMuted),
-                const SizedBox(width: 4),
-                Text(
-                  paymentMethodLabel(o.paymentMethod),
-                  style: const TextStyle(color: kMuted),
-                ),
-              ],
-            ),
-            if (o.customerName != null && o.customerName!.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(Icons.person_outline, size: 16, color: kMuted),
-                  const SizedBox(width: 4),
-                  Text(
-                    o.customerName!,
-                    style: const TextStyle(color: kMuted),
-                  ),
-                ],
-              ),
-            ],
-            const Divider(height: 24, color: kBorder),
-            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Tổng tiền', style: TextStyle(fontWeight: FontWeight.bold, color: kBrownDark)),
-                Text(
-                  '${formatVnd(o.total)}đ',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: kBrown,
-                  ),
-                ),
+                Text('Thời gian: $time | Mã: ORD-${o.id.substring(0, 4)}', style: const TextStyle(color: kMuted, fontSize: 13)),
+                _buildStatusBadge(o.status),
               ],
-            ),
+            )
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(String status) {
+    Color bg, fg;
+    String text;
+    switch (status) {
+      case 'PENDING':
+      case 'PREPARING':
+        bg = const Color(0xFFE3F2FD);
+        fg = const Color(0xFF1565C0);
+        text = status == 'PENDING' ? 'Chờ pha chế' : 'Đang pha chế';
+        break;
+      case 'READY':
+        bg = const Color(0xFFFFF9C4);
+        fg = const Color(0xFFB78103);
+        text = 'Chờ lấy hàng';
+        break;
+      case 'COMPLETED':
+        bg = const Color(0xFFE8F5E9);
+        fg = const Color(0xFF2E7D32);
+        text = 'Hoàn thành';
+        break;
+      case 'CANCELLED':
+        bg = const Color(0xFFFFEBEE);
+        fg = const Color(0xFFC62828);
+        text = 'Đã hủy đơn';
+        break;
+      default:
+        bg = Colors.grey.shade200;
+        fg = Colors.grey;
+        text = status;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [bg, Colors.white.withValues(alpha: 0.0)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.bold),
       ),
     );
   }

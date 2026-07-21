@@ -156,6 +156,19 @@ class OrderServiceTest {
         verify(recipeDeductionEngine, never()).deductForOrder(any());
     }
 
+    @Test
+    void updateStatus_preparingToCompleted_finishesBaristaHandoverInOneRequest() {
+        Order order = order(OrderStatus.PREPARING, PaymentStatus.PAID);
+        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor()));
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        StatusUpdateResponse res = service.updateStatus(orderId, OrderStatus.COMPLETED, actorId);
+
+        assertEquals(OrderStatus.COMPLETED, res.status());
+        verify(orderRepository).save(order);
+        verify(recipeDeductionEngine, never()).deductForOrder(any());
+    }
+
     // ---- UC-55 cancel -------------------------------------------------------
 
     @Test

@@ -1,14 +1,19 @@
 package com.khoga.customer;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.khoga.audit.AuditLogService;
 import com.khoga.common.exception.AppException;
 import com.khoga.common.exception.ResourceNotFoundException;
+import com.khoga.common.model.AuditLog;
 import com.khoga.common.model.Customer;
 import com.khoga.common.model.enums.ActionType;
+import com.khoga.common.repository.AuditLogRepository;
 import com.khoga.common.repository.CustomerRepository;
 import com.khoga.common.repository.OrderRepository;
 import com.khoga.customer.dto.CreateCustomerRequest;
 import com.khoga.customer.dto.CustomerOrderEntry;
+import com.khoga.customer.dto.CustomerPointLogResponse;
 import com.khoga.customer.dto.CustomerResponse;
 import com.khoga.customer.dto.PointAdjustmentRequest;
 import com.khoga.customer.dto.UpdateCustomerRequest;
@@ -31,12 +36,15 @@ public class CustomerService {
 
     private final CustomerRepository customerRepository;
     private final OrderRepository orderRepository;
+    private final AuditLogRepository auditLogRepository;
     private final AuditLogService auditLogService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public CustomerService(CustomerRepository customerRepository, OrderRepository orderRepository,
-                           AuditLogService auditLogService) {
+                           AuditLogRepository auditLogRepository, AuditLogService auditLogService) {
         this.customerRepository = customerRepository;
         this.orderRepository = orderRepository;
+        this.auditLogRepository = auditLogRepository;
         this.auditLogService = auditLogService;
     }
 
@@ -58,6 +66,35 @@ public class CustomerService {
         load(id);
         return orderRepository.findTop50ByCustomerIdOrderByCreatedAtDesc(id).stream()
                 .map(CustomerMapper::toOrderEntry).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<CustomerPointLogResponse> getPointLogs(UUID customerId) {
+        load(customerId);
+        List<AuditLog> logs = auditLogRepository.findPointLogsByCustomerId(customerId.toString());
+        return logs.stream().map(log -> {
+            String date = log.getCreatedAt() != null ? log.getCreatedAt().toString().substring(0, 10) : "";
+            int delta = 0;
+            String reason = "Điều chỉnh điểm";
+            if (log.getNewValueJson() != null) {
+                try {
+                    JsonNode node = objectMapper.readTree(log.getNewValueJson());
+                    if (node.has("delta")) delta = node.get("delta").asInt();
+                    if (node.has("reason")) reason = node.get("reason").asText();
+                } catch (Exception ignored) {}
+            }
+            String actorName = log.getUser() != null ? log.getUser().getUsername() : "Hệ thống";
+            String type = delta >= 0 ? "Điều chỉnh thủ công" : "Đổi điểm lấy ưu đãi";
+            return new CustomerPointLogResponse(
+                log.getId(),
+                log.getCreatedAt(),
+                date,
+                type,
+                delta,
+                reason,
+                actorName
+            );
+        }).toList();
     }
 
     @Transactional
@@ -110,8 +147,8 @@ public class CustomerService {
         customerRepository.save(customer);
         String reason = request.reason().replace("\"", "'");
         auditLogService.record(ActionType.POINT_ADJUSTMENT, "Customer",
-                "{\"points\":" + current + "}",
-                "{\"points\":" + updated + ",\"reason\":\"" + reason + "\"}", actorId);
+                "{\"customerId\":\"" + id + "\",\"points\":" + current + "}",
+                "{\"customerId\":\"" + id + "\",\"points\":" + updated + ",\"reason\":\"" + reason + "\",\"delta\":" + request.delta() + "}", actorId);
         return CustomerMapper.toResponse(customer);
     }
 

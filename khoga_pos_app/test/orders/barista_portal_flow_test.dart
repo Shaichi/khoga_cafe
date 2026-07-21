@@ -13,34 +13,74 @@ Future<void> _loginBarista(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('barista login lands on the landscape portal (57), bypassing the shift gate', (tester) async {
-    // No open shift: a cashier would be sent to OpenShiftScreen — the barista must not be.
-    final client = ApiClient(client: authBackend(role: 'BARISTA'), baseUrl: 'http://test/api/v1');
+  testWidgets(
+    'barista login lands on the landscape portal (57), bypassing the shift gate',
+    (tester) async {
+      // No open shift: a cashier would be sent to OpenShiftScreen — the barista must not be.
+      final client = ApiClient(
+        client: authBackend(role: 'BARISTA'),
+        baseUrl: 'http://test/api/v1',
+      );
+      await tester.pumpWidget(buildApp(client));
+      await _loginBarista(tester);
+
+      // Straight to the portal — no register/open-shift prompt, no staff Home.
+      expect(find.byKey(const Key('portal-grid')), findsOneWidget);
+      expect(
+        find.byKey(const Key('register')),
+        findsNothing,
+      ); // open-shift field absent
+      expect(
+        find.textContaining('Lê Pha Chế'),
+        findsOneWidget,
+      ); // barista identity in the app bar
+      expect(find.text('ORD-101'), findsOneWidget);
+      expect(find.text('ORD-102'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'barista advances an order; BR-89 stock warning shows in a snackbar',
+    (tester) async {
+      final client = ApiClient(
+        client: authBackend(role: 'BARISTA'),
+        baseUrl: 'http://test/api/v1',
+      );
+      await tester.pumpWidget(buildApp(client));
+      await _loginBarista(tester);
+
+      await tester.tap(find.byKey(const Key('portal-advance-oq1-PREPARING')));
+      await tester.pump(); // start request
+      await tester.pump(); // resolve + snackbar
+      expect(find.textContaining('âm kho'), findsOneWidget);
+      await tester.pumpAndSettle();
+    },
+  );
+
+  testWidgets('barista completes preparation and handover in one tap', (
+    tester,
+  ) async {
+    final client = ApiClient(
+      client: authBackend(role: 'BARISTA', orderDetailStatus: 'PREPARING'),
+      baseUrl: 'http://test/api/v1',
+    );
     await tester.pumpWidget(buildApp(client));
     await _loginBarista(tester);
 
-    // Straight to the portal — no register/open-shift prompt, no staff Home.
-    expect(find.byKey(const Key('portal-grid')), findsOneWidget);
-    expect(find.byKey(const Key('register')), findsNothing); // open-shift field absent
-    expect(find.textContaining('Lê Pha Chế'), findsOneWidget); // barista identity in the app bar
-    expect(find.text('ORD-101'), findsOneWidget);
-    expect(find.text('ORD-102'), findsOneWidget);
-  });
-
-  testWidgets('barista advances an order; BR-89 stock warning shows in a snackbar', (tester) async {
-    final client = ApiClient(client: authBackend(role: 'BARISTA'), baseUrl: 'http://test/api/v1');
-    await tester.pumpWidget(buildApp(client));
-    await _loginBarista(tester);
-
-    await tester.tap(find.byKey(const Key('portal-advance-oq1-PREPARING')));
-    await tester.pump(); // start request
-    await tester.pump(); // resolve + snackbar
-    expect(find.textContaining('âm kho'), findsOneWidget);
+    final complete = find.byKey(const Key('portal-advance-oq1-COMPLETED'));
+    expect(complete, findsOneWidget);
+    await tester.tap(complete);
     await tester.pumpAndSettle();
+
+    expect(complete, findsNothing);
+    expect(find.text('Chờ lấy hàng'), findsNothing);
   });
 
   testWidgets('barista can log out from the portal', (tester) async {
-    final client = ApiClient(client: authBackend(role: 'BARISTA'), baseUrl: 'http://test/api/v1');
+    final client = ApiClient(
+      client: authBackend(role: 'BARISTA'),
+      baseUrl: 'http://test/api/v1',
+    );
     await tester.pumpWidget(buildApp(client));
     await _loginBarista(tester);
 

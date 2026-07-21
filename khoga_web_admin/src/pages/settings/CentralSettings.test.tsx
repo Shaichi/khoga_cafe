@@ -9,7 +9,7 @@ import CentralSettings from './CentralSettings';
 
 const CONFIGS = [
   { key: 'VAT_RATE', value: '10', updatedBy: 'seed', updatedAt: null },
-  { key: 'MAX_ACTIVE_BRANCHES', value: '5', updatedBy: 'seed', updatedAt: null },
+  { key: 'LOYALTY_ACCRUAL_PERCENTAGE', value: '5', updatedBy: 'seed', updatedAt: null },
 ];
 
 // Screen 24 — "Cấu Hình & Bảo Mật Hệ Thống" (central config card, UC-24).
@@ -45,6 +45,6 @@ describe('CentralSettings (24 · Cấu hình hệ thống)', () => {
 
     await waitFor(() => expect(puts.VAT_RATE).toBe('12'));
     // Untouched key must NOT be re-sent.
-    expect(puts.MAX_ACTIVE_BRANCHES).toBeUndefined();
+    expect(puts.LOYALTY_ACCRUAL_PERCENTAGE).toBeUndefined();
   });
 });

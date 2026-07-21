@@ -72,7 +72,7 @@ public class OrderService {
     /** Valid barista transitions (UC-58). Cancel (→CANCELLED) and auto-abandon (→ABANDONED) have own paths. */
     private static final Map<OrderStatus, Set<OrderStatus>> ALLOWED = Map.of(
             OrderStatus.PENDING, Set.of(OrderStatus.PREPARING),
-            OrderStatus.PREPARING, Set.of(OrderStatus.HOLD, OrderStatus.READY),
+            OrderStatus.PREPARING, Set.of(OrderStatus.HOLD, OrderStatus.READY, OrderStatus.COMPLETED),
             OrderStatus.HOLD, Set.of(OrderStatus.PREPARING),
             OrderStatus.READY, Set.of(OrderStatus.COMPLETED));
 

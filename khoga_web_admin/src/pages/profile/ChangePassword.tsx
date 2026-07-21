@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { changePassword } from '../../api/auth';
 import { errorMessage } from '../../api/client';
 
@@ -39,7 +39,6 @@ export default function ChangePassword() {
   return (
     <div>
       <div className="page-head">
-        <Link to="/profile" className="back-link">← Thông tin cá nhân</Link>
         <h1 className="page-title">Đổi mật khẩu</h1>
         <p className="page-subtitle">Thay đổi mật khẩu tài khoản đang hoạt động của bạn.</p>
       </div>

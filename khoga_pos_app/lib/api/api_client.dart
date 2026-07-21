@@ -7,7 +7,7 @@ String get kApiBaseUrl {
   if (kIsWeb) return 'http://localhost:8080/api/v1';
   // Use computer's local Wi-Fi IP for physical devices (and emulators bridged to LAN)
   if (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) {
-    return 'http://192.168.2.103:8080/api/v1';
+    return 'http://10.33.25.194:8080/api/v1';
   }
   return 'http://localhost:8080/api/v1';
 }

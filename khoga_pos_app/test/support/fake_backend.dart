@@ -51,18 +51,22 @@ Map<String, dynamic> _page(List<Map<String, dynamic>> content) => {
       'totalPages': 1,
     };
 
-Map<String, dynamic> _scheduleFromBody(String id, Map<String, dynamic> body) => {
+Map<String, dynamic> _scheduleFromBody(String id, Map<String, dynamic> body) {
+  final today = DateTime.now();
+  final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+  return {
       'id': id,
       'employeeId': body['employeeId'] ?? 'u1',
       'employeeName': body['employeeId'] == 'u2' ? 'Lê Pha Chế' : 'Nguyễn Thu Ngân',
       'role': 'CASHIER',
-      'shiftDate': body['shiftDate'] ?? '2026-06-29',
+      'shiftDate': body['shiftDate'] ?? todayStr,
       'shiftType': body['shiftType'] ?? 'MORNING',
       'shiftStartTime': body['shiftStartTime'],
       'shiftEndTime': body['shiftEndTime'],
       'posRegisterId': body['posRegisterId'],
       'crossBranch': false,
     };
+}
 
 Map<String, dynamic> _shift({String? register, dynamic startingCash}) => {
       'id': 'shift-1',
@@ -83,7 +87,9 @@ MockClient authBackend({
   bool mustChangePassword = false,
   bool loginFails = false,
   bool hasOpenShift = false,
+  String orderDetailStatus = 'COMPLETED',
 }) {
+  var currentOrderDetailStatus = orderDetailStatus;
   final p = profile ??
       <String, dynamic>{
         'id': 'u1',
@@ -101,6 +107,7 @@ MockClient authBackend({
         'email': null,
         'phone': null,
         'storeId': 's1',
+        'storeName': 'Khoga - Chi nhánh 1',
       };
   return MockClient((req) async {
     final path = req.url.path;
@@ -175,6 +182,7 @@ MockClient authBackend({
     if (statusMatch != null && req.method == 'POST') {
       final body = jsonDecode(req.body) as Map<String, dynamic>;
       final status = body['status'] as String? ?? '';
+      currentOrderDetailStatus = status;
       return apiOk({
         'id': statusMatch.group(1),
         'orderNumber': 'ORD-101',
@@ -191,7 +199,7 @@ MockClient authBackend({
         'id': id,
         'orderNumber': 'ORD-001',
         'storeId': 's1',
-        'status': 'COMPLETED',
+        'status': currentOrderDetailStatus,
         'paymentStatus': 'PAID',
         'paymentMethod': 'CASH',
         'orderType': 'TAKEAWAY',
@@ -255,6 +263,95 @@ MockClient authBackend({
         'pendingVerification': false, 'photoCaptured': true,
       }, message: 'Đã check-out');
     }
+    
+    if (path.contains('/attendance') && req.method == 'GET') {
+      final fromStr = req.url.queryParameters['from'] ?? '2026-05-24';
+      
+      if (fromStr == '2026-07-19') {
+        return apiOk([
+          {
+            'id': 'att-19-1', 'userId': 'u1', 'employeeName': 'Nguyễn Thu Ngân',
+            'shiftDate': fromStr, 'checkInAt': '${fromStr}T06:58:00', 'checkOutAt': '${fromStr}T12:05:00',
+            'scheduledStart': '${fromStr}T07:00:00', 'scheduledEnd': '${fromStr}T12:00:00',
+            'status': 'PRESENT', 'lateMinutes': 0, 'earlyLeaveMinutes': 0, 'shiftType': 'MORNING',
+          },
+          {
+            'id': 'att-19-2', 'userId': 'u3', 'employeeName': 'Lê Pha Chế',
+            'shiftDate': fromStr, 'checkInAt': '${fromStr}T13:05:00', 'checkOutAt': '${fromStr}T18:00:00',
+            'scheduledStart': '${fromStr}T13:00:00', 'scheduledEnd': '${fromStr}T18:00:00',
+            'status': 'LATE', 'lateMinutes': 5, 'earlyLeaveMinutes': 0, 'shiftType': 'AFTERNOON',
+          },
+          {
+            'id': 'att-19-3', 'userId': 'u4', 'employeeName': 'Phạm Văn C',
+            'shiftDate': fromStr, 'checkInAt': '${fromStr}T07:15:00', 'checkOutAt': '${fromStr}T12:00:00',
+            'scheduledStart': '${fromStr}T07:00:00', 'scheduledEnd': '${fromStr}T12:00:00',
+            'status': 'LATE', 'lateMinutes': 15, 'earlyLeaveMinutes': 0, 'shiftType': 'MORNING',
+          }
+        ]);
+      }
+      
+      if (fromStr == '2026-07-20') {
+        return apiOk([
+          {
+            'id': 'att-20-1', 'userId': 'u2', 'employeeName': 'Trần Thị B',
+            'shiftDate': fromStr, 'checkInAt': null, 'checkOutAt': null,
+            'scheduledStart': '${fromStr}T07:00:00', 'scheduledEnd': '${fromStr}T12:00:00',
+            'status': 'ABSENT', 'lateMinutes': 0, 'earlyLeaveMinutes': 0, 'shiftType': 'MORNING',
+          },
+          {
+            'id': 'att-20-2', 'userId': 'u5', 'employeeName': 'Lê Thị D',
+            'shiftDate': fromStr, 'checkInAt': '${fromStr}T06:55:00', 'checkOutAt': '${fromStr}T11:30:00',
+            'scheduledStart': '${fromStr}T07:00:00', 'scheduledEnd': '${fromStr}T12:00:00',
+            'status': 'PRESENT', 'lateMinutes': 0, 'earlyLeaveMinutes': 30, 'shiftType': 'MORNING',
+          }
+        ]);
+      }
+      
+      return apiOk([
+        {
+          'id': 'att-1', 'userId': 'u1', 'employeeName': 'Nguyễn Thu Ngân',
+          'shiftDate': fromStr, 'checkInAt': '${fromStr}T07:15:00', 'checkOutAt': '${fromStr}T12:02:00',
+          'scheduledStart': '${fromStr}T07:00:00', 'scheduledEnd': '${fromStr}T12:00:00',
+          'status': 'LATE', 'lateMinutes': 15, 'earlyLeaveMinutes': 0, 'shiftType': 'MORNING',
+        },
+        {
+          'id': 'att-2', 'userId': 'u2', 'employeeName': 'Trần Thị B',
+          'shiftDate': fromStr, 'checkInAt': '${fromStr}T06:55:00', 'checkOutAt': '${fromStr}T11:45:00',
+          'scheduledStart': '${fromStr}T07:00:00', 'scheduledEnd': '${fromStr}T12:00:00',
+          'status': 'PRESENT', 'lateMinutes': 0, 'earlyLeaveMinutes': 15, 'shiftType': 'MORNING',
+        },
+        {
+          'id': 'att-3', 'userId': 'u3', 'employeeName': 'Lê Pha Chế',
+          'shiftDate': fromStr, 'checkInAt': '${fromStr}T06:50:00', 'checkOutAt': '${fromStr}T18:10:00',
+          'scheduledStart': '${fromStr}T07:00:00', 'scheduledEnd': '${fromStr}T18:00:00',
+          'status': 'PRESENT', 'lateMinutes': 0, 'earlyLeaveMinutes': 0, 'shiftType': 'FULL_DAY',
+        },
+        {
+          'id': 'att-4', 'userId': 'u4', 'employeeName': 'Phạm Văn C',
+          'shiftDate': fromStr, 'checkInAt': null, 'checkOutAt': null,
+          'scheduledStart': '${fromStr}T13:00:00', 'scheduledEnd': '${fromStr}T18:00:00',
+          'status': 'ABSENT', 'lateMinutes': 0, 'earlyLeaveMinutes': 0, 'shiftType': 'AFTERNOON',
+        },
+        {
+          'id': 'att-5', 'userId': 'u5', 'employeeName': 'Lê Thị D',
+          'shiftDate': fromStr, 'checkInAt': '${fromStr}T12:55:00', 'checkOutAt': '${fromStr}T17:30:00',
+          'scheduledStart': '${fromStr}T13:00:00', 'scheduledEnd': '${fromStr}T18:00:00',
+          'status': 'PRESENT', 'lateMinutes': 0, 'earlyLeaveMinutes': 30, 'shiftType': 'AFTERNOON',
+        },
+        {
+          'id': 'att-6', 'userId': 'u6', 'employeeName': 'Hoàng Văn E',
+          'shiftDate': fromStr, 'checkInAt': '${fromStr}T13:20:00', 'checkOutAt': null,
+          'scheduledStart': '${fromStr}T13:00:00', 'scheduledEnd': '${fromStr}T18:00:00',
+          'status': 'LATE', 'lateMinutes': 20, 'earlyLeaveMinutes': 0, 'shiftType': 'AFTERNOON',
+        },
+        {
+          'id': 'att-7', 'userId': 'u7', 'employeeName': 'Vũ Thị F',
+          'shiftDate': fromStr, 'checkInAt': '${fromStr}T07:05:00', 'checkOutAt': '${fromStr}T12:15:00',
+          'scheduledStart': '${fromStr}T07:00:00', 'scheduledEnd': '${fromStr}T12:00:00',
+          'status': 'LATE', 'lateMinutes': 5, 'earlyLeaveMinutes': 0, 'shiftType': 'MORNING',
+        },
+      ]);
+    }
 
     // ---- Staff: scheduling + roster (UC-35/66), Store Manager ----
     final schedMatch = RegExp(r'/schedules/([\w-]+)$').firstMatch(path);
@@ -267,15 +364,17 @@ MockClient authBackend({
         final body = jsonDecode(req.body) as Map<String, dynamic>;
         return apiOk(_scheduleFromBody('sc-new', body), message: 'Đã tạo lịch làm việc', status: 201);
       }
+      final today = DateTime.now();
+      final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
       return apiOk([
         {
           'id': 'sc1', 'employeeId': 'u1', 'employeeName': 'Nguyễn Thu Ngân', 'role': 'CASHIER',
-          'shiftDate': '2026-06-28', 'shiftType': 'MORNING', 'shiftStartTime': '08:00', 'shiftEndTime': '12:00',
+          'shiftDate': todayStr, 'shiftType': 'MORNING', 'shiftStartTime': '08:00', 'shiftEndTime': '12:00',
           'posRegisterId': 'POS-01', 'crossBranch': false,
         },
         {
           'id': 'sc2', 'employeeId': 'u2', 'employeeName': 'Lê Pha Chế', 'role': 'BARISTA',
-          'shiftDate': '2026-06-28', 'shiftType': 'AFTERNOON', 'shiftStartTime': '12:00', 'shiftEndTime': '18:00',
+          'shiftDate': todayStr, 'shiftType': 'AFTERNOON', 'shiftStartTime': '12:00', 'shiftEndTime': '18:00',
           'posRegisterId': null, 'crossBranch': true,
         },
       ]);

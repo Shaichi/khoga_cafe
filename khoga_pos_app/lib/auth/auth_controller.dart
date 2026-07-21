@@ -44,4 +44,13 @@ class AuthController extends ChangeNotifier {
     _mustChangePassword = false;
     notifyListeners();
   }
+
+  /// Force change password on first login (UC-10/UC-01 fallback).
+  Future<void> forcePasswordChange(String newPassword) async {
+    final res = await _authApi.forcePasswordChange(newPassword);
+    _apiClient.setToken(res.token);
+    _mustChangePassword = false;
+    // We already have the profile from the initial login, but we could reload it if needed.
+    notifyListeners();
+  }
 }

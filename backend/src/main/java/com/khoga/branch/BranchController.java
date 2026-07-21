@@ -76,6 +76,13 @@ public class BranchController {
         return ResponseEntity.ok(ApiResponse.success(null, "Đã vô hiệu hóa chi nhánh"));
     }
 
+    @PostMapping("/{id}/activate")
+    @PreAuthorize("hasRole('SSADMIN')")
+    public ResponseEntity<ApiResponse<Void>> activate(@PathVariable UUID id) {
+        branchService.activate(id, SecurityUtil.currentUserId());
+        return ResponseEntity.ok(ApiResponse.success(null, "Đã kích hoạt lại chi nhánh"));
+    }
+
     @GetMapping("/{id}/settings")
     @PreAuthorize("hasAnyRole('SSADMIN','STORE_MANAGER')")
     public ResponseEntity<ApiResponse<BranchSettingsResponse>> getSettings(@PathVariable UUID id) {

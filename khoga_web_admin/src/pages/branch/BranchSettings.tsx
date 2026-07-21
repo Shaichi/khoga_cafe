@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { getBranch, getBranchSettings, updateBranchSettings, type Branch } from '../../api/branches';
 import { errorMessage } from '../../api/client';
 
@@ -51,8 +51,7 @@ export default function BranchSettings() {
   return (
     <div>
       <div className="page-head">
-        <Link to="/branches" className="back-link">← Danh sách chi nhánh</Link>
-        <h1 className="page-title">Cấu hình chi nhánh</h1>
+        <h1 className="page-title">Cấu Hình Vận Hành Chi Nhánh</h1>
       </div>
 
       <form className="form-card" onSubmit={handleSubmit}>

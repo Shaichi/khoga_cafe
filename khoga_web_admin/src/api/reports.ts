@@ -14,6 +14,11 @@ export interface BestSellerRow {
   name: string;
   quantitySold: number;
 }
+export interface RevenueTrendPoint {
+  period: string;
+  revenue: number;
+  orders: number;
+}
 export interface HqConsolidatedReport {
   from: string;
   to: string;
@@ -23,6 +28,7 @@ export interface HqConsolidatedReport {
   cancellationRate: number;
   branches: BranchRevenueRow[];
   bestSellers: BestSellerRow[];
+  trend: RevenueTrendPoint[];
 }
 
 export interface PaymentBreakdown {
