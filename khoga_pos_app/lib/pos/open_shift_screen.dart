@@ -12,6 +12,7 @@ import 'shift_controller.dart';
 
 /// Screen 34 — "Shift Initiation". The cashier picks a POS register and enters
 /// the opening cash float before the POS unlocks (BR-33/92).
+/// Redesigned to match exact Figma Node 149:2826 spec & colors.
 class OpenShiftScreen extends StatefulWidget {
   const OpenShiftScreen({super.key});
 
@@ -64,6 +65,30 @@ class _OpenShiftScreenState extends State<OpenShiftScreen> {
     }
   }
 
+  InputDecoration _buildInputDecoration() {
+    return InputDecoration(
+      filled: true,
+      fillColor: const Color(0xFFFAFAFA),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFEADDD3)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFEADDD3)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF3D2314), width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: kDanger),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -72,37 +97,39 @@ class _OpenShiftScreenState extends State<OpenShiftScreen> {
         child: LayoutBuilder(
           builder: (context, constraints) => SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 327),
-                  child: IntrinsicHeight(
-                    child: Column(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
+                  maxWidth: 327,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const SizedBox(height: 134),
+                        const SizedBox(height: 80),
                         const Text(
                           'Khoga Café',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontFamily: 'Segoe UI',
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF2C1A11),
                           ),
                         ),
-                        const SizedBox(height: 1),
+                        const SizedBox(height: 4),
                         const Text(
                           'Cổng POS Thu Ngân',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontFamily: 'Segoe UI',
                             fontSize: 12,
-                            color: kMuted,
+                            color: Color(0xFF8C766C),
                           ),
                         ),
-                        const SizedBox(height: 53),
+                        const SizedBox(height: 48),
                         if (_error != null) ...[
                           Container(
                             padding: const EdgeInsets.all(12),
@@ -127,11 +154,32 @@ class _OpenShiftScreenState extends State<OpenShiftScreen> {
                         DropdownButtonFormField<String>(
                           key: const Key('register'),
                           initialValue: _selectedRegister,
-                          hint: const Text('Chọn máy POS'),
+                          hint: null,
+                          isExpanded: true,
+                          icon: const Icon(
+                            Icons.arrow_drop_down,
+                            color: Color(0xFF5C3826),
+                          ),
+                          dropdownColor: Colors.white,
+                          style: const TextStyle(
+                            color: Color(0xFF2C1A11),
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          decoration: _buildInputDecoration(),
                           items: _registers
                               .map(
-                                (r) =>
-                                    DropdownMenuItem(value: r, child: Text(r)),
+                                (r) => DropdownMenuItem(
+                                  value: r,
+                                  child: Text(
+                                    r,
+                                    style: const TextStyle(
+                                      color: Color(0xFF2C1A11),
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
                               )
                               .toList(),
                           onChanged: (val) =>
@@ -143,85 +191,117 @@ class _OpenShiftScreenState extends State<OpenShiftScreen> {
                           key: const Key('starting-cash'),
                           controller: _cash,
                           keyboardType: TextInputType.number,
+                          style: const TextStyle(
+                            color: Color(0xFF2C1A11),
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          decoration: _buildInputDecoration(),
                           inputFormatters: [
                             FilteringTextInputFormatter.digitsOnly,
                           ],
                         ),
-                        const Spacer(),
-                        ElevatedButton(
-                          key: const Key('open-shift-button'),
-                          onPressed: _submitting
-                              ? null
-                              : () async {
-                                  if (_selectedRegister == null ||
-                                      _selectedRegister!.isEmpty) {
-                                    setState(
-                                      () => _error = 'Vui lòng chọn máy POS',
-                                    );
-                                    return;
-                                  }
-                                  final cash = num.tryParse(_cash.text.trim());
-                                  if (cash == null || cash < 0) {
-                                    setState(
-                                      () => _error = 'Tiền đầu ca không hợp lệ',
-                                    );
-                                    return;
-                                  }
-
-                                  final confirm = await showDialog<bool>(
-                                    context: context,
-                                    builder: (ctx) => AlertDialog(
-                                      title: const Text('Xác nhận mở ca'),
-                                      content: Text(
-                                        'Mở ca làm việc tại máy $_selectedRegister với tiền đầu ca ${formatVnd(cash)} VND?',
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(ctx, false),
-                                          child: const Text('HỦY'),
-                                        ),
-                                        ElevatedButton(
-                                          onPressed: () =>
-                                              Navigator.pop(ctx, true),
-                                          child: const Text('ĐỒNG Ý'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                  if (confirm == true) _submit();
-                                },
-                          child: _submitting
-                              ? const SizedBox(
-                                  height: 22,
-                                  width: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text('BẮT ĐẦU CA LÀM'),
-                        ),
-                        const SizedBox(height: 7),
-                        TextButton(
-                          onPressed: () async {
-                            final confirm = await showLogoutDialog(context);
-                            if (confirm == true && context.mounted) {
-                              context.read<AuthController>().logout();
-                            }
-                          },
-                          child: const Text(
-                            'Đăng xuất tài khoản',
-                            style: TextStyle(
-                              color: kGold,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 22),
                       ],
                     ),
-                  ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 24, bottom: 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ElevatedButton(
+                            key: const Key('open-shift-button'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF3D2314),
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size.fromHeight(50),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              elevation: 0,
+                            ),
+                            onPressed: _submitting
+                                ? null
+                                : () async {
+                                    if (_selectedRegister == null ||
+                                        _selectedRegister!.isEmpty) {
+                                      setState(
+                                        () => _error = 'Vui lòng chọn máy POS',
+                                      );
+                                      return;
+                                    }
+                                    final cash = num.tryParse(
+                                      _cash.text.trim(),
+                                    );
+                                    if (cash == null || cash < 0) {
+                                      setState(
+                                        () =>
+                                            _error = 'Tiền đầu ca không hợp lệ',
+                                      );
+                                      return;
+                                    }
+
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('Xác nhận mở ca'),
+                                        content: Text(
+                                          'Mở ca làm việc tại máy $_selectedRegister với tiền đầu ca ${formatVnd(cash)} VND?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, false),
+                                            child: const Text('HỦY'),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, true),
+                                            child: const Text('ĐỒNG Ý'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirm == true) _submit();
+                                  },
+                            child: _submitting
+                                ? const SizedBox(
+                                    height: 22,
+                                    width: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text(
+                                    'BẮT ĐẦU CA LÀM',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextButton(
+                            onPressed: () async {
+                              final confirm = await showLogoutDialog(context);
+                              if (confirm == true && context.mounted) {
+                                context.read<AuthController>().logout();
+                              }
+                            },
+                            child: const Text(
+                              'Đăng xuất tài khoản',
+                              style: TextStyle(
+                                color: Color(0xFF8C766C),
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -243,7 +323,7 @@ class _Label extends StatelessWidget {
       style: const TextStyle(
         fontSize: 13,
         fontWeight: FontWeight.bold,
-        color: kBrown,
+        color: Color(0xFF5C3826),
       ),
     ),
   );

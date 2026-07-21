@@ -676,12 +676,15 @@ class _PosScreenState extends State<PosScreen> {
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: color ?? (bold ? kBrown : kMuted),
-            fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-            fontSize: fontSize,
+        Flexible(
+          child: Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color ?? (bold ? kBrown : kMuted),
+              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+              fontSize: fontSize,
+            ),
           ),
         ),
         Text(

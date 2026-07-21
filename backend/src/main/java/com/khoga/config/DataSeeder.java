@@ -516,7 +516,8 @@ public class DataSeeder implements CommandLineRunner {
         shiftTomorrow.setUser(cashierUser);
         shiftTomorrow.setStartTime(LocalDate.now().plusDays(1).atTime(7, 30));
         shiftTomorrow.setStartingCash(new BigDecimal("1000000"));
-        shiftTomorrow.setStatus(ShiftStatus.OPEN);
+        shiftTomorrow.setStatus(ShiftStatus.CLOSED);
+        shiftTomorrow.setEndTime(LocalDate.now().plusDays(1).atTime(22, 0));
         shiftTomorrow.setPosRegisterId("POS-01");
         shiftTomorrow = shiftSessionRepository.save(shiftTomorrow);
 
