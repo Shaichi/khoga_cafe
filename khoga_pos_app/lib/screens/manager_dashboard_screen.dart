@@ -4,13 +4,14 @@ import '../api/api_client.dart';
 import '../api/stock_api.dart';
 import '../auth/auth_controller.dart';
 import '../inventory/stock_list_screen.dart';
-import '../screens/reports_hub_screen.dart';
+import '../screens/revenue_report_screen.dart';
 import '../staff/attendance_screen.dart';
 import '../staff/schedule_screen.dart';
 import '../staff/staff_list_screen.dart';
 import '../theme.dart';
 import 'branch_settings_screen.dart';
 import 'manager_order_history_screen.dart';
+import 'worked_hours_report_screen.dart';
 import '../profile/profile_screen.dart';
 
 class ManagerDashboardScreen extends StatelessWidget {
@@ -107,11 +108,11 @@ class ManagerDashboardScreen extends StatelessWidget {
                   _buildMenuCard(
                     context: context,
                     icon: Icons.bar_chart,
-                    label: 'Báo Cáo',
+                    label: 'Doanh Thu',
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => const ReportsHubScreen(),
+                          builder: (_) => const RevenueReportScreen(),
                         ),
                       );
                     },
@@ -124,6 +125,18 @@ class ManagerDashboardScreen extends StatelessWidget {
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => const ManagerOrderHistoryScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildMenuCard(
+                    context: context,
+                    icon: Icons.timer_outlined,
+                    label: 'Báo Cáo Công',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const WorkedHoursReportScreen(),
                         ),
                       );
                     },

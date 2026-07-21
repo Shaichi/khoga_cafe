@@ -123,55 +123,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     ? const SizedBox.shrink()
                     : _body(order),
       ),
-      bottomNavigationBar: (order != null && !_loading) ? _buildActionButtons(order) : null,
-    );
-  }
-
-  Widget _buildActionButtons(OrderDetail o) {
-    final canCancel = o.status == 'PENDING';
-    final canRefund = o.paymentStatus == 'PAID' && o.status != 'PENDING' && o.status != 'CANCELLED';
-    
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: kBorder)),
-      ),
-      child: SafeArea(
-        child: Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.print),
-                label: const Text('In HĐ (Sắp có)'),
-                onPressed: null,
-              ),
-            ),
-            if (canCancel) ...[
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.cancel),
-                  label: const Text('Hủy Đơn'),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  onPressed: _cancelOrder,
-                ),
-              ),
-            ],
-            if (canRefund) ...[
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.undo),
-                  label: const Text('Hoàn Tiền'),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                  onPressed: _refundOrder,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
     );
   }
 
@@ -250,41 +201,47 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           ),
           child: Column(
             children: [
-              if (context.read<AuthController>().profile?.role != 'BARISTA') ...[
+              if (context.read<AuthController>().profile?.role == 'STORE_MANAGER' && o.status != 'CANCELLED') ...[
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: kDanger,
+                      foregroundColor: const Color(0xFFC6585E),
                       side: const BorderSide(color: Color(0xFFF8D7DA)),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    onPressed: () {},
+                    onPressed: () {
+                      if (o.paymentStatus == 'PAID') {
+                        _refundOrder();
+                      } else {
+                        _cancelOrder();
+                      }
+                    },
                     child: const Text('HỦY ĐƠN & HOÀN TIỀN', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kBrown,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () {},
-                    child: const Text('IN LẠI HÓA ĐƠN', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
                 const SizedBox(height: 12),
               ],
               SizedBox(
                 width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF3E2723), // Dark brown
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () => _printInvoice(o),
+                  child: const Text('IN LẠI HÓA ĐƠN', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: kBrown,
+                    foregroundColor: Colors.black87,
                     side: const BorderSide(color: Color(0xFFF0EBE5)),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -297,6 +254,93 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  void _printInvoice(OrderDetail order) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hóa đơn thanh toán', textAlign: TextAlign.center),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('KHOGA CAFÉ', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              const SizedBox(height: 8),
+              Text('Mã HĐ: ${order.orderNumber}', textAlign: TextAlign.center),
+              Text('Thu ngân: ${context.read<AuthController>().profile?.fullName ?? ""}', textAlign: TextAlign.center),
+              const Divider(height: 24),
+              for (final item in order.items)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(child: Text('${item.quantity}x ${item.menuItemName}')),
+                      Text(formatVnd(item.unitPrice * item.quantity)),
+                    ],
+                  ),
+                ),
+              const Divider(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Cộng tiền hàng (Tạm tính):'),
+                  Text('${formatVnd(order.subtotal)} đ'),
+                ],
+              ),
+              if (order.discount > 0)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Giảm giá (Voucher/Hội viên):'),
+                    Text('-${formatVnd(order.discount)} đ', style: const TextStyle(color: kDanger)),
+                  ],
+                ),
+              const Divider(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('TỔNG THANH TOÁN (NET):', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text('${formatVnd(order.total)} đ', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Thuế VAT gồm trong giá (10%):', style: TextStyle(fontSize: 11, color: kMuted)),
+                  Text('${formatVnd((order.total * 10 / 110).round())} đ', style: TextStyle(fontSize: 11, color: kMuted)),
+                ],
+              ),
+              const Divider(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Thanh toán bằng:'),
+                  Text(paymentMethodLabel(order.paymentMethod), style: const TextStyle(fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text('Xin cảm ơn quý khách!\nHẹn gặp lại quý khách lần sau.',
+                  textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: kMuted, fontStyle: FontStyle.italic)),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Đóng')),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.print),
+            label: const Text('In'),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đang in hóa đơn...')));
+              Navigator.pop(ctx);
+            },
+          ),
+        ],
+      ),
     );
   }
 

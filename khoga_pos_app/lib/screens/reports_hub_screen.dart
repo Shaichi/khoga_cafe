@@ -13,9 +13,8 @@ class ReportsHubScreen extends StatelessWidget {
       child: Scaffold(
         backgroundColor: kBg,
         appBar: AppBar(
-          title: const Text('Báo Cáo', style: TextStyle(color: kBrownDark, fontWeight: FontWeight.bold)),
+          toolbarHeight: 0,
           backgroundColor: Colors.white,
-          foregroundColor: kBrownDark,
           elevation: 0,
           bottom: const TabBar(
             labelColor: kBrownDark,

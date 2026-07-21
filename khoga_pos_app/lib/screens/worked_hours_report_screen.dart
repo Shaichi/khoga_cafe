@@ -50,6 +50,7 @@ class _WorkedHoursReportScreenState extends State<WorkedHoursReportScreen> {
             'earlyLeaveMinutes': 0,
             'overtimeMinutes': 0,
             'shifts': 0,
+            'warnings': 0,
           };
         }
         summary[r.employeeName]!['workedMinutes'] += r.workedMinutes;
@@ -57,6 +58,9 @@ class _WorkedHoursReportScreenState extends State<WorkedHoursReportScreen> {
         summary[r.employeeName]!['earlyLeaveMinutes'] += r.earlyLeaveMinutes;
         summary[r.employeeName]!['overtimeMinutes'] += r.overtimeMinutes;
         summary[r.employeeName]!['shifts'] += 1;
+        if (r.lateMinutes > 0 || r.earlyLeaveMinutes > 0) {
+          summary[r.employeeName]!['warnings'] = (summary[r.employeeName]!['warnings'] as int) + 1;
+        }
       }
 
       if (mounted) {
@@ -104,51 +108,175 @@ class _WorkedHoursReportScreenState extends State<WorkedHoursReportScreen> {
   }
 
   String _formatHours(int totalMinutes) {
-    final h = totalMinutes ~/ 60;
-    final m = totalMinutes % 60;
-    return '${h}h ${m}m';
+    final double hours = totalMinutes / 60.0;
+    return hours.toStringAsFixed(1);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Date Filter
-        Container(
-          color: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              const Icon(Icons.date_range, color: kBrownDark),
-              const SizedBox(width: 8),
-              Expanded(
-                child: GestureDetector(
-                  onTap: _selectDateRange,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: kBorder),
-                      borderRadius: BorderRadius.circular(8),
+    return Scaffold(
+      backgroundColor: kBg,
+      appBar: AppBar(
+        backgroundColor: kBg,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: kBrownDark),
+          onPressed: () => Navigator.pop(context),
+        ),
+        centerTitle: false,
+        titleSpacing: 0,
+        title: const FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text('Báo Cáo Giờ Công', style: TextStyle(color: kBrownDark, fontWeight: FontWeight.bold, fontSize: 20)),
+        ),
+        actions: [
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEAE2D8),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Text('Chi nhánh Nguyễn Du', style: TextStyle(color: kBrownDark, fontSize: 13, fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Date Filter Box
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: kBg,
+                  border: Border.all(color: kBorder),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Kỳ tính công', style: TextStyle(fontSize: 12, color: kMuted, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: _selectDateRange,
+                            child: Container(
+                              height: 40,
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              alignment: Alignment.centerLeft,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                border: Border.all(color: kBorder),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                _fromDate.toIso8601String().substring(0, 10),
+                                style: const TextStyle(color: kBrownDark, fontSize: 14),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          child: Text('-', style: TextStyle(color: kMuted)),
+                        ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: _selectDateRange,
+                            child: Container(
+                              height: 40,
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              alignment: Alignment.centerLeft,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                border: Border.all(color: kBorder),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                _toDate.toIso8601String().substring(0, 10),
+                                style: const TextStyle(color: kBrownDark, fontSize: 14),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    child: Text(
-                      '${_fromDate.day}/${_fromDate.month}/${_fromDate.year}  -  ${_toDate.day}/${_toDate.month}/${_toDate.year}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: kBrownDark),
-                    ),
-                  ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+            
+            // Table List
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _buildContent(),
+              ),
+            ),
+            
+            // Bottom Buttons
+            Container(
+              padding: const EdgeInsets.all(16),
+              color: kBg,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {}, // TODO: Export CSV
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF3E2723), // Dark brown
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('XUẤT FILE CSV', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {}, // TODO: Export PDF
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF3E2723), // Dark brown
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('XUẤT FILE PDF', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: kBrownDark,
+                        side: const BorderSide(color: kBorder),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        backgroundColor: Colors.white,
+                      ),
+                      child: const Text('QUAY LẠI', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-        
-        // Report List
-        Expanded(
-          child: Container(
-            color: kBg,
-            child: _buildContent(),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -180,78 +308,83 @@ class _WorkedHoursReportScreenState extends State<WorkedHoursReportScreen> {
 
     final entries = _employeeSummary.entries.toList();
 
-    return RefreshIndicator(
-      onRefresh: _loadReport,
-      color: kBrownDark,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: entries.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final employee = entries[index].key;
-          final stats = entries[index].value;
-          
-          return Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: kBorder),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: kBorder),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          // Table Header
+          Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFFF6EBE5),
+              borderRadius: BorderRadius.only(topLeft: Radius.circular(11), topRight: Radius.circular(11)),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            child: const Row(
               children: [
-                Text(
-                  employee,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: kBrownDark,
-                  ),
-                ),
-                const Divider(height: 24, color: kBorder),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Tổng giờ làm', style: TextStyle(color: kMuted)),
-                    Text(
-                      _formatHours(stats['workedMinutes']),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: kSuccess,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Số ca đã làm', style: TextStyle(color: kMuted)),
-                    Text(
-                      '${stats['shifts']}',
-                      style: const TextStyle(fontWeight: FontWeight.w600, color: kBrownDark),
-                    ),
-                  ],
-                ),
-                if (stats['lateMinutes'] > 0) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Expanded(flex: 3, child: Text('Nhân viên', style: TextStyle(fontWeight: FontWeight.bold, color: kBrownDark))),
+                Expanded(flex: 2, child: Text('Số\nngày', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: kBrownDark))),
+                Expanded(flex: 2, child: Text('Giờ\ncông', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: kBrownDark))),
+                Expanded(flex: 2, child: Text('Cảnh\nbáo', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: kBrownDark))),
+              ],
+            ),
+          ),
+          // Table Rows
+          Expanded(
+            child: ListView.separated(
+              padding: EdgeInsets.zero,
+              itemCount: entries.length,
+              separatorBuilder: (_, __) => const Divider(height: 1, color: kBorder),
+              itemBuilder: (context, index) {
+                final employee = entries[index].key;
+                final stats = entries[index].value;
+                final warnings = stats['warnings'] as int;
+                
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                  child: Row(
                     children: [
-                      const Text('Đi trễ', style: TextStyle(color: kMuted)),
-                      Text(
-                        '${stats['lateMinutes']} phút',
-                        style: const TextStyle(fontWeight: FontWeight.w600, color: kDanger),
+                      Expanded(
+                        flex: 3,
+                        child: Text(employee, style: const TextStyle(fontWeight: FontWeight.bold, color: kBrownDark)),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: Text('${stats['shifts']}', textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w600, color: kBrownDark)),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: Text(
+                          _formatHours(stats['workedMinutes']),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: kSuccess),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: warnings > 0
+                            ? Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFF3E0),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text('($warnings)', style: const TextStyle(color: kWarning, fontSize: 12, fontWeight: FontWeight.bold)),
+                                ),
+                              )
+                            : const Text('-', textAlign: TextAlign.center, style: TextStyle(color: kMuted)),
                       ),
                     ],
                   ),
-                ],
-              ],
+                );
+              },
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }

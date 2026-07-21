@@ -65,31 +65,53 @@ class _StockListScreenState extends State<StockListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: kBg,
+        backgroundColor: Colors.white,
         foregroundColor: kBrownDark,
         elevation: 0,
         centerTitle: true,
+        leadingWidth: 120,
+        leading: TextButton.icon(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.arrow_back, color: kMuted, size: 20),
+          label: const Text(
+            'Quay lại',
+            style: TextStyle(
+              color: kMuted,
+              fontFamily: 'Segoe UI',
+              fontSize: 16,
+            ),
+          ),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.only(left: 16),
+            alignment: Alignment.centerLeft,
+          ),
+        ),
         title: const Text(
           'Kho Nguyên Liệu',
           style: TextStyle(
             fontFamily: 'Segoe UI',
             fontWeight: FontWeight.bold,
-            fontSize: 18,
+            fontSize: 22,
           ),
         ),
         actions: [
-          TextButton(
-            key: const Key('stock-ledger-action'),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const StockTransactionsScreen()),
-            ),
-            child: const Text(
-              'Lịch sử',
-              style: TextStyle(
-                fontFamily: 'Segoe UI',
-                fontWeight: FontWeight.bold,
-                color: kBrown,
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: TextButton(
+              key: const Key('stock-ledger-action'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const StockTransactionsScreen()),
+              ),
+              child: const Text(
+                'Lịch sử',
+                style: TextStyle(
+                  fontFamily: 'Segoe UI',
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Color(0xFFC89D7C),
+                ),
               ),
             ),
           ),
@@ -111,10 +133,10 @@ class _StockListScreenState extends State<StockListScreen> {
                         );
                         if (refreshed == true) _load();
                       },
-                      icon: const Icon(Icons.download, color: kBrown),
+                      icon: const Icon(Icons.add, color: kBrown, size: 20),
                       label: const Text(
                         'Nhập Kho',
-                        style: TextStyle(color: kBrown, fontWeight: FontWeight.bold),
+                        style: TextStyle(color: kBrown, fontWeight: FontWeight.bold, fontFamily: 'Segoe UI'),
                       ),
                       style: OutlinedButton.styleFrom(
                         backgroundColor: Colors.white,
@@ -133,10 +155,10 @@ class _StockListScreenState extends State<StockListScreen> {
                         );
                         if (refreshed == true) _load();
                       },
-                      icon: const Icon(Icons.upload, color: kBrown),
+                      icon: const Icon(Icons.remove, color: kBrown, size: 20),
                       label: const Text(
                         'Xuất Kho',
-                        style: TextStyle(color: kBrown, fontWeight: FontWeight.bold),
+                        style: TextStyle(color: kBrown, fontWeight: FontWeight.bold, fontFamily: 'Segoe UI'),
                       ),
                       style: OutlinedButton.styleFrom(
                         backgroundColor: Colors.white,
@@ -144,36 +166,6 @@ class _StockListScreenState extends State<StockListScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
-            // Low Stock Checkbox
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Row(
-                children: [
-                  SizedBox(
-                    height: 24,
-                    width: 24,
-                    child: Checkbox(
-                      value: _lowOnly,
-                      activeColor: kBrown,
-                      onChanged: (v) {
-                        setState(() => _lowOnly = v ?? false);
-                        _load();
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Chỉ hiện nguyên liệu sắp hết kho',
-                    style: TextStyle(
-                      fontFamily: 'Segoe UI',
-                      color: kBrownDark,
-                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
@@ -188,10 +180,10 @@ class _StockListScreenState extends State<StockListScreen> {
                 controller: _search,
                 decoration: InputDecoration(
                   hintText: 'Tìm kiếm nguyên liệu...',
-                  prefixIcon: const Icon(Icons.search, color: kMuted),
+                  hintStyle: const TextStyle(fontFamily: 'Segoe UI', color: kMuted, fontSize: 15),
                   filled: true,
                   fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: const BorderSide(color: kBorder),
@@ -206,6 +198,36 @@ class _StockListScreenState extends State<StockListScreen> {
                   ),
                 ),
                 onSubmitted: (_) => _load(),
+              ),
+            ),
+            
+            // Low Stock Checkbox
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+              child: Row(
+                children: [
+                  SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: Checkbox(
+                      value: _lowOnly,
+                      activeColor: Colors.blue,
+                      onChanged: (v) {
+                        setState(() => _lowOnly = v ?? false);
+                        _load();
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Chỉ hiện nguyên liệu sắp hết kho',
+                    style: TextStyle(
+                      fontFamily: 'Segoe UI',
+                      color: kBrownDark,
+                      fontSize: 15,
+                    ),
+                  ),
+                ],
               ),
             ),
             
@@ -232,9 +254,9 @@ class _StockListScreenState extends State<StockListScreen> {
   }
 
   Widget _row(StockItem s) {
-    final statusColor = s.lowStock ? kDanger : kSuccess;
+    final statusColor = s.lowStock ? const Color(0xFFC66270) : const Color(0xFF2E7D32);
     final statusText = s.lowStock ? 'Hết hàng / Sắp hết' : 'Đầy đủ';
-    final statusBg = s.lowStock ? kDanger.withValues(alpha: 0.1) : kSuccess.withValues(alpha: 0.1);
+    final statusBg = s.lowStock ? const Color(0xFFFDE8EB) : const Color(0xFFE8F5E9);
 
     return Container(
       decoration: BoxDecoration(
@@ -273,10 +295,10 @@ class _StockListScreenState extends State<StockListScreen> {
                       ),
                       const SizedBox(height: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: statusBg,
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           statusText,
@@ -295,7 +317,7 @@ class _StockListScreenState extends State<StockListScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '${formatVnd(s.currentQuantity)} ${s.unit}',
+                      '${s.currentQuantity} ${s.unit}',
                       style: const TextStyle(
                         fontFamily: 'Segoe UI',
                         fontWeight: FontWeight.bold,
@@ -305,7 +327,7 @@ class _StockListScreenState extends State<StockListScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Tối thiểu: ${formatVnd(s.minAlertThreshold)} ${s.unit}',
+                      'Tối thiểu: ${s.minAlertThreshold} ${s.unit}',
                       style: const TextStyle(
                         fontFamily: 'Segoe UI',
                         color: kMuted,
@@ -331,19 +353,20 @@ class _StockListScreenState extends State<StockListScreen> {
             ),
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              alignment: Alignment.centerRight,
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.fact_check_outlined, size: 18, color: kBrown),
-                  SizedBox(width: 8),
+                  Icon(Icons.fact_check_outlined, size: 18, color: Color(0xFFC89D7C)),
+                  SizedBox(width: 6),
                   Text(
                     'Kiểm kê vật lý',
                     style: TextStyle(
                       fontFamily: 'Segoe UI',
                       fontWeight: FontWeight.bold,
-                      color: kBrown,
+                      color: Color(0xFFC89D7C),
+                      fontSize: 14,
                     ),
                   ),
                 ],
@@ -366,10 +389,10 @@ class _StockListScreenState extends State<StockListScreen> {
         child: Row(
           children: [
             Expanded(
-              flex: 1,
               child: OutlinedButton(
                 onPressed: () => Navigator.of(context).pop(),
                 style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, 50),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   side: const BorderSide(color: kBorder),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -386,7 +409,6 @@ class _StockListScreenState extends State<StockListScreen> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              flex: 2,
               child: ElevatedButton(
                 key: const Key('stock-audit-action'),
                 onPressed: () async {
@@ -396,6 +418,8 @@ class _StockListScreenState extends State<StockListScreen> {
                   if (refreshed == true) _load();
                 },
                 style: ElevatedButton.styleFrom(
+                  elevation: 0,
+                  minimumSize: const Size(0, 50),
                   backgroundColor: kBrown,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
