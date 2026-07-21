@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../api/api_client.dart';
 import '../api/stock_api.dart';
 import '../auth/auth_controller.dart';
+import '../auth/logout_dialog.dart';
 import '../inventory/stock_list_screen.dart';
 import '../screens/reports_hub_screen.dart';
 import '../staff/attendance_screen.dart';
@@ -176,7 +177,12 @@ class ManagerDashboardScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: ElevatedButton(
-                onPressed: () => _showLogoutDialog(context),
+                onPressed: () async {
+                  final confirm = await showLogoutDialog(context);
+                  if (confirm == true && context.mounted) {
+                    context.read<AuthController>().logout();
+                  }
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kBrown,
                   foregroundColor: Colors.white,
@@ -286,53 +292,6 @@ class ManagerDashboardScreen extends StatelessWidget {
     );
   }
 
-  void _showLogoutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text(
-          'Đăng xuất',
-          style: TextStyle(
-            fontFamily: 'Segoe UI',
-            fontWeight: FontWeight.bold,
-            color: kBrownDark,
-          ),
-        ),
-        content: const Text(
-          'Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?',
-          style: TextStyle(fontFamily: 'Segoe UI', color: kBrown),
-        ),
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text(
-              'HỦY',
-              style: TextStyle(color: kMuted, fontWeight: FontWeight.bold),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              context.read<AuthController>().logout();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kDanger,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text(
-              'ĐĂNG XUẤT',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class LowStockAlertWidget extends StatefulWidget {

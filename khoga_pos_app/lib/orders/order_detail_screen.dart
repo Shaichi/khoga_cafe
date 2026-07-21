@@ -123,57 +123,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     ? const SizedBox.shrink()
                     : _body(order),
       ),
-      bottomNavigationBar: (order != null && !_loading) ? _buildActionButtons(order) : null,
+      bottomNavigationBar: null,
     );
   }
 
-  Widget _buildActionButtons(OrderDetail o) {
-    final canCancel = o.status == 'PENDING';
-    final canRefund = o.paymentStatus == 'PAID' && o.status != 'PENDING' && o.status != 'CANCELLED';
-    
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: kBorder)),
-      ),
-      child: SafeArea(
-        child: Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.print),
-                label: const Text('In HĐ (Sắp có)'),
-                onPressed: null,
-              ),
-            ),
-            if (canCancel) ...[
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.cancel),
-                  label: const Text('Hủy Đơn'),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  onPressed: _cancelOrder,
-                ),
-              ),
-            ],
-            if (canRefund) ...[
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.undo),
-                  label: const Text('Hoàn Tiền'),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                  onPressed: _refundOrder,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
+  // (Removed legacy _buildActionButtons)
 
   Widget _body(OrderDetail o) {
     return Column(
@@ -193,8 +147,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 ),
                 child: Column(
                   children: [
-                    _infoRow('Số đơn hàng:', o.orderNumber, bold: true),
-                    _infoRow('Mã định danh (ID):', o.id),
+                    _infoRow('Số đơn hàng:', '#${o.orderNumber.length >= 3 ? o.orderNumber.substring(o.orderNumber.length - 3) : o.orderNumber.padLeft(3, '0')}', bold: true),
+                    _infoRow('Mã định danh (ID):', 'ORD-${o.id.length >= 8 ? o.id.substring(0, 8).toUpperCase() : o.id.toUpperCase()}'),
                     _infoRow('Hình thức / Giờ:', '${orderTypeLabel(o.orderType)} | ${o.createdAt?.split('T').last.substring(0, 5) ?? '--:--'}'),
                     _infoRow('Trạng thái thanh toán:', paymentStatusLabel(o.paymentStatus).toUpperCase(), color: kSuccess, bold: true),
                     const Padding(
@@ -250,36 +204,41 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           ),
           child: Column(
             children: [
-              if (context.read<AuthController>().profile?.role != 'BARISTA') ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: kDanger,
-                      side: const BorderSide(color: Color(0xFFF8D7DA)),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () {},
-                    child: const Text('HỦY ĐƠN & HOÀN TIỀN', style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: kDanger,
+                    side: const BorderSide(color: Color(0xFFF8D7DA)),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
+                  onPressed: () {
+                    final canCancel = o.status == 'PENDING';
+                    if (canCancel) {
+                      _cancelOrder();
+                    } else {
+                      _refundOrder();
+                    }
+                  },
+                  child: const Text('HỦY ĐƠN & HOÀN TIỀN', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kBrown,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () {},
-                    child: const Text('IN LẠI HÓA ĐƠN', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kBrown,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
+                  onPressed: () {},
+                  child: const Text('IN LẠI HÓA ĐƠN', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
-                const SizedBox(height: 12),
-              ],
+              ),
+              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(

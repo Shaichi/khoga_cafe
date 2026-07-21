@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'auth/auth_controller.dart';
-import 'orders/barista_queue_screen.dart';
+import 'orders/barista_portal_screen.dart';
+import 'screens/force_password_change_screen.dart';
 
 import 'pos/shift_controller.dart';
 import 'screens/home_screen.dart';
@@ -36,7 +37,8 @@ class AuthGate extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
     if (!auth.isAuthenticated) return const LoginScreen();
-    if (auth.profile?.role == 'BARISTA') return const BaristaQueueScreen();
+    if (auth.mustChangePassword) return const ForcePasswordChangeScreen();
+    if (auth.profile?.role == 'BARISTA') return const BaristaPortalScreen();
     if (auth.profile?.role == 'STORE_MANAGER') {
       return const ManagerDashboardScreen();
     }

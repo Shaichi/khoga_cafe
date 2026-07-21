@@ -3,121 +3,162 @@ import 'package:provider/provider.dart';
 
 import '../api/api_client.dart';
 import '../auth/auth_controller.dart';
+import '../auth/logout_dialog.dart';
 import '../theme.dart';
 import 'change_password_screen.dart';
+import 'edit_profile_screen.dart';
 
-/// Screen 06/07 — self-service profile (UC-07 view, UC-08 edit). Identity fields
-/// are read-only; email + phone are editable. Links to change-password (08).
-class ProfileScreen extends StatefulWidget {
+class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
-  @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
-}
-
-class _ProfileScreenState extends State<ProfileScreen> {
-  late final TextEditingController _email;
-  late final TextEditingController _phone;
-  bool _saving = false;
-  String? _error;
-  bool _saved = false;
-
-  @override
-  void initState() {
-    super.initState();
-    final p = context.read<AuthController>().profile;
-    _email = TextEditingController(text: p?.email ?? '');
-    _phone = TextEditingController(text: p?.phone ?? '');
-  }
-
-  @override
-  void dispose() {
-    _email.dispose();
-    _phone.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    setState(() {
-      _error = null;
-      _saving = true;
-      _saved = false;
-    });
-    try {
-      await context.read<AuthController>().updateProfile(email: _email.text.trim(), phone: _phone.text.trim());
-      if (mounted) setState(() => _saved = true);
-    } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e.message);
-    } catch (_) {
-      if (mounted) setState(() => _error = 'Không kết nối được máy chủ');
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
+  String _getInitials(String name) {
+    if (name.isEmpty) return 'NV';
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length == 1) return parts[0].substring(0, 1).toUpperCase();
+    return (parts.first.substring(0, 1) + parts.last.substring(0, 1)).toUpperCase();
   }
 
   @override
   Widget build(BuildContext context) {
-    final p = context.watch<AuthController>().profile;
+    final auth = context.watch<AuthController>();
+    final p = auth.profile;
+    if (p == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: kBrown,
-        foregroundColor: Colors.white,
-        title: const Text('Hồ sơ của tôi'),
+        backgroundColor: Colors.white,
+        foregroundColor: kBrownDark,
+        elevation: 0,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const CircleAvatar(radius: 36, backgroundColor: kGold, child: Icon(Icons.person, size: 40, color: Colors.white)),
-                const SizedBox(height: 12),
-                Text(p?.fullName ?? '', key: const Key('profile-name'),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: kBrown)),
-                Text('${p?.username ?? ''} · ${p?.role ?? ''}',
-                    textAlign: TextAlign.center, style: const TextStyle(color: kMuted)),
-                const SizedBox(height: 24),
-                if (_error != null) ...[
-                  Text(_error!, key: const Key('profile-error'), style: const TextStyle(color: kDanger)),
-                  const SizedBox(height: 12),
-                ],
-                if (_saved) ...[
-                  const Text('Đã lưu hồ sơ', key: Key('profile-saved'), style: TextStyle(color: kSuccess)),
-                  const SizedBox(height: 12),
-                ],
-                const Text('Email', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: kBrown)),
-                const SizedBox(height: 8),
-                TextField(key: const Key('profile-email'), controller: _email, keyboardType: TextInputType.emailAddress),
-                const SizedBox(height: 16),
-                const Text('Số điện thoại', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: kBrown)),
-                const SizedBox(height: 8),
-                TextField(key: const Key('profile-phone'), controller: _phone, keyboardType: TextInputType.phone),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  key: const Key('profile-save'),
-                  onPressed: _saving ? null : _save,
-                  child: _saving
-                      ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Text('LƯU THAY ĐỔI'),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  key: const Key('change-password-action'),
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => const ChangePasswordScreen()),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Thông Tin Cá Nhân',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: kBrownDark,
+                    ),
                   ),
-                  style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-                  icon: const Icon(Icons.lock_outline),
-                  label: const Text('ĐỔI MẬT KHẨU'),
-                ),
-              ],
+                  const SizedBox(height: 24),
+                  CircleAvatar(
+                    radius: 40,
+                    backgroundColor: const Color(0xFFE5D5C5),
+                    child: Text(
+                      _getInitials(p.fullName),
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: kBrownDark,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  _buildRow('Họ và tên', p.fullName),
+                  _buildRow('Tên đăng nhập', p.username),
+                  _buildRow('Vai trò', p.role),
+                  _buildRow('Chi nhánh', 'Nguyễn Du Branch'), // Placeholder, could use p.storeId mapping
+                  _buildRow('Email', p.email ?? 'Chưa cập nhật'),
+                  _buildRow('Số điện thoại', p.phone ?? 'Chưa cập nhật'),
+                  const SizedBox(height: 48),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: kBrownDark,
+                        side: const BorderSide(color: kBorder),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Chỉnh sửa thông tin', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: kBrownDark,
+                        side: const BorderSide(color: kBorder),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Đổi mật khẩu', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        final confirm = await showLogoutDialog(context);
+                        if (confirm == true && context.mounted) {
+                          auth.logout();
+                        }
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: kDanger,
+                        side: const BorderSide(color: Color(0xFFFDECEB)),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Đăng xuất', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                ],
+              ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildRow(String label, String value) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(fontSize: 14, color: kMuted),
+              ),
+              Expanded(
+                child: Text(
+                  value,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: kBrownDark,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1, color: Color(0xFFF5EFEA)),
+      ],
     );
   }
 }
