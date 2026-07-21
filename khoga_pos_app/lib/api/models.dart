@@ -4,13 +4,17 @@ class LoginResponse {
   final String role;
   final bool mustChangePassword;
 
-  LoginResponse({required this.token, required this.role, required this.mustChangePassword});
+  LoginResponse({
+    required this.token,
+    required this.role,
+    required this.mustChangePassword,
+  });
 
   factory LoginResponse.fromJson(Map<String, dynamic> j) => LoginResponse(
-        token: j['token'] as String,
-        role: j['role'] as String,
-        mustChangePassword: j['mustChangePassword'] as bool? ?? false,
-      );
+    token: j['token'] as String,
+    role: j['role'] as String,
+    mustChangePassword: j['mustChangePassword'] as bool? ?? false,
+  );
 }
 
 /// Mirrors com.khoga.auth.dto.ProfileResponse.
@@ -36,15 +40,15 @@ class Profile {
   });
 
   factory Profile.fromJson(Map<String, dynamic> j) => Profile(
-        id: j['id'] as String,
-        username: j['username'] as String,
-        fullName: j['fullName'] as String,
-        role: j['role'] as String,
-        email: j['email'] as String?,
-        phone: j['phone'] as String?,
-        storeId: j['storeId'] as String?,
-        storeName: j['storeName'] as String?,
-      );
+    id: j['id'] as String,
+    username: j['username'] as String,
+    fullName: j['fullName'] as String,
+    role: j['role'] as String,
+    email: j['email'] as String?,
+    phone: j['phone'] as String?,
+    storeId: j['storeId'] as String?,
+    storeName: j['storeName'] as String?,
+  );
 }
 
 /// Mirrors com.khoga.pos.dto.ShiftResponse (status is "OPEN" / "CLOSED").
@@ -54,14 +58,19 @@ class Shift {
   final num startingCash;
   final String status;
 
-  Shift({required this.id, required this.posRegisterId, required this.startingCash, required this.status});
+  Shift({
+    required this.id,
+    required this.posRegisterId,
+    required this.startingCash,
+    required this.status,
+  });
 
   factory Shift.fromJson(Map<String, dynamic> j) => Shift(
-        id: j['id'] as String,
-        posRegisterId: j['posRegisterId'] as String? ?? '',
-        startingCash: (j['startingCash'] as num?) ?? 0,
-        status: j['status'] as String? ?? 'OPEN',
-      );
+    id: j['id'] as String,
+    posRegisterId: j['posRegisterId'] as String? ?? '',
+    startingCash: (j['startingCash'] as num?) ?? 0,
+    status: j['status'] as String? ?? 'OPEN',
+  );
 }
 
 /// Mirrors com.khoga.order.dto.OrderSummaryResponse (history row / queue row).
@@ -91,17 +100,30 @@ class OrderSummary {
   });
 
   factory OrderSummary.fromJson(Map<String, dynamic> j) => OrderSummary(
-        id: j['id'] as String,
-        orderNumber: j['orderNumber'] as String? ?? '',
-        status: j['status'] as String? ?? '',
-        paymentStatus: j['paymentStatus'] as String? ?? '',
-        paymentMethod: j['paymentMethod'] as String? ?? '',
-        orderType: j['orderType'] as String? ?? '',
-        total: (j['total'] as num?) ?? 0,
-        itemCount: (j['itemCount'] as int?) ?? 0,
-        customerName: j['customerName'] as String?,
-        createdAt: j['createdAt'] as String?,
-      );
+    id: j['id'] as String,
+    orderNumber: j['orderNumber'] as String? ?? '',
+    status: j['status'] as String? ?? '',
+    paymentStatus: j['paymentStatus'] as String? ?? '',
+    paymentMethod: j['paymentMethod'] as String? ?? '',
+    orderType: j['orderType'] as String? ?? '',
+    total: (j['total'] as num?) ?? 0,
+    itemCount: (j['itemCount'] as int?) ?? 0,
+    customerName: j['customerName'] as String?,
+    createdAt: j['createdAt'] as String?,
+  );
+
+  OrderSummary withStatus(String nextStatus) => OrderSummary(
+    id: id,
+    orderNumber: orderNumber,
+    status: nextStatus,
+    paymentStatus: paymentStatus,
+    paymentMethod: paymentMethod,
+    orderType: orderType,
+    total: total,
+    itemCount: itemCount,
+    customerName: customerName,
+    createdAt: createdAt,
+  );
 }
 
 /// Mirrors com.khoga.order.dto.StatusUpdateResponse (UC-58 transition result).
@@ -119,11 +141,13 @@ class StatusUpdate {
   });
 
   factory StatusUpdate.fromJson(Map<String, dynamic> j) => StatusUpdate(
-        id: j['id'] as String,
-        orderNumber: j['orderNumber'] as String? ?? '',
-        status: j['status'] as String? ?? '',
-        stockWarnings: ((j['stockWarnings'] as List?) ?? const []).map((e) => e as String).toList(),
-      );
+    id: j['id'] as String,
+    orderNumber: j['orderNumber'] as String? ?? '',
+    status: j['status'] as String? ?? '',
+    stockWarnings: ((j['stockWarnings'] as List?) ?? const [])
+        .map((e) => e as String)
+        .toList(),
+  );
 }
 
 /// Mirrors com.khoga.order.dto.OrderItemLine (+ toppings).
@@ -141,27 +165,33 @@ class OrderItemLine {
   });
 
   factory OrderItemLine.fromJson(Map<String, dynamic> j) => OrderItemLine(
-        menuItemName: j['menuItemName'] as String? ?? '',
-        quantity: (j['quantity'] as int?) ?? 0,
-        unitPrice: (j['unitPrice'] as num?) ?? 0,
-        toppings: ((j['toppings'] as List?) ?? const [])
-            .map((t) => OrderToppingLine.fromJson(t as Map<String, dynamic>))
-            .toList(),
-      );
+    menuItemName: j['menuItemName'] as String? ?? '',
+    quantity: (j['quantity'] as int?) ?? 0,
+    unitPrice: (j['unitPrice'] as num?) ?? 0,
+    toppings: ((j['toppings'] as List?) ?? const [])
+        .map((t) => OrderToppingLine.fromJson(t as Map<String, dynamic>))
+        .toList(),
+  );
 
-  num get lineTotal => unitPrice * quantity + toppings.fold<num>(0, (s, t) => s + t.unitPrice * t.quantity);
+  num get lineTotal =>
+      unitPrice * quantity +
+      toppings.fold<num>(0, (s, t) => s + t.unitPrice * t.quantity);
 }
 
 class OrderToppingLine {
   final String name;
   final int quantity;
   final num unitPrice;
-  OrderToppingLine({required this.name, required this.quantity, required this.unitPrice});
+  OrderToppingLine({
+    required this.name,
+    required this.quantity,
+    required this.unitPrice,
+  });
   factory OrderToppingLine.fromJson(Map<String, dynamic> j) => OrderToppingLine(
-        name: j['name'] as String? ?? '',
-        quantity: (j['quantity'] as int?) ?? 0,
-        unitPrice: (j['unitPrice'] as num?) ?? 0,
-      );
+    name: j['name'] as String? ?? '',
+    quantity: (j['quantity'] as int?) ?? 0,
+    unitPrice: (j['unitPrice'] as num?) ?? 0,
+  );
 }
 
 /// Mirrors com.khoga.order.dto.OrderDetailResponse (UC-73 full order view).
@@ -197,22 +227,38 @@ class OrderDetail {
   });
 
   factory OrderDetail.fromJson(Map<String, dynamic> j) => OrderDetail(
-        id: j['id'] as String,
-        orderNumber: j['orderNumber'] as String? ?? '',
-        status: j['status'] as String? ?? '',
-        paymentStatus: j['paymentStatus'] as String? ?? '',
-        paymentMethod: j['paymentMethod'] as String? ?? '',
-        orderType: j['orderType'] as String? ?? '',
-        subtotal: (j['subtotal'] as num?) ?? 0,
-        discount: (j['discount'] as num?) ?? 0,
-        taxAmount: (j['taxAmount'] as num?) ?? 0,
-        total: (j['total'] as num?) ?? 0,
-        customerName: j['customerName'] as String?,
-        items: ((j['items'] as List?) ?? const [])
-            .map((i) => OrderItemLine.fromJson(i as Map<String, dynamic>))
-            .toList(),
-        createdAt: j['createdAt'] as String?,
-      );
+    id: j['id'] as String,
+    orderNumber: j['orderNumber'] as String? ?? '',
+    status: j['status'] as String? ?? '',
+    paymentStatus: j['paymentStatus'] as String? ?? '',
+    paymentMethod: j['paymentMethod'] as String? ?? '',
+    orderType: j['orderType'] as String? ?? '',
+    subtotal: (j['subtotal'] as num?) ?? 0,
+    discount: (j['discount'] as num?) ?? 0,
+    taxAmount: (j['taxAmount'] as num?) ?? 0,
+    total: (j['total'] as num?) ?? 0,
+    customerName: j['customerName'] as String?,
+    items: ((j['items'] as List?) ?? const [])
+        .map((i) => OrderItemLine.fromJson(i as Map<String, dynamic>))
+        .toList(),
+    createdAt: j['createdAt'] as String?,
+  );
+
+  OrderDetail withStatus(String nextStatus) => OrderDetail(
+    id: id,
+    orderNumber: orderNumber,
+    status: nextStatus,
+    paymentStatus: paymentStatus,
+    paymentMethod: paymentMethod,
+    orderType: orderType,
+    subtotal: subtotal,
+    discount: discount,
+    taxAmount: taxAmount,
+    total: total,
+    items: items,
+    customerName: customerName,
+    createdAt: createdAt,
+  );
 }
 
 /// Mirrors com.khoga.pos.dto.ZReportResponse (UC-53 close-shift reconciliation).
@@ -246,19 +292,19 @@ class ZReport {
   });
 
   factory ZReport.fromJson(Map<String, dynamic> j) => ZReport(
-        sessionId: j['sessionId'] as String? ?? '',
-        posRegisterId: j['posRegisterId'] as String? ?? '',
-        openingCash: (j['openingCash'] as num?) ?? 0,
-        totalCashSales: (j['totalCashSales'] as num?) ?? 0,
-        totalCardSales: (j['totalCardSales'] as num?) ?? 0,
-        totalVietQrSales: (j['totalVietQrSales'] as num?) ?? 0,
-        expectedCash: (j['expectedCash'] as num?) ?? 0,
-        closingCash: (j['closingCash'] as num?) ?? 0,
-        discrepancy: (j['discrepancy'] as num?) ?? 0,
-        discrepancyFlagged: j['discrepancyFlagged'] as bool? ?? false,
-        totalOrders: (j['totalOrders'] as int?) ?? 0,
-        cancelledOrders: (j['cancelledOrders'] as int?) ?? 0,
-      );
+    sessionId: j['sessionId'] as String? ?? '',
+    posRegisterId: j['posRegisterId'] as String? ?? '',
+    openingCash: (j['openingCash'] as num?) ?? 0,
+    totalCashSales: (j['totalCashSales'] as num?) ?? 0,
+    totalCardSales: (j['totalCardSales'] as num?) ?? 0,
+    totalVietQrSales: (j['totalVietQrSales'] as num?) ?? 0,
+    expectedCash: (j['expectedCash'] as num?) ?? 0,
+    closingCash: (j['closingCash'] as num?) ?? 0,
+    discrepancy: (j['discrepancy'] as num?) ?? 0,
+    discrepancyFlagged: j['discrepancyFlagged'] as bool? ?? false,
+    totalOrders: (j['totalOrders'] as int?) ?? 0,
+    cancelledOrders: (j['cancelledOrders'] as int?) ?? 0,
+  );
 }
 
 /// Mirrors com.khoga.staff.dto.ScheduleResponse (UC-35 scheduled shift).
@@ -288,17 +334,17 @@ class ScheduleShift {
   });
 
   factory ScheduleShift.fromJson(Map<String, dynamic> j) => ScheduleShift(
-        id: j['id'] as String,
-        employeeId: j['employeeId'] as String? ?? '',
-        employeeName: j['employeeName'] as String? ?? '',
-        role: j['role'] as String? ?? '',
-        shiftDate: j['shiftDate'] as String? ?? '',
-        shiftType: j['shiftType'] as String? ?? '',
-        shiftStartTime: j['shiftStartTime'] as String?,
-        shiftEndTime: j['shiftEndTime'] as String?,
-        posRegisterId: j['posRegisterId'] as String?,
-        crossBranch: j['crossBranch'] as bool? ?? false,
-      );
+    id: j['id'] as String,
+    employeeId: j['employeeId'] as String? ?? '',
+    employeeName: j['employeeName'] as String? ?? '',
+    role: j['role'] as String? ?? '',
+    shiftDate: j['shiftDate'] as String? ?? '',
+    shiftType: j['shiftType'] as String? ?? '',
+    shiftStartTime: j['shiftStartTime'] as String?,
+    shiftEndTime: j['shiftEndTime'] as String?,
+    posRegisterId: j['posRegisterId'] as String?,
+    crossBranch: j['crossBranch'] as bool? ?? false,
+  );
 }
 
 /// Mirrors com.khoga.staff.dto.StaffRosterResponse (UC-66 roster row).
@@ -324,15 +370,15 @@ class StaffRoster {
   });
 
   factory StaffRoster.fromJson(Map<String, dynamic> j) => StaffRoster(
-        userId: j['userId'] as String,
-        employeeId: j['employeeId'] as String?,
-        fullName: j['fullName'] as String? ?? '',
-        role: j['role'] as String? ?? '',
-        phone: j['phone'] as String?,
-        pinSet: (j['pinSet'] as bool?) ?? false,
-        pinLocked: (j['pinLocked'] as bool?) ?? false,
-        isActive: (j['isActive'] as bool?) ?? true,
-      );
+    userId: j['userId'] as String,
+    employeeId: j['employeeId'] as String?,
+    fullName: j['fullName'] as String? ?? '',
+    role: j['role'] as String? ?? '',
+    phone: j['phone'] as String?,
+    pinSet: (j['pinSet'] as bool?) ?? false,
+    pinLocked: (j['pinLocked'] as bool?) ?? false,
+    isActive: (j['isActive'] as bool?) ?? true,
+  );
 }
 
 /// Mirrors com.khoga.staff.dto.AttendanceResponse (UC-67 attendance pairing).
@@ -356,14 +402,14 @@ class Attendance {
   });
 
   factory Attendance.fromJson(Map<String, dynamic> j) => Attendance(
-        id: j['id'] as String,
-        employeeName: j['employeeName'] as String? ?? '',
-        checkInAt: j['checkInAt'] as String?,
-        checkOutAt: j['checkOutAt'] as String?,
-        status: j['status'] as String? ?? '',
-        pendingVerification: j['pendingVerification'] as bool? ?? false,
-        photoCaptured: j['photoCaptured'] as bool? ?? false,
-      );
+    id: j['id'] as String,
+    employeeName: j['employeeName'] as String? ?? '',
+    checkInAt: j['checkInAt'] as String?,
+    checkOutAt: j['checkOutAt'] as String?,
+    status: j['status'] as String? ?? '',
+    pendingVerification: j['pendingVerification'] as bool? ?? false,
+    photoCaptured: j['photoCaptured'] as bool? ?? false,
+  );
 }
 
 /// Mirrors com.khoga.inventory.dto.StockItemResponse (UC-31 stock dashboard row).
@@ -391,16 +437,16 @@ class StockItem {
   });
 
   factory StockItem.fromJson(Map<String, dynamic> j) => StockItem(
-        id: j['id'] as String,
-        rawMaterialId: j['rawMaterialId'] as String? ?? '',
-        code: j['code'] as String? ?? '',
-        name: j['name'] as String? ?? '',
-        unit: j['unit'] as String? ?? '',
-        currentQuantity: (j['currentQuantity'] as num?) ?? 0,
-        minAlertThreshold: (j['minAlertThreshold'] as num?) ?? 0,
-        standardCost: (j['standardCost'] as num?) ?? 0,
-        lowStock: j['lowStock'] as bool? ?? false,
-      );
+    id: j['id'] as String,
+    rawMaterialId: j['rawMaterialId'] as String? ?? '',
+    code: j['code'] as String? ?? '',
+    name: j['name'] as String? ?? '',
+    unit: j['unit'] as String? ?? '',
+    currentQuantity: (j['currentQuantity'] as num?) ?? 0,
+    minAlertThreshold: (j['minAlertThreshold'] as num?) ?? 0,
+    standardCost: (j['standardCost'] as num?) ?? 0,
+    lowStock: j['lowStock'] as bool? ?? false,
+  );
 }
 
 /// Mirrors com.khoga.inventory.dto.StockTransactionResponse (UC-61 ledger row).
@@ -428,16 +474,16 @@ class StockTransaction {
   });
 
   factory StockTransaction.fromJson(Map<String, dynamic> j) => StockTransaction(
-        id: j['id'] as String,
-        materialName: j['materialName'] as String? ?? '',
-        transactionType: j['transactionType'] as String? ?? '',
-        quantity: (j['quantity'] as num?) ?? 0,
-        quantityBefore: (j['quantityBefore'] as num?) ?? 0,
-        quantityAfter: (j['quantityAfter'] as num?) ?? 0,
-        reason: j['reason'] as String?,
-        managerName: j['managerName'] as String?,
-        createdAt: j['createdAt'] as String?,
-      );
+    id: j['id'] as String,
+    materialName: j['materialName'] as String? ?? '',
+    transactionType: j['transactionType'] as String? ?? '',
+    quantity: (j['quantity'] as num?) ?? 0,
+    quantityBefore: (j['quantityBefore'] as num?) ?? 0,
+    quantityAfter: (j['quantityAfter'] as num?) ?? 0,
+    reason: j['reason'] as String?,
+    managerName: j['managerName'] as String?,
+    createdAt: j['createdAt'] as String?,
+  );
 }
 
 /// Mirrors com.khoga.inventory.dto.StockAuditResultLine (UC-34 discrepancy line).
@@ -457,12 +503,12 @@ class StockAuditResult {
   });
 
   factory StockAuditResult.fromJson(Map<String, dynamic> j) => StockAuditResult(
-        stockItemId: j['stockItemId'] as String? ?? '',
-        name: j['name'] as String? ?? '',
-        systemQuantity: (j['systemQuantity'] as num?) ?? 0,
-        actualQuantity: (j['actualQuantity'] as num?) ?? 0,
-        adjustment: (j['adjustment'] as num?) ?? 0,
-      );
+    stockItemId: j['stockItemId'] as String? ?? '',
+    name: j['name'] as String? ?? '',
+    systemQuantity: (j['systemQuantity'] as num?) ?? 0,
+    actualQuantity: (j['actualQuantity'] as num?) ?? 0,
+    adjustment: (j['adjustment'] as num?) ?? 0,
+  );
 }
 
 /// Mirrors com.khoga.customer.dto.CustomerResponse (subset used by the POS member lookup).
@@ -472,14 +518,19 @@ class CustomerLite {
   final String? phone;
   final int points;
 
-  CustomerLite({required this.id, required this.fullName, this.phone, this.points = 0});
+  CustomerLite({
+    required this.id,
+    required this.fullName,
+    this.phone,
+    this.points = 0,
+  });
 
   factory CustomerLite.fromJson(Map<String, dynamic> j) => CustomerLite(
-        id: j['id'] as String,
-        fullName: j['fullName'] as String? ?? '',
-        phone: j['phone'] as String?,
-        points: (j['points'] as int?) ?? 0,
-      );
+    id: j['id'] as String,
+    fullName: j['fullName'] as String? ?? '',
+    phone: j['phone'] as String?,
+    points: (j['points'] as int?) ?? 0,
+  );
 }
 
 /// Mirrors com.khoga.catalog.dto.CategoryResponse (subset).
@@ -516,16 +567,16 @@ class MenuItem {
   });
 
   factory MenuItem.fromJson(Map<String, dynamic> j) => MenuItem(
-        id: j['id'] as String,
-        name: j['name'] as String,
-        price: (j['price'] as num?) ?? 0,
-        categoryId: j['categoryId'] as String?,
-        categoryName: j['categoryName'] as String?,
-        abbreviation: j['abbreviation'] as String?,
-        barcode: j['barcode'] as String?,
-        parentItemId: j['parentItemId'] as String?,
-        sizeName: j['sizeName'] as String?,
-      );
+    id: j['id'] as String,
+    name: j['name'] as String,
+    price: (j['price'] as num?) ?? 0,
+    categoryId: j['categoryId'] as String?,
+    categoryName: j['categoryName'] as String?,
+    abbreviation: j['abbreviation'] as String?,
+    barcode: j['barcode'] as String?,
+    parentItemId: j['parentItemId'] as String?,
+    sizeName: j['sizeName'] as String?,
+  );
 }
 
 /// Mirrors com.khoga.pos.dto.DiscountBreakdown (BR-70 stacking pipeline).
@@ -546,7 +597,8 @@ class CheckoutBreakdown {
     required this.pointsEarned,
   });
 
-  factory CheckoutBreakdown.fromJson(Map<String, dynamic> j) => CheckoutBreakdown(
+  factory CheckoutBreakdown.fromJson(Map<String, dynamic> j) =>
+      CheckoutBreakdown(
         grossSubtotal: (j['grossSubtotal'] as num?) ?? 0,
         voucherDiscount: (j['voucherDiscount'] as num?) ?? 0,
         pointDiscount: (j['pointDiscount'] as num?) ?? 0,
@@ -579,15 +631,17 @@ class CheckoutResult {
   });
 
   factory CheckoutResult.fromJson(Map<String, dynamic> j) => CheckoutResult(
-        orderId: j['orderId'] as String,
-        orderNumber: j['orderNumber'] as String? ?? '',
-        status: j['status'] as String? ?? '',
-        paymentStatus: j['paymentStatus'] as String? ?? '',
-        paymentMethod: j['paymentMethod'] as String? ?? '',
-        changeDue: (j['changeDue'] as num?) ?? 0,
-        qrContent: j['qrContent'] as String?,
-        breakdown: CheckoutBreakdown.fromJson((j['breakdown'] as Map<String, dynamic>?) ?? const {}),
-      );
+    orderId: j['orderId'] as String,
+    orderNumber: j['orderNumber'] as String? ?? '',
+    status: j['status'] as String? ?? '',
+    paymentStatus: j['paymentStatus'] as String? ?? '',
+    paymentMethod: j['paymentMethod'] as String? ?? '',
+    changeDue: (j['changeDue'] as num?) ?? 0,
+    qrContent: j['qrContent'] as String?,
+    breakdown: CheckoutBreakdown.fromJson(
+      (j['breakdown'] as Map<String, dynamic>?) ?? const {},
+    ),
+  );
 }
 
 class VoucherLite {
@@ -606,12 +660,12 @@ class VoucherLite {
   });
 
   factory VoucherLite.fromJson(Map<String, dynamic> json) => VoucherLite(
-        id: json["id"] as String,
-        code: json["code"] as String,
-        description: json["description"] as String?,
-        discountType: json["discountType"] as String,
-        discountValue: json["discountValue"] as num,
-      );
+    id: json["id"] as String,
+    code: json["code"] as String,
+    description: json["description"] as String?,
+    discountType: json["discountType"] as String,
+    discountValue: json["discountValue"] as num,
+  );
 }
 
 /// Mirrors com.khoga.catalog.dto.ToppingResponse
@@ -629,12 +683,13 @@ class Topping {
   });
 
   factory Topping.fromJson(Map<String, dynamic> j) => Topping(
-        id: j['id'] as String,
-        name: j['name'] as String,
-        price: (j['price'] as num?) ?? 0,
-        active: j['active'] as bool? ?? true,
-      );
+    id: j['id'] as String,
+    name: j['name'] as String,
+    price: (j['price'] as num?) ?? 0,
+    active: j['active'] as bool? ?? true,
+  );
 }
+
 class AttendanceReportRow {
   final String userId;
   final String employeeName;
@@ -683,4 +738,3 @@ class AttendanceReportRow {
         workedMinutes: (j['workedMinutes'] as num?)?.toInt() ?? 0,
       );
 }
-

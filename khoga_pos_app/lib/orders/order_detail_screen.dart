@@ -395,6 +395,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         text = 'Đang pha chế';
         break;
       case 'READY':
+        bg = const Color(0xFFFFF9C4);
+        fg = const Color(0xFFB78103);
+        text = 'Chờ lấy hàng';
+        break;
       case 'COMPLETED':
         bg = const Color(0xFFE8F5E9);
         fg = const Color(0xFF2E7D32);

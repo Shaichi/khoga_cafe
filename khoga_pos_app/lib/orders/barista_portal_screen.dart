@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -24,6 +26,8 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
   late final OrderApi _api;
   List<OrderDetail> _orders = const [];
   bool _loading = true;
+  bool _refreshing = false;
+  Timer? _refreshTimer;
   String? _busyId;
   String? _error;
 
@@ -36,19 +40,28 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
     ]);
     _api = OrderApi(context.read<ApiClient>());
     _load();
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 3),
+      (_) => unawaited(_load(silent: true)),
+    );
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     super.dispose();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _load({bool silent = false}) async {
+    if (_refreshing) return;
+    _refreshing = true;
+    if (!silent && mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final summaries = await _api.queue();
       final details = <OrderDetail>[];
@@ -59,13 +72,16 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
       }
       if (mounted) setState(() => _orders = details);
     } catch (e) {
-      if (mounted) {
+      if (mounted && !silent) {
         setState(
-          () => _error = e is ApiException ? e.message : 'Không tải được hàng đợi',
+          () => _error = e is ApiException
+              ? e.message
+              : 'Không tải được hàng đợi',
         );
       }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      _refreshing = false;
+      if (mounted && !silent) setState(() => _loading = false);
     }
   }
 
@@ -74,6 +90,20 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
     try {
       final res = await _api.updateStatus(o.id, target);
       if (!mounted) return;
+      setState(() {
+        if (res.status == 'COMPLETED' ||
+            res.status == 'CANCELLED' ||
+            res.status == 'ABANDONED') {
+          _orders = _orders.where((order) => order.id != o.id).toList();
+        } else {
+          _orders = _orders
+              .map(
+                (order) =>
+                    order.id == o.id ? order.withStatus(res.status) : order,
+              )
+              .toList();
+        }
+      });
       if (res.stockWarnings.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -91,8 +121,6 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
           builder: (_) => PrintStickerDialog(order: o),
         );
       }
-
-      await _load();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -110,6 +138,7 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
     final storeName = auth.profile?.storeName ?? 'Nguyễn Du';
+    final compactHeader = MediaQuery.sizeOf(context).width < 1000;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFDFAF7),
@@ -117,36 +146,38 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
         backgroundColor: const Color(0xFF3D2314),
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
-          'Quầy Pha Chế (Barista Monitor)',
-          style: TextStyle(
+        title: Text(
+          compactHeader ? 'Quầy Pha Chế' : 'Quầy Pha Chế (Barista Monitor)',
+          style: const TextStyle(
             fontFamily: 'Segoe UI',
             fontWeight: FontWeight.bold,
             fontSize: 18,
           ),
         ),
         actions: [
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Chi nhánh: $storeName | Quầy: BAR-01',
-                style: const TextStyle(
-                  fontFamily: 'Segoe UI',
-                  color: Color(0xFFEADDD3),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+          if (!compactHeader)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'Chi nhánh: $storeName | Quầy: BAR-01',
+                  style: const TextStyle(
+                    fontFamily: 'Segoe UI',
+                    color: Color(0xFFEADDD3),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ),
-          ),
-          TextButton(
+          IconButton(
+            tooltip: 'Tài khoản',
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const ProfileScreen()),
             ),
-            child: const Text(
-              'Tài khoản',
-              style: TextStyle(color: Color(0xFFEADDD3)),
+            icon: const Icon(
+              Icons.account_circle_outlined,
+              color: Color(0xFFEADDD3),
             ),
           ),
           IconButton(
@@ -155,15 +186,13 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
             icon: const Icon(Icons.refresh, color: Color(0xFFEADDD3)),
             onPressed: _load,
           ),
-          TextButton(
+          IconButton(
             key: const Key('portal-logout'),
+            tooltip: 'Đăng xuất',
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const LogoutScreen()),
             ),
-            child: const Text(
-              'Đăng xuất',
-              style: TextStyle(color: Colors.white),
-            ),
+            icon: const Icon(Icons.logout, color: Colors.white),
           ),
           const SizedBox(width: 8),
         ],
@@ -205,10 +234,16 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
 
     final pendingOrders = _orders.where((o) => o.status == 'PENDING').toList();
     final preparingOrders = _orders
-        .where((o) => o.status == 'PREPARING' || o.status == 'HOLD')
+        .where(
+          (o) =>
+              o.status == 'PREPARING' ||
+              o.status == 'HOLD' ||
+              o.status == 'READY',
+        )
         .toList();
 
     return Row(
+      key: const Key('portal-grid'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
@@ -289,6 +324,7 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
     final busy = _busyId == o.id;
     final isPending = o.status == 'PENDING';
     final isHold = o.status == 'HOLD';
+    final isReady = o.status == 'READY';
 
     final rawNum = o.orderNumber ?? '';
     final formattedNum = rawNum.length >= 3
@@ -362,12 +398,16 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFFF3E0),
                           borderRadius: BorderRadius.circular(4),
                           border: Border.all(
-                            color: const Color(0xFFE65100).withValues(alpha: 0.2),
+                            color: const Color(
+                              0xFFE65100,
+                            ).withValues(alpha: 0.2),
                           ),
                         ),
                         child: const Text(
@@ -413,8 +453,9 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
                       .map((t) => t.name ?? '')
                       .where((n) => n.isNotEmpty)
                       .join(', ');
-                  final detailsText =
-                      toppingsText.isNotEmpty ? '- $toppingsText' : '';
+                  final detailsText = toppingsText.isNotEmpty
+                      ? '- $toppingsText'
+                      : '';
 
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 6),
@@ -456,13 +497,17 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
               children: [
                 if (isPending)
                   ElevatedButton(
+                    key: Key('portal-advance-${o.id}-PREPARING'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF3D2314),
                       foregroundColor: Colors.white,
                       elevation: 0,
                       minimumSize: const Size(0, 28),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(6),
                       ),
@@ -473,7 +518,9 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
                             height: 14,
                             width: 14,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
                         : const Text(
                             'BẮT ĐẦU PHA CHẾ',
@@ -492,7 +539,10 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
                       elevation: 0,
                       minimumSize: const Size(0, 28),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(6),
                       ),
@@ -503,7 +553,9 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
                             height: 14,
                             width: 14,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
                         : const Text(
                             'TIẾP TỤC PHA',
@@ -514,6 +566,33 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
                             ),
                           ),
                   )
+                else if (isReady)
+                  ElevatedButton(
+                    key: Key('portal-advance-${o.id}-COMPLETED'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2E7D32),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      minimumSize: const Size(0, 28),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    onPressed: busy ? null : () => _advance(o, 'COMPLETED'),
+                    child: const Text(
+                      'ĐÃ GIAO KHÁCH',
+                      style: TextStyle(
+                        fontFamily: 'Arial',
+                        fontSize: 10.9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  )
                 else ...[
                   OutlinedButton(
                     style: OutlinedButton.styleFrom(
@@ -521,7 +600,10 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
                       side: const BorderSide(color: Color(0x4DCF6679)),
                       minimumSize: const Size(0, 28),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(6),
                       ),
@@ -538,24 +620,30 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
+                    key: Key('portal-advance-${o.id}-COMPLETED'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2E7D32),
                       foregroundColor: Colors.white,
                       elevation: 0,
                       minimumSize: const Size(0, 28),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(6),
                       ),
                     ),
-                    onPressed: busy ? null : () => _advance(o, 'READY'),
+                    onPressed: busy ? null : () => _advance(o, 'COMPLETED'),
                     child: busy
                         ? const SizedBox(
                             height: 14,
                             width: 14,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
                         : const Text(
                             'HOÀN THÀNH',
@@ -566,7 +654,7 @@ class _BaristaPortalScreenState extends State<BaristaPortalScreen> {
                             ),
                           ),
                   ),
-                ]
+                ],
               ],
             ),
           ],

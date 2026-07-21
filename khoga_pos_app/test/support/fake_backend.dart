@@ -87,7 +87,9 @@ MockClient authBackend({
   bool mustChangePassword = false,
   bool loginFails = false,
   bool hasOpenShift = false,
+  String orderDetailStatus = 'COMPLETED',
 }) {
+  var currentOrderDetailStatus = orderDetailStatus;
   final p = profile ??
       <String, dynamic>{
         'id': 'u1',
@@ -180,6 +182,7 @@ MockClient authBackend({
     if (statusMatch != null && req.method == 'POST') {
       final body = jsonDecode(req.body) as Map<String, dynamic>;
       final status = body['status'] as String? ?? '';
+      currentOrderDetailStatus = status;
       return apiOk({
         'id': statusMatch.group(1),
         'orderNumber': 'ORD-101',
@@ -196,7 +199,7 @@ MockClient authBackend({
         'id': id,
         'orderNumber': 'ORD-001',
         'storeId': 's1',
-        'status': 'COMPLETED',
+        'status': currentOrderDetailStatus,
         'paymentStatus': 'PAID',
         'paymentMethod': 'CASH',
         'orderType': 'TAKEAWAY',

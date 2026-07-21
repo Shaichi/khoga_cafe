@@ -67,97 +67,162 @@ class _OpenShiftScreenState extends State<OpenShiftScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 360),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text('Khoga Café',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: kBrown)),
-                  const SizedBox(height: 4),
-                  const Text('Cổng POS Thu Ngân',
-                      textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: kMuted)),
-                  const SizedBox(height: 32),
-                  if (_error != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFDECEB),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFF3C9C6)),
-                      ),
-                      child: Text(_error!, style: const TextStyle(color: kDanger, fontSize: 14)),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  const _Label('Chọn máy POS *'),
-                  DropdownButtonFormField<String>(
-                    key: const Key('register'),
-                    value: _selectedRegister,
-                    hint: const Text('Chọn máy POS'),
-                    items: _registers.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
-                    onChanged: (val) => setState(() => _selectedRegister = val),
-                  ),
-                  const SizedBox(height: 16),
-                  const _Label('Tiền mặt đầu ca (VND) *'),
-                  TextField(
-                    key: const Key('starting-cash'),
-                    controller: _cash,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  ),
-                  const SizedBox(height: 28),
-                  ElevatedButton(
-                    key: const Key('open-shift-button'),
-                    onPressed: _submitting ? null : () async {
-                      if (_selectedRegister == null || _selectedRegister!.isEmpty) {
-                        setState(() => _error = 'Vui lòng chọn máy POS');
-                        return;
-                      }
-                      final cash = num.tryParse(_cash.text.trim());
-                      if (cash == null || cash < 0) {
-                        setState(() => _error = 'Tiền đầu ca không hợp lệ');
-                        return;
-                      }
-                      
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('Xác nhận mở ca'),
-                          content: Text('Mở ca làm việc tại máy ${_selectedRegister} với tiền đầu ca ${formatVnd(cash)} VND?'),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('HỦY')),
-                            ElevatedButton(
-                              onPressed: () => Navigator.pop(ctx, true),
-                              child: const Text('ĐỒNG Ý'),
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 327),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: 134),
+                        const Text(
+                          'Khoga Café',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: 'Segoe UI',
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF2C1A11),
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        const Text(
+                          'Cổng POS Thu Ngân',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: 'Segoe UI',
+                            fontSize: 12,
+                            color: kMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 53),
+                        if (_error != null) ...[
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFDECEB),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: const Color(0xFFF3C9C6),
+                              ),
                             ),
+                            child: Text(
+                              _error!,
+                              style: const TextStyle(
+                                color: kDanger,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        const _Label('Chọn máy POS *'),
+                        DropdownButtonFormField<String>(
+                          key: const Key('register'),
+                          initialValue: _selectedRegister,
+                          hint: const Text('Chọn máy POS'),
+                          items: _registers
+                              .map(
+                                (r) =>
+                                    DropdownMenuItem(value: r, child: Text(r)),
+                              )
+                              .toList(),
+                          onChanged: (val) =>
+                              setState(() => _selectedRegister = val),
+                        ),
+                        const SizedBox(height: 20),
+                        const _Label('Tiền mặt đầu ca (VND) *'),
+                        TextField(
+                          key: const Key('starting-cash'),
+                          controller: _cash,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
                           ],
                         ),
-                      );
-                      if (confirm == true) _submit();
-                    },
-                    child: _submitting
-                        ? const SizedBox(
-                            height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Text('BẮT ĐẦU CA LÀM'),
+                        const Spacer(),
+                        ElevatedButton(
+                          key: const Key('open-shift-button'),
+                          onPressed: _submitting
+                              ? null
+                              : () async {
+                                  if (_selectedRegister == null ||
+                                      _selectedRegister!.isEmpty) {
+                                    setState(
+                                      () => _error = 'Vui lòng chọn máy POS',
+                                    );
+                                    return;
+                                  }
+                                  final cash = num.tryParse(_cash.text.trim());
+                                  if (cash == null || cash < 0) {
+                                    setState(
+                                      () => _error = 'Tiền đầu ca không hợp lệ',
+                                    );
+                                    return;
+                                  }
+
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      title: const Text('Xác nhận mở ca'),
+                                      content: Text(
+                                        'Mở ca làm việc tại máy $_selectedRegister với tiền đầu ca ${formatVnd(cash)} VND?',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(ctx, false),
+                                          child: const Text('HỦY'),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: () =>
+                                              Navigator.pop(ctx, true),
+                                          child: const Text('ĐỒNG Ý'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirm == true) _submit();
+                                },
+                          child: _submitting
+                              ? const SizedBox(
+                                  height: 22,
+                                  width: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text('BẮT ĐẦU CA LÀM'),
+                        ),
+                        const SizedBox(height: 7),
+                        TextButton(
+                          onPressed: () async {
+                            final confirm = await showLogoutDialog(context);
+                            if (confirm == true && context.mounted) {
+                              context.read<AuthController>().logout();
+                            }
+                          },
+                          child: const Text(
+                            'Đăng xuất tài khoản',
+                            style: TextStyle(
+                              color: kGold,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 22),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: () async {
-                      final confirm = await showLogoutDialog(context);
-                      if (confirm == true && context.mounted) {
-                        context.read<AuthController>().logout();
-                      }
-                    },
-                    child: const Text('Đăng xuất tài khoản', style: TextStyle(color: kGold, fontWeight: FontWeight.bold)),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -172,7 +237,14 @@ class _Label extends StatelessWidget {
   const _Label(this.text);
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: kBrown)),
-      );
+    padding: const EdgeInsets.only(bottom: 7),
+    child: Text(
+      text,
+      style: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.bold,
+        color: kBrown,
+      ),
+    ),
+  );
 }

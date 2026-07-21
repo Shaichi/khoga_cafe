@@ -29,6 +29,8 @@ class _BaristaQueueScreenState extends State<BaristaQueueScreen> {
   late final OrderApi _api;
   List<OrderSummary> _orders = const [];
   bool _loading = true;
+  bool _refreshing = false;
+  Timer? _refreshTimer;
   String? _busyId;
   String? _error;
 
@@ -36,34 +38,50 @@ class _BaristaQueueScreenState extends State<BaristaQueueScreen> {
   void initState() {
     super.initState();
     if (widget.isStandalone) {
-      SystemChrome.setPreferredOrientations(
-        const [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight],
-      );
+      SystemChrome.setPreferredOrientations(const [
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
     }
     _api = OrderApi(context.read<ApiClient>());
     _load();
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 3),
+      (_) => unawaited(_load(silent: true)),
+    );
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     if (widget.isStandalone) {
       SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     }
     super.dispose();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _load({bool silent = false}) async {
+    if (_refreshing) return;
+    _refreshing = true;
+    if (!silent && mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final list = await _api.queue();
       if (mounted) setState(() => _orders = list);
     } catch (e) {
-      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Không tải được hàng đợi');
+      if (mounted && !silent)
+        setState(
+          () => _error = e is ApiException
+              ? e.message
+              : 'Không tải được hàng đợi',
+        );
     } finally {
-      if (mounted) setState(() => _loading = false);
+      _refreshing = false;
+      if (mounted && !silent) setState(() => _loading = false);
     }
   }
 
@@ -72,16 +90,34 @@ class _BaristaQueueScreenState extends State<BaristaQueueScreen> {
     try {
       final res = await _api.updateStatus(o.id, target);
       if (!mounted) return;
+      setState(() {
+        if (res.status == 'COMPLETED' ||
+            res.status == 'CANCELLED' ||
+            res.status == 'ABANDONED') {
+          _orders = _orders.where((order) => order.id != o.id).toList();
+        } else {
+          _orders = _orders
+              .map(
+                (order) =>
+                    order.id == o.id ? order.withStatus(res.status) : order,
+              )
+              .toList();
+        }
+      });
       if (res.stockWarnings.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(backgroundColor: kDanger, content: Text(res.stockWarnings.join('\n'))),
+          SnackBar(
+            backgroundColor: kDanger,
+            content: Text(res.stockWarnings.join('\n')),
+          ),
         );
       }
-      await _load();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e is ApiException ? e.message : 'Cập nhật thất bại')),
+          SnackBar(
+            content: Text(e is ApiException ? e.message : 'Cập nhật thất bại'),
+          ),
         );
       }
     } finally {
@@ -131,10 +167,17 @@ class _BaristaQueueScreenState extends State<BaristaQueueScreen> {
 
   Widget _body() {
     if (_loading) return const Center(child: Text('Đang tải…'));
-    if (_error != null) return Center(child: Text(_error!, style: const TextStyle(color: kDanger)));
+    if (_error != null)
+      return Center(
+        child: Text(_error!, style: const TextStyle(color: kDanger)),
+      );
     if (_orders.isEmpty) {
       return const Center(
-        child: Text('Không có đơn đang chờ', key: Key('portal-empty'), style: TextStyle(color: kMuted, fontSize: 16)),
+        child: Text(
+          'Không có đơn đang chờ',
+          key: Key('portal-empty'),
+          style: TextStyle(color: kMuted, fontSize: 16),
+        ),
       );
     }
     return GridView.builder(
@@ -164,18 +207,26 @@ class _BaristaQueueScreenState extends State<BaristaQueueScreen> {
             Row(
               children: [
                 Expanded(
-                  child: Text(o.orderNumber,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: kBrown)),
+                  child: Text(
+                    o.orderNumber,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: kBrown,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 8),
                 StatusChip(o.status),
               ],
             ),
             const SizedBox(height: 6),
-            Text('${o.itemCount} món · ${orderTypeLabel(o.orderType)}'
-                '${o.customerName != null ? ' · ${o.customerName}' : ''}',
-                style: const TextStyle(color: kMuted, fontSize: 13)),
+            Text(
+              '${o.itemCount} món · ${orderTypeLabel(o.orderType)}'
+              '${o.customerName != null ? ' · ${o.customerName}' : ''}',
+              style: const TextStyle(color: kMuted, fontSize: 13),
+            ),
             const SizedBox(height: 12),
             if (next.isNotEmpty)
               SizedBox(
@@ -187,11 +238,19 @@ class _BaristaQueueScreenState extends State<BaristaQueueScreen> {
                     for (final n in next)
                       ElevatedButton(
                         key: Key('portal-advance-${o.id}-${n.$1}'),
-                        style: n.$1 == 'HOLD' ? ElevatedButton.styleFrom(backgroundColor: kGold) : null,
+                        style: n.$1 == 'HOLD'
+                            ? ElevatedButton.styleFrom(backgroundColor: kGold)
+                            : null,
                         onPressed: busy ? null : () => _advance(o, n.$1),
                         child: busy
                             ? const SizedBox(
-                                height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
                             : Text(n.$2.toUpperCase()),
                       ),
                   ],
